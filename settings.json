@@ -1,0 +1,382 @@
+{
+	"version": "0.6",
+	"drive": "/media/pi/ssd/",
+	"insert_commercials": true,
+	"commercials_per_break": "auto",
+	"time_test": null,
+	"report_data": true,
+	"channel_file": null,
+	"player_settings": ["--no-osd", "--blank"],
+
+	"times": [{
+			"name": ["movies"],
+			"dayOfWeek": ["all"],
+			"start": [0, 0],
+			"end": [23, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["cartoons"],
+			"dayOfWeek": ["all"],
+			"start": [4, 0],
+			"end": [10, 59],
+			"type": "show",
+			"channel": null
+		},
+		{
+			"name": ["reruns"],
+			"dayOfWeek": ["all"],
+			"start": [11, 0],
+			"end": [13, 59],
+			"type": "show",
+			"channel": null
+		},
+		{
+			"name": ["cartoons"],
+			"dayOfWeek": ["all"],
+			"start": [14, 0],
+			"end": [16, 59],
+			"type": "show",
+			"channel": null
+		},
+		{
+			"name": ["reruns"],
+			"dayOfWeek": ["all"],
+			"start": [17, 0],
+			"end": [19, 59],
+			"type": "show",
+			"channel": null
+		},
+		{
+			"name": ["primetime/%day_of_week%"],
+			"dayOfWeek": ["all"],
+			"start": [20, 0],
+			"end": [22, 59],
+			"type": "show",
+			"channel": null
+		},
+		{
+			"name": ["latenight"],
+			"dayOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "sunday"],
+			"start": [23, 0],
+			"end": [23, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["latenight/snl"],
+			"dayOfWeek": ["saturday"],
+			"start": [23, 0],
+			"end": [23, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["cartoons"],
+			"dayOfWeek": ["saturday"],
+			"start": [4, 0],
+			"end": [1, 59],
+			"type": "show",
+			"channel": null
+		},
+		{
+			"name": ["specials/sunday_morning"],
+			"dayOfWeek": ["sunday"],
+			"start": [6, 0],
+			"end": [7, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["specials/baseball"],
+			"dayOfWeek": ["saturday"],
+			"start": [14, 0],
+			"end": [14, 59],
+			"month": [4, 5, 6, 7, 8, 9],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["specials/football"],
+			"dayOfWeek": ["sunday"],
+			"start": [14, 0],
+			"end": [14, 59],
+			"month": [9, 10, 11, 12, 1, 2],
+			"type": "video",
+			"channel": null
+		},
+
+		{
+			"name": ["specials/valentines"],
+			"dayOfWeek": null,
+			"start": [20, 0],
+			"end": [21, 59],
+			"month": [2],
+			"date": [14],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["specials/4th of july"],
+			"dayOfWeek": null,
+			"start": [20, 0],
+			"end": [21, 59],
+			"month": [7],
+			"date": [4],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["specials/halloween"],
+			"dayOfWeek": null,
+			"start": [8, 0],
+			"end": [23, 59],
+			"month": [10],
+			"date": [31],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["specials/halloween"],
+			"dayOfWeek": null,
+			"start": [0, 0],
+			"end": [23, 59],
+			"month": [10],
+			"type": "video",
+			"chance": ".10"
+		},
+		{
+			"name": ["specials/easter"],
+			"dayOfWeek": null,
+			"start": [0, 0],
+			"end": [23, 59],
+			"month": null,
+			"date": null,
+			"type": "video",
+			"special": "easter",
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/cartoons"],
+			"dayOfWeek": null,
+			"start": [4, 0],
+			"end": [11, 59],
+			"month": [11],
+			"date": null,
+			"chance": ".15",
+			"type": "video",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/shows"],
+			"dayOfWeek": null,
+			"start": [12, 0],
+			"end": [14, 59],
+			"month": [11],
+			"date": null,
+			"chance": ".15",
+			"type": "video",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/cartoons"],
+			"dayOfWeek": null,
+			"start": [15, 0],
+			"end": [17, 59],
+			"month": [11],
+			"date": null,
+			"chance": ".15",
+			"type": "video",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/shows"],
+			"dayOfWeek": null,
+			"start": [18, 0],
+			"end": [19, 59],
+			"month": [11],
+			"date": null,
+			"chance": ".15",
+			"type": "video",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/shows","specials/thanksgiving/cartoons","specials/thanksgiving/cprime"],
+			"dayOfWeek": null,
+			"start": [0, 0],
+			"end": [23, 59],
+			"month": null,
+			"date": null,
+			"type": "video",
+			"special": "thanksgiving",
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/parades"],
+			"dayOfWeek": null,
+			"start": [8, 0],
+			"end": [9, 59],
+			"month": null,
+			"date": null,
+			"type": "video",
+			"special": "thanksgiving",
+			"channel": null
+		},
+		{
+			"name": ["specials/thanksgiving/football"],
+			"dayOfWeek": null,
+			"start": [10, 0],
+			"end": [11, 59],
+			"month": null,
+			"date": null,
+			"type": "video",
+			"special": "thanksgiving",
+			"channel": null
+		},
+		{
+			"name": ["specials/xmas"],
+			"dayOfWeek": null,
+			"start": [0, 0],
+			"end": [23, 59],
+			"month": null,
+			"date": null,
+			"type": "video",
+			"special": "xmas",
+			"channel": null
+		},
+		{
+			"name": ["commercials/common","commercials/local","commercials/movie_trailers","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["commercials/thanksgiving","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"month": [11],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["commercials/xmas","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"month": null,
+			"date": null,
+			"type": "commercial",
+			"special": "xmas",
+			"channel": null
+		},
+		{
+			"name": ["commercials/common","commercials/local","commercials/movie_trailers","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["commercials/thanksgiving","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"month": [11],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["commercials/xmas","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"month": null,
+			"date": null,
+			"type": "commercial",
+			"special": "xmas",
+			"channel": null
+		},
+		{
+			"name": ["commercials/common","commercials/local","commercials/movie_trailers","commercials/%month%"],
+			"dayOfWeek": null,
+			"start": [3, 0],
+			"end": [3, 59],
+			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		}
+	],
+
+
+	"commercial_times": [{
+			"name": ["commercials/%month%"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+		},
+		{
+			"name": ["commercials/january", "commercials/february", "commercials/march", "commercials/april", "commercials/may", "commercials/june",
+				"commercials/july", "commercials/august", "commercials/september", "commercials/october", "commercials/november"
+			],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+			"chance": ".25"
+		},
+		{
+			"name": ["commercials/common"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+			"chance": ".05"
+		},
+		{
+			"name": ["commercials/movie_trailers"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+			"chance": ".05"
+		},
+		{
+			"name": ["commercials/local"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+			"chance": ".05"
+		},
+		{
+			"name": ["commercials/halloween"],
+			"month": [10],
+			"chance": "(day / 31.0) + .20"
+		},
+		{
+			"name": ["commercials/thanksgiving"],
+			"month": [11],
+			"chance": "(day / 30.0) + .20"
+		},
+		{
+			"name": ["commercials/thanksgiving", "commercials/xmas"],
+			"special": "thanksgiving"
+		},
+		{
+			"name": ["commercials/december"],
+			"special": "xmas"
+		},
+		{
+			"name": ["commercials/xmas"],
+			"special": "xmas",
+			"chance": "(((day / 31.0) * .25) * (month - 11)) + .75"
+		}
+	]
+}
