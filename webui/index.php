@@ -110,7 +110,7 @@ ob_implicit_flush(true);ob_end_flush();
 		$cmd = "pip install -U yt-dlp";
 	} else {
 		#$cmd = "youtube-dl --newline -o \"" . $drive_loc . addslashes($_GET["dir"]) . "/%(title)s.%(ext)s\" ".$_GET["youtubedl"];
-		$cmd = "yt-dlp --newline -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/mp4' -o \"" . $drive_loc . addslashes($_GET["dir"]) . "/%(title)s.%(ext)s\" ".$_GET["youtubedl"];
+		$cmd = "yt-dlp --newline -f 'bestvideo+bestaudio' --merge-output-format mkv -o \"" . $drive_loc . addslashes($_GET["dir"]) . "/%(title)s.%(ext)s\" ".$_GET["youtubedl"];
 	}
 
 $descriptorspec = array(
@@ -149,6 +149,36 @@ scrollingElement.scrollTop = scrollingElement.scrollHeight;
 	var_dump($return_var);
 	*/
 	die("DONE!\n\n");
+}
+
+$mysqli = new mysqli("localhost", "pi", "raspberry", "shows");
+
+if(isset($_GET["flag_video"])) {
+	if(is_numeric($_GET["flag_video"])) {
+		$res = $mysqli->query("UPDATE played SET flag=1 WHERE id=".$_GET["flag_video"]) or die($mysqli->error);
+		die("video" . $_GET["flag_video"]."|1");
+	}
+}
+
+if(isset($_GET["unflag_video"])) {
+	if(is_numeric($_GET["unflag_video"])) {
+		$res = $mysqli->query("UPDATE played SET flag=0 WHERE id=".$_GET["unflag_video"]) or die($mysqli->error);
+		die("video" . $_GET["unflag_video"]."|0");
+	}
+}
+
+if(isset($_GET["flag_comm"])) {
+	if(is_numeric($_GET["flag_comm"])) {
+		$res = $mysqli->query("UPDATE commercials SET flag=1 WHERE id=".$_GET["flag_comm"]) or die($mysqli->error);
+		die("comm" . $_GET["flag_comm"]."|1");
+	}
+}
+
+if(isset($_GET["unflag_comm"])) {
+	if(is_numeric($_GET["unflag_comm"])) {
+		$res = $mysqli->query("UPDATE commercials SET flag=0 WHERE id=".$_GET["unflag_comm"]) or die($mysqli->error);
+		die("comm" . $_GET["unflag_comm"]."|0");
+	}
 }
 
 #user wants to play a certain video
@@ -199,7 +229,6 @@ if(isset($_GET["delete"])) {
 	die("video deleted");
 }
 
-$mysqli = new mysqli("localhost", "pi", "raspberry", "shows");
 
 function getShowNames($url, $force) {
 	$murl = md5($url) . ".cache";
@@ -225,6 +254,18 @@ if(isset($_GET["clear_cache"])) {
 	die(getShowNames('https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/export?format=csv&id=1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk&gid=0', true));
 }
 
+if(isset($_GET["trim_commercials"])) {
+	$res = $mysqli->query("DELETE FROM commercials WHERE played<=" . (time()-864000) . " ORDER BY id DESC") or die($mysqli->error);
+	header("location: /\n\n");
+	die();
+}
+
+if(isset($_GET["trim_errors"])) {
+	$res = $mysqli->query("DELETE FROM errors WHERE played<=" . (time()-864000) . " ORDER BY id DESC") or die($mysqli->error);
+	header("location: /\n\n");
+	die();
+}
+
 function getTvShowName($filename) {
 	global $acsv;
 	$afilename = strtolower(preg_replace("~[_\W\s]~", '', basename($filename)));
@@ -236,10 +277,6 @@ function getTvShowName($filename) {
 	}
 	return $filename;
 }
-
-
-
-
 
 function parseCSV($csv) {
     $csv = array_map('str_getcsv', explode("\r\n", $csv));
@@ -474,7 +511,18 @@ $td = date("w", time());
 	$f = fopen("/sys/class/thermal/thermal_zone0/temp","r");
 	$int_temp = fgets($f);
 	fclose($f);
-	
+
+function getUptime() {
+	global $mysqli;
+	$res = $mysqli->query("SELECT name FROM errors WHERE name LIKE '%UPTIME%' ORDER BY id DESC LIMIT 1") or die($mysqli->error);
+	$row = $res->fetch_assoc();
+	if($row) {
+		return gmdate("H:i:s", (int)explode("|", $row["name"])[1]);
+	} else {
+		return "00:00:00";
+	}
+}
+
 
 echo '
 <html>
@@ -516,6 +564,42 @@ window.onload = function() {
 		openCity(window.location.hash.substr(1));
 	}
 }
+
+function trimCommercials() {
+	if(prompt("This will permanently delete all commercial data older than 10 days ago. Are you sure?")) {
+	
+	}
+}
+
+function ajax(url) {
+	var xhr = new XMLHttpRequest();
+	xhr.open("GET", url, true);
+	// function execute after request is successful 
+	xhr.onreadystatechange = function () {
+		if (this.readyState == 4 && this.status == 200) {
+			alert(this.responseText);
+		}
+	}
+	// Sending our request 
+	xhr.send();
+}
+
+function flagVideo(id) {
+	ajax("/?flag_video="+id);
+}
+
+function flagCommercial(id) {
+	ajax("/?flag_comm="+id);
+}
+
+function unflagVideo(id) {
+	ajax("/?unflag_video="+id);
+}
+
+function unflagCommercial(id) {
+	ajax("/?unflag_comm="+id);
+}
+
 </script>
 <style type="text/css">
 /* Style the tab */
@@ -586,6 +670,7 @@ echo '
 	<button class="tablinks"><a href="/?date=' . urlencode(date('m/d/y', strtotime($the_date) - 86400)) . '">&lt;&lt;&lt;</a> | <a href="/">'.date("h:i A \o\\n ", time()) . $days[$td] . date(" m/d/Y", time()).'</a></button>
 	<button class="tablinks">Free Space: ' . floor( disk_free_space( $drive_loc ) / ( 1024 * 1024 * 1024 ) ) . 'GB</button>
 	<button class="tablinks">Load: ' . (sys_getloadavg()[0]*100) . '%</button>
+	<button class="tablinks">Uptime: ' . getUptime() . '</button>
 	<button class="tablinks">Temp: ' . (round((($int_temp/1000) * (9/5))) + 32) . '<sup>&deg;</sup></button>
 	<button class="tablinks" style="background-color:lightblue;"><a href="/?skip=now" style="color:white;">Skip >></a></button>
 </div>
@@ -602,7 +687,7 @@ echo '
 <div id="Shows" class="tabcontent" style="display:block;">
   <h3>' . $the_date . '\'s Shows</h3>
 <table border=1 cellspacing=1 callpadding=8 width="40%">
-<tr style="background:lightgray;"><td align=center>Time</td><td style="padding-left:20px;">Show Name</td><td align=center>Type</td></tr>
+<tr style="background:lightgray;"><td align=center>Time</td><td style="padding-left:20px;">Show Name</td><td align=center>Type</td><td>Flag</td></tr>
   ';
   
   
@@ -617,7 +702,15 @@ $res = $mysqli->query("SELECT * FROM played WHERE played>=" . strtotime($the_dat
 while ($row = $res->fetch_assoc()) {
 	if(!$row) break;
 	$showType = getShowType($row["short_name"], $parsedShows);
-	echo '<tr style="background:#'.$showTypeColors[$showType].';"><td align=center>' . date("h:i A", $row["played"]) . '</td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" title="'.strtolower(preg_replace("~[_\W\s]~", '', basename($row["name"]))).'">' . $row["short_name"] . '</a> </td><td align=center>'.$showType.'</td></tr>';
+
+	$a = strpos($row["name"], "%T(");
+	$b = strpos($row["name"], ")%", $a+1);
+	$len = "";
+	if($a>-1 && $b>-1) {
+		$len = gmdate("H:i:s", (int)substr($row["name"], $a + 3, $b-$a - 3));
+	}
+
+	echo '<tr style="background:#'.$showTypeColors[$showType].';"><td align=center>' . date("h:i A", $row["played"]) . '</td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" title="'.strtolower(preg_replace("~[_\W\s]~", '', basename($row["name"]))).'">' . $row["short_name"] . '</a> ' . $len . ' </td><td align=center>'.$showType.'</td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" onclick="flagVideo('.$row["id"].');">' : '<input type="button" value="unflag" onclick="unflagVideo('.$row["id"].');">') . '</td></tr>';
 	$shows_cnt++;
 }
 
@@ -631,7 +724,7 @@ echo '</table><br />
 <div id="Commercials" class="tabcontent">
   <h3>Commercials</h3>
 <table border=1 cellspacing=1 callpadding=8 width="25%">
-<tr style="background:lightgray;"><td align=center>Time</td><td align=center>Month</td><td style="padding-left:20px;">Commercial</td><td>Delete</td></tr>
+<tr style="background:lightgray;"><td align=center>Time</td><td align=center>Month</td><td style="padding-left:20px;">Commercial</td><td>Delete</td><td align="center">Flag</td></tr>
 ';
 
 $comms_cnt = 0;
@@ -648,7 +741,13 @@ while ($row = $res->fetch_assoc()) {
 	//if(date("w", $row["played"])!=$td) break;
 	$splits = explode('/', $row["name"]);
 	if(array_key_exists($splits[1], $comm_months)==false) { $comm_months[$splits[1]]=1; } else { $comm_months[$splits[1]]++; }
-	echo '<tr class="clr-'.$splits[1].'"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><a href="/commercials.php?folder=' . $splits[1] . '">' . $splits[1] . '</a></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '">' . $splits[2] . '</a></td><td><a href="/?delete=' . $row["name"] . '">[delete]</a></td></tr>';
+	$a = strpos($splits[2], "%T(");
+	$b = strpos($splits[2], ")%", $a+1);
+	$len = "";
+	if($a>-1 && $b>-1) {
+		$len = gmdate("H:i:s", (int)substr($splits[2], $a + 3, $b-$a - 3));
+	}
+	echo '<tr class="clr-'.$splits[1].'"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><a href="/commercials.php?folder=' . $splits[1] . '">' . $splits[1] . '</a></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '">' . $splits[2] . '</a> ' . $len . '</td><td><a href="/?delete=' . $row["name"] . '">[delete]</a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
 	$comms_cnt++;
 }
 
@@ -668,93 +767,28 @@ echo '
 
 <div id="Errors" class="tabcontent">
   <h3>Errors</h3>
-  <p>';
+  ';
 
-$res = $mysqli->query("SELECT * FROM errors ORDER BY id DESC LIMIT 10") or die($mysqli->error);
-
+$res = $mysqli->query("SELECT * FROM errors WHERE name NOT LIKE '%UPTIME%' ORDER BY id DESC LIMIT 50") or die($mysqli->error);
+$odate = "";
 while ($row = $res->fetch_assoc()) {
-	//if(date("w", $row["played"])!=$td) break;
-	echo '<li>' . $row["name"] . " at " . date("h:i A \o\\n w m/d/Y", $row["played"]) . '</li>';
+	$date = date("m/d/Y", $row["played"]);
+	$time = date("h:i A", $row["played"]);
+	if($odate != $date) {
+		echo "</ol><h2>$date</h2><ol>";
+		$odate = $date;
+	}
+	$rows = explode("|", $row["name"]);
+	echo "<li><div>$time: " . $rows[0] . '<br /><ul>';
+	for($i=1;$i<count($rows);$i++) {
+		echo '<li>' . $rows[$i] . "</li>\r\n";
+	}
+	echo '</ul></div></li>';
 }
 
 echo '
-</p>
+</ol>
 </div>
-';
-
-	$folder  = "undefined";
-	$folder2 = "undefined";
-	$d = date('N');
-	$h = date('H');
-	$month = date('n');
-	
-	$dayfolder = "";
-	
-	if($d==1) { #monday
-		$dayfolder .= "/monday/";
-	} elseif ($d==2) { #tuesday
-		$dayfolder .= "/tuesday/";
-	} elseif ($d==3) { #wedsnesday
-		$dayfolder .= "/wedsnesday/";
-	} elseif ($d==4) { #thursday
-		$dayfolder .= "/thursday/";
-	} elseif ($d==5) { #friday
-		$dayfolder .= "/friday/";
-	} elseif ($d==6) { #saturday
-		$dayfolder .= "/saturday/";
-	} elseif ($d==0) { #sunday
-		$dayfolder .= "/sunday/";
-	}
-
-	if ($d==5 && $h>=4 && $h<2) {
-		#saturday morning cartoon
-		$folder =  "cartoons";
-	} elseif ($h>=0 && $h<4) {
-		$folder =  "movies";
-	} elseif ($h>=4 && $h<10) {
-		$folder =  "cartoons";
-	} elseif ($h>=10 && $h<15) {
-		$folder =  "old_reruns";
-		$folder2 = "gameshows";
-	} elseif ($h>=15 && $h<17) {
-		$folder =  "cartoons";
-	} elseif ($h==17) {
-		#news at 5
-		$folder =  "news";
-	} elseif ($h>=18 && $h<20) {
-		$folder =  "new_reruns";
-	} elseif ($h>= 20 && $h<23) {
-		$folder =  "primetime" . $dayfolder;
-	} elseif ($h==23 && ($d>=1 && $d<=5)) {
-		#latenight monday through friday
-		$folder =  "latenight - $d";
-	} elseif ($h==23 && $d==6) {
-		#saturday night
-		$folder =  "latenight/snl";
-	} elseif ($h==23 && $d==7) {
-		#sunday night
-		$folder =  "latenight";
-	} else {
-		#just in case
-		$folder =  "cartoons";
-	}
-
-	if ($month==12) {
-		#christmas programming
-		$folder =  "xmas/" . $folder;
-		$folder2 = "";
-	}
-
-	if ($d==6 && $h>=4 && $h<10) {
-		#sunday morning
-		$folder =  "specials/sunday_morning";
-	}
-
-
-
-//var_dump($acsv);
-
-echo '
 <div id="Settings" class="tabcontent">
 <h3>Settings</h3>
 <p>
@@ -763,14 +797,61 @@ echo '
 echo '
 <ul>
 	<li><a href="/?clear_cache=now">Clear Show Names Cache</a></li>
+	<li><a href="/?trim_commercials=now" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data older than 10 days. Are you sure?\')">Trim Commercials Log</a></li>
+	<li><a href="/?trim_errors=now" style="color:red;" onclick="return confirm(\'This will permanently delete all error data older than 10 days. Are you sure?\')">Trim Errors Log</a></li>
+	<br />
 	<li><a href="https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/" target="_new">TV Schedule</a></li>
 	<li><a href="/?youtube_download=1">Youtube-DL Interface</a></li>
 	<li><a href="/phpmyadmin">phpMyAdmin</a></li>
 	<li><a href="/dir.php">Browse Videos</a></li>
+	<li><a href="/programming.php">Programming</a></li>
+	<li><a href="/videoeditor.php">Video Editor</a></li>
 	<br />
 	<li><a href="/?reboot=now" style="color:red;" onclick="return confirm(\'Are you sure?\')">Reboot</a></li>
+	<br />
+	<h3>Flagged Videos</h3>
+	<br />
+	<ul>
+';
+
+$flagged = false;
+
+$res = $mysqli->query("SELECT * FROM played WHERE flag!=0 ORDER BY id DESC") or die($mysqli->error);
+
+while ($row = $res->fetch_assoc()) {
+	if(!$row) break;
+	echo '<li>'.$row["name"].' | <input type="button" value="unflag" onclick="unflagVideo('.$row["id"].');"></li>';
+	$shows_cnt++;
+	$flagged = true;
+}
+
+if(!$flagged) echo 'Nothing to see here';
+
+echo '
+	</ul>
+	<h3>Flagged Commercials</h3>
+	<br />
+	<ul>
+';
+
+$flagged = false;
+
+$res = $mysqli->query("SELECT * FROM commercials WHERE flag!=0 ORDER BY id DESC") or die($mysqli->error);
+
+while ($row = $res->fetch_assoc()) {
+	if(!$row) break;
+	echo '<li>'.$row["name"].' | <input type="button" value="unflag" onclick="unflagCommercial('.$row["id"].');"></li>';
+	$shows_cnt++;
+	$flagged = true;
+}
+
+if(!$flagged) echo 'Nothing to see here';
+
+echo '
+	</ul>
 </ul>
 ';
+
 
 
 echo '
