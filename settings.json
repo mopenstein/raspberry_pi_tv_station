@@ -1,17 +1,32 @@
 {
-	"version": "0.8",
+	"version": "0.91",
 	"drive": ["/media/pi/ssd", "/media/pi/ssd_b"],
 	"insert_commercials": true,
 	"commercials_per_break": "auto",
 	"time_test": null,
 	"time_test_example": "Aug 02 2022 12:00PM",
 	"report_data": true,
-	"channels": [null, "Movies", "Cartoons", "Reruns", "90s", "70s"],
-	"channel_file": "/media/pi/ssd/.channel",
 	"player_settings": ["--no-osd", "--blank"],
 
+	"channels":	{
+				"error": "Movies",
+				"names": [null, "Movies", "Cartoons", "Reruns", "90s", "70s"],
+				"file": "/media/pi/ssd/.channel"
+			},
+
+	"web-ui": {
+			"show_type_colors": { "Reruns": "F8FFA2","Thanksiving": "D68B00", "Cartoons": "A2FFEF","Specials": "FFA2A2","Primetime": "dd8888","Gameshows": "88AAFF","Movies": "A2FFAC", "Christmas": "A2B9FF","sum_Monday": "D5A2FF","sum_Tuesday": "F5A2DF","sum_Wednesday": "A5F2DF","sum_Thursday": "D5F2AF","sum_Friday": "F5F2FF","sum_Saturday": "F5D2AF","sum_Sunday": "A5D2FF","win_Monday": "D5A2FF","win_Tuesday": "F5A2DF","win_Wednesday": "A5F2DF","win_Thursday": "D5F2AF","win_Friday": "F5F2FF","win_Saturday": "F5D2AF","win_Sunday": "A5D2FF","90s shows": "ffff00","90s cartoons": "00ff00", "70s shows": "ff0000", "70s cartoons": "ccccff", "none": "fff" },
+			"tv_schedule_link": "https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/",
+			"database_info": { "host": "localhost", "username": "pi", "password": "raspberry", "database_name": "shows" }
+		  },
+
+	"youtube-dl":	{
+				"command" : "yt-dlp",
+				"update_command": "pip install -U yt-dlp"
+			},
+
 	"times": [{
-			"name": ["%D[1]%/movies"],
+			"name": ["%D[2]%/movies"],
 			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [23, 59],
@@ -52,7 +67,7 @@
 		},
 		{
 			"name": ["%D[1]%/gameshows"],
-			"dayOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday"],
+			"dayOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
 			"start": [11, 0],
 			"end": [11, 59],
 			"type": "show",
@@ -96,16 +111,6 @@
 			"channel": null
 		},
 		{
-			"name": ["%D[2]%/channels/90s/primetime"],
-			"dayOfWeek": ["all"],
-			"start": [20, 0],
-			"end": [20, 29],
-			"type": "video",
-			"static": [true, 14340, "90s"],
-			"chance": "0.05",
-			"channel": null
-		},
-		{
 			"name": ["%D[1]%/latenight"],
 			"dayOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "sunday"],
 			"start": [23, 0],
@@ -146,7 +151,155 @@
 			"type": "video",
 			"channel": null
 		},
-
+		{
+			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
+			"date": null,
+			"type": "commercial",
+			"note": "shows commercials until the top of the haf hour. Helps keep a typical tv schedule",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%"],
+			"dayOfWeek": null,
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
+			"date": null,
+			"type": "commercial",
+			"note": "shows commercials until the top of the hour. Helps keep a typical tv schedule",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers","%D[2]%/commercials/%month%"],
+			"dayOfWeek": null,
+			"start": [4, 0],
+			"end": [4, 29],
+			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[2]%/specials/shorts","%D[2]%/commercials/common"],
+			"dayOfWeek": null,
+			"start": [3, 0],
+			"end": [3, 59],
+			"date": null,
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/90s/shows"],
+			"dayOfWeek": ["all"],
+			"date": [4,12,20,28],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": [17, 0],
+			"end": [23, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/90s/shows"],
+			"dayOfWeek": ["all"],
+			"date": [4,12,20,28],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": [0, 0],
+			"end": [4, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/90s/cartoons"],
+			"dayOfWeek": ["all"],
+			"date": [4,12,20,28],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": [5, 0],
+			"end": [16, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/90s/commercials"],
+			"dayOfWeek": null,
+			"date": [4,12,20,28],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/90s/commercials"],
+			"dayOfWeek": null,
+			"date": [4,12,20,28],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/70s/shows"],
+			"dayOfWeek": ["all"],
+			"date": [1,9,17,25],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": [17, 0],
+			"end": [23, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/70s/shows"],
+			"dayOfWeek": ["all"],
+			"date": [1,9,17,25],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": [0, 0],
+			"end": [4, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/70s/cartoons"],
+			"dayOfWeek": ["all"],
+			"date": [1,9,17,25],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": [5, 0],
+			"end": [16, 59],
+			"type": "video",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/70s/commercials"],
+			"dayOfWeek": null,
+			"date": [1,9,17,25],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/channels/70s/commercials"],
+			"dayOfWeek": null,
+			"date": [1,9,17,25],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
 		{
 			"name": ["%D[2]%/specials/valentines"],
 			"dayOfWeek": null,
@@ -170,7 +323,7 @@
 		{
 			"name": ["%D[2]%/specials/halloween"],
 			"dayOfWeek": null,
-			"start": [8, 0],
+			"start": [5, 0],
 			"end": [23, 59],
 			"month": [10],
 			"date": [31],
@@ -180,11 +333,11 @@
 		{
 			"name": ["%D[2]%/specials/halloween"],
 			"dayOfWeek": null,
-			"start": [0, 0],
-			"end": [23, 59],
+			"start": [5, 0],
+			"end": [22, 59],
 			"month": [10],
 			"type": "video",
-			"chance": ".10"
+			"chance": ".05"
 		},
 		{
 			"name": ["%D[2]%/specials/easter"],
@@ -290,17 +443,6 @@
 			"channel": null
 		},
 		{
-			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%"],
-			"dayOfWeek": null,
-			"start": ["*", 16],
-			"end": ["*", 29],
-			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
-			"date": null,
-			"type": "commercial",
-			"special": null,
-			"channel": null
-		},
-		{
 			"name": ["%D[2]%/commercials/thanksgiving", "%D[2]%/commercials/%month%"],
 			"dayOfWeek": null,
 			"start": ["*", 16],
@@ -320,17 +462,6 @@
 			"date": null,
 			"type": "commercial",
 			"special": "xmas",
-			"channel": null
-		},
-		{
-			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%"],
-			"dayOfWeek": null,
-			"start": ["*", 46],
-			"end": ["*", 59],
-			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
-			"date": null,
-			"type": "commercial",
-			"special": null,
 			"channel": null
 		},
 		{
@@ -356,28 +487,7 @@
 			"channel": null
 		},
 		{
-			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers","%D[2]%/commercials/%month%"],
-			"dayOfWeek": null,
-			"start": [4, 0],
-			"end": [4, 29],
-			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
-			"date": null,
-			"type": "commercial",
-			"special": null,
-			"channel": null
-		},
-		{
-			"name": ["%D[2]%/specials/shorts","%D[2]%/commercials/common"],
-			"dayOfWeek": null,
-			"start": [3, 0],
-			"end": [3, 59],
-			"date": null,
-			"type": "commercial",
-			"special": null,
-			"channel": null
-		},
-		{
-			"name": ["%D[1]%/movies"],
+			"name": ["%D[2]%/movies"],
 			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [23, 59],
@@ -405,6 +515,14 @@
 			"dayOfWeek": ["all"],
 			"start": [17, 0],
 			"end": [23, 59],
+			"type": "video",
+			"channel": "90s"
+		},
+		{
+			"name": ["%D[1]%/channels/90s/shows"],
+			"dayOfWeek": ["all"],
+			"start": [0, 0],
+			"end": [4, 59],
 			"type": "video",
 			"channel": "90s"
 		},
@@ -443,6 +561,14 @@
 			"dayOfWeek": ["all"],
 			"start": [17, 0],
 			"end": [23, 59],
+			"type": "video",
+			"channel": "70s"
+		},
+		{
+			"name": ["%D[1]%/channels/70s/shows"],
+			"dayOfWeek": ["all"],
+			"start": [0, 0],
+			"end": [4, 59],
 			"type": "video",
 			"channel": "70s"
 		},
@@ -504,6 +630,16 @@
 			"name": ["%D[2]%/commercials/local"],
 			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			"chance": ".05"
+		},
+		{
+			"name": ["%D[1]%/channels/90s/commercials"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"date": [4,12,20,28]
+		},
+		{
+			"name": ["%D[1]%/channels/70s/commercials"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+			"date": [1,9,17,25]
 		},
 		{
 			"name": ["%D[2]%/commercials/halloween"],
