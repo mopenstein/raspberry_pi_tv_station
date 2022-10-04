@@ -318,7 +318,7 @@ function formatProgramming($key, $arr) {
 
 echo '<h2>Video Programming</h2>
 <table cellpadding=6 cellspacing=2>
-<tr style="background-color:#eee;"><td></td><td style="width:33%;">Name</td><td style="width:15%;">Days of the Week</td><td>Start Time</td><td>End Time</td><td style="width:7%;">Months</td><td>Days of Month</td><td>Specials</td><td>Chance?</td><td style="width:50px;">Pos</td><td></td></tr>
+<tr style="background-color:#eee;"><td></td><td style="width:33%;">Name</td><td style="width:15%;">Days of the Week</td><td>Start Time</td><td>End Time</td><td style="width:7%;">Months</td><td>Days of Month</td><td>Specials</td><td>Channel</td><td>Chance?</td><td style="width:50px;">Pos</td><td></td></tr>
 ';
 for($i=0;$i<count($settings['times']);$i++) {
 	
@@ -347,13 +347,18 @@ for($i=0;$i<count($settings['times']);$i++) {
 	$check = formatProgramming('special', $settings['times'][$i]);
 	if($check!=Null) echo "<td>$check</td>"; else echo "<td>N/A</td>";
 	
+	$check = formatProgramming('channel', $settings['times'][$i]);
+	if($check!=Null) echo "<td>$check</td>"; else echo "<td>N/A</td>";
+	
 	$check = formatProgramming('chance', $settings['times'][$i]);
 	if($check!=Null) echo "<td>$check</td>"; else echo "<td>N/A</td>";
 	
 	echo '<td> ' . ($i>0?'<img src="images/up.png" style="width:18px;height:18px;" onclick="swapUp(this.parentNode.parentNode);" />' : '&nbsp;&nbsp;&nbsp;&nbsp;') . ' ' .($i<count($settings['times'])-1?'<img src="images/down.png" style="width:18px;height:18px;" onclick="swapDown(this.parentNode.parentNode);" />' : '') .' </td><td> <img src="images/delete.png" style="width:18px;height:18px;" /> </td>';
 	
 	echo '</tr>';
-
+	if($i % 10 == 1) {
+		echo '<tr style="background-color:#f9f9f9; color:#eee;"><td></td><td style="width:33%;">Name</td><td style="width:15%;">Days of the Week</td><td>Start Time</td><td>End Time</td><td style="width:7%;">Months</td><td>Days of Month</td><td>Specials</td><td>Channel</td><td>Chance?</td><td style="width:50px;">Pos</td><td></td></tr>';
+	}
 }
 
 echo '</table>';
