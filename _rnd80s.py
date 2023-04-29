@@ -1,15 +1,12 @@
 #!/usr/bin/python
 
-# version: 101.3
-# version date: 2022.07.30
-#	Settings has supported multiple disk drive locations for some time. It has been implemented fully.
-#	Settings updated to support static triggers for scheduling.
-#		setting the static flag will return that programing choice until the time ending has been passed. useful for having a random programming block be locked in for a set time.
-#	Better support for channels has been implemented.
-#		setting the static flag above can also return a channel name
-# settings version: 0.91
-#	web-ui front ends should use the settings.json file taking care not to clash with the settings used by the python player
-#	better error handling when things go wrong
+# version: 101.4
+# version date: 2022.11.15
+#	Shows and videos can now be played in ASEC order instead of randomly chosen
+#	.commercial files can now set the air time length of the video by setting the first line of the commercials file to "length:MAX_LENGTH_IN_SECONDS" This will allow videos with lengths that would typically end close enough to the half/top of the house to have some commericals.
+# settings version: 0.92
+#	Video "type" setting has new options besides 'video', 'show', and 'commercial'. Added 'ordered-show' and 'ordered-video'. See above.
+#	New setting for shows 'minimum time between repeats' this will allow individuals shows/videos to have a minimum time between repeated. Useful for LOTS of individual videos in a folder where enough time can elapse before repeating a video would be mandatory
 
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -36,12 +33,12 @@ last_played_video_source = None
 
 def play_video(source, commercials, max_commercials_per_break, start_pos):
 	# launches OMXPlayer on the PI to play a video
-	# If commercials are set, 2 instances are loaded: one for the main video and the other for commercials (the main player is hidden during commercial breaks and then made visible again)
+	# If commercials are set, 2 instances of the players are loaded: one for the main video and the other for commercials (the main player is hidden during commercial breaks and then made visible again)
 	# 	source: video file to be played
 	# 	commercials: array of times in seconds at which the source video will be interrupt to play commercials
 	#	max_commercials_per_break:
 	#		If set to a number, a random commercial will be continually selected up until the supplied number has been reached
-	#		if an array of commercials video file locations is provided, each commercial will be played until there are not left
+	#		if an array of commercials video file locations is provided, each commercial will be played until there are none left
 	#	start_pos: attempts to resume the video from this value
 	
 	global settings
@@ -354,7 +351,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 					break
 			
 			if useThisOne:
-				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static]
+				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem]
 	except Exception as valerr:
 		report_error("CHECK_TIMES", [str(valerr)])
 
@@ -374,7 +371,7 @@ def generate_commercials_list(max_time_to_fill):
 	ret = []
 	while(True):
 		if time.time() - start_time > 5:
-			report_error("GEN_COMM_LIST", ["took more that 5 seconds to generate comercials list"])
+			#report_error("GEN_COMM_LIST", ["took more that 5 seconds to generate comercials list"])
 			break
 		c = get_random_commercial()
 		cTime = get_length_from_file(c)
@@ -402,8 +399,9 @@ def get_args(index):
 	return None 
 
 def get_commercials(source):
-	#commercials file name must match exactly the source video with the file extension '.commercial'
+	#commercials file name must match exactly the source video with the file extension '.commercials'
 	#each line of a .commercials file will be the time of a commercial break in seconds (and milliseconds if required) ex: 620.34
+	#first line can be text and number to set a minimum length time for the video plus inserted commercials ex: length:MIN_LENGTH
 
 	#load single file for all commercials
 	#usefull when commercial breaks are easily identifiable for a lot of episodes from a single show
@@ -414,8 +412,14 @@ def get_commercials(source):
 	
 	#load individual file for video
 	if os.path.isfile(source + '.commercials') == True:
+		ret = []
 		with open(source + '.commercials') as temp_file:
-			return [float(line.rstrip()) for line in temp_file]
+			for i,line in enumerate(temp_file):
+				if(line.rstrip().isdigit()):
+					ret.append(float(line.rstrip()))
+				else:
+					ret.append(str(line.rstrip()))
+		return ret
 	return []
 
 def get_length_from_file(file):
@@ -498,7 +502,20 @@ def getDayOfWeek(d):
 def getMonth(m):
 	return [None,'january','february','march','april','may','june','july','august','september','october','november','december'][m]
 
+def get_folders_from_server(showType, showDir):
+	#http://tv.station/?getavailable=win_Tuesday&dir=/media/pi/ssd_b/primetime/win_tuesday
+	contents = open_url("http://127.0.0.1/?getavailable=" + urllib.quote_plus(showType) + "&dir=" + urllib.quote_plus(showDir))
+	if contents == '0':
+		return None
+	return contents.split("\n")
+
 def get_folders_from_dir(path):
+	dirs = os.walk(path).next()[1]
+	for i in range(len(dirs)):
+		dirs[i] = path + "/" + dirs[i]
+	return dirs
+	
+def get_folders_by_show_type(type):
 	dirs = os.walk(path).next()[1]
 	for i in range(len(dirs)):
 		dirs[i] = path + "/" + dirs[i]
@@ -565,6 +582,7 @@ def open_url(url):
 	try:
 		global settings
 		
+		print(url)
 		if settings["report_data"] == False:
 			#if the user chooses not to connect to the local HTTP server, don't attempt to report any information
 			return None
@@ -705,7 +723,7 @@ base_directory = os.path.dirname(__file__)
 ############################ /global variables
 
 ############################ settings
-SETTINGS_VERSION = 0.91
+SETTINGS_VERSION = 0.92
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
@@ -748,9 +766,9 @@ error_channel_set = False
 
 while(1):
 	try:
-		if (time.time() - start_time) > 119:
+		if (time.time() - start_time) > 179:
 			report_error("MAIN_LOOP", ["No Video Available to Play", "Check things like TV Schedule names misspelled or erroneously added.", "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now."])
-			print(get_setting({'channels', 'error'}))
+			#print(get_setting({'channels', 'error'}))
 			if get_setting({'channels', 'error'}):
 				channel_name_static = settings['channels']['error']
 				error_channel_set = True
@@ -844,17 +862,79 @@ while(1):
 		if folder != None: # folders have been set, load and play video
 			video = None
 			err_count = 3.2
-			if programming_schedule[2] == "video" or programming_schedule[2] == "commercial": # just select a random video out of the path
+			if programming_schedule[2] == "video" or programming_schedule[2] == "video-show" or programming_schedule[2] == "commercial": # just select a random video out of the path
 				err_count = 3.3
+				print("Selecting video from: " + folder[0])
 				video = get_videos_from_dir(replace_all_special_words(folder[0]))
 				for itemX in range(1,len(folder)):
 					#print('Selected Folder:', replace_all_special_words(folder[0]))
 					video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))
-			elif programming_schedule[2] == "show": # select random directory from path (this is to cut down on the time it takes to select a 'show' that hasn't been played yet)
+			elif programming_schedule[2] == "ordered-video": # select a random video but
+				err_count = 3.35
+				video = get_videos_from_dir(replace_all_special_words(folder[0]))
+				for itemX in range(1,len(folder)):
+					#print('Selected Folder:', replace_all_special_words(folder[0]))
+					video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))				
+
+				selvideo = random.choice(video) # choose a random video from the directory to use as a reference (needs to be random in case there are multiple different directories)
+				urlcontents = open_url("http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(selvideo))
+				print("OV-Response: ", urlcontents, "OV-Sent", selvideo)
+				acontents = urlcontents.split("|") #split the response, the next episode will be the first result
+				
+				try:
+					if(acontents[1]=="0" or "|" not in urlcontents):
+						#could not find the next episode, so we should just report the error and let a random video be selected below
+						video = [ selvideo ]
+						report_error("SHOW VIDEOS IN ORDER", acontents)
+					else:	
+						# add the returned video as an array, if the file exists, so it can be selected randomly (but it's the only video that can be selected) during the next step
+						if(os.path.exists(acontents[0])):
+							video = [ acontents[0] ]
+						else:
+							# if the file doesn't exist for whatever reason, report error and let a random video be selected below
+							report_error("SHOW VIDEOS IN ORDER", [ "File does not exist ", acontents[0] ])
+				except:
+					report_error("SHOW VIDEOS IN ORDER", [ urlcontents ])
+			
+			elif programming_schedule[2] == "ordered-show": # select random directory from path for reference and then play the episodes in ascending order
 				err_count = 3.4
-				folders = get_folders_from_dir(replace_all_special_words(folder[0]))
-				selfolder = random.choice(folders)
-				video = get_videos_from_dir(selfolder)
+				# get a list of folders from the local server
+				# http://tv.station/?getavailable=win_Tuesday&dir=/media/pi/ssd_b/primetime/win_tuesday
+				folders = None
+				folders = get_folders_from_server(get_videos_from_dir(get_folders_from_dir(replace_all_special_words(folder[0]))[0])[0], replace_all_special_words(folder[0]));
+				# if the server returns no folders, default to all directories in path
+				if folders == None:
+					folders = get_folders_from_dir(replace_all_special_words(folder[0])) # returns all subfolders of a directory
+				
+				selfolder = random.choice(folders) # choose a random one
+				episodes_in_folder = get_videos_from_dir(selfolder) # preload all the files in that directory
+
+				# to get the next video from the PHP front end we need to pass one of the episode's file names so it can determine the "short name"
+				urlcontents = open_url("http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(episodes_in_folder[0]))
+				print("OS-Response: ", urlcontents, "OS-Sent", episodes_in_folder[0])
+				acontents = urlcontents.split("|") #split the response, the next episode will be the first result
+					
+				try:
+					if(acontents[1]=="0" or "|" not in urlcontents):
+						#could not find the next episode, so we should play the first episode
+						#report_error("SHOW EPISODES IN ORDER", acontents)
+						video = [ episodes_in_folder[0] ]
+					else:	
+						# add the returned video as an array, if the file exists, so it can be selected randomly (but it's the only video that can be selected) during the next step
+						if(os.path.exists(acontents[0])):
+							video = [ acontents[0] ]
+						else:
+							# if the file doesn't exist for whatever reason, play a random episode from that folder.
+							video = episodes_in_folder
+				except:
+					report_error("SHOW EPISODES IN ORDER", [ urlcontents ])
+			elif programming_schedule[2] == "show": # select random directory from path and then play a random video
+				err_count = 3.45
+				folders = get_folders_from_dir(replace_all_special_words(folder[0])) # returns all subfolders of a directory
+				selfolder = random.choice(folders) # choose a random one
+				video = get_videos_from_dir(selfolder) # preload all the files in that directory
+			else:
+				report_error("Programming Schedule", [ "unknown type set for video", programming_schedule[2] ])
 
 			if len(video) == 0:
 				err_count = 3.5
@@ -884,19 +964,28 @@ while(1):
 						err_count = 5.1
 						#check if this video has been played recently	
 						try:
-							if programming_schedule[2] == "show" or programming_schedule[2] == "video":
+							if programming_schedule[2] == "commercial": # skip the check if the video file is a commerical
+								err_count = 5.3
+								print("commercial",programming_schedule)
+								urlcontents = open_url("http://127.0.0.1/?current_comm=" + urllib.quote_plus(source))
+								acontents = ["Commercial","0","so we skip this check and just play it"]
+							elif programming_schedule[2] == "video": # skip check if the settings file designates this as a video that is randomly chosen.
+								acontents = ["Randomly selected video","0","so we skip this check and just play it"]
+							else: # only check if it's a proper show
 								err_count = 5.2
 								print("show/video",programming_schedule)
-								urlcontents = open_url("http://127.0.0.1/?getshowname=" + urllib.quote_plus(source))
+								min_time = 0
+								if 'minimum time between repeats' in programming_schedule[4]:
+									min_time = programming_schedule[4]['minimum time between repeats']
+									print("minium time is set to " + str(min_time))
+									if str(min_time).isdigit() != True:
+										min_time = 0
+								urlcontents = open_url("http://127.0.0.1/?getshowname=" + urllib.quote_plus(source) + "&min_time=" + str(min_time))
 								print("Response: ", urlcontents)
 								acontents = urlcontents.split("|")
 								last_video_played = acontents[0]
 								print("Last video played: " + last_video_played)
-							elif programming_schedule[2] == "commercial":
-								err_count = 5.3
-								print("commercial",programming_schedule)
-								urlcontents = open_url("http://127.0.0.1/?current_comm=" + urllib.quote_plus(source))
-								
+							
 						except Exception as exx:
 							report_error("SERVER", ["err_count", str(err_count), "server error", str(exx), "source", source])
 					else:
@@ -919,7 +1008,14 @@ while(1):
 					pregenerated_commercials_list = None
 					commercials_per_break = settings['commercials_per_break']
 					tTime = get_length_from_file(source) # get video duration from file name
-					if settings['commercials_per_break'] == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0 and tTime != None:
+					
+					# video length was not found, so we revert to random commercials without checking for time
+					if tTime == None: 
+						err_count = 6.5
+						commercials_per_break = 0
+						report_error("COMM_BREAK", ["length of video could not be found", "SOURCE", str(source)])
+					
+					if commercials_per_break == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0:
 						err_count = 6.3
 						#generate a list of commercials that will fill time to the nearest half/top of the hour
 						curr_minute = m
@@ -930,32 +1026,29 @@ while(1):
 						curr_minute=min(29, curr_minute)
 						curr_minute=max(0, curr_minute)
 
-						lenCountDown = 14400
 						tTime = (tTime + (curr_minute * 60)) + 30
 						
-						if tTime == None: # video length was not found, so we revert to random commercials without checking for time
-							err_count = 6.5
-							commercials_per_break = 0
-							report_error("COMM_BREAK", ["length of video could not be found", "SOURCE", str(source)])
-						else:
-							err_count = 6.6
-							lenCountDown = 18000 # set max length of a video (5 hours) and then count down in 30 minute increments
-							while(lenCountDown>1800):
-								#1800 secs (30 mins) is the minimum amount of time to fill
-								if tTime > (lenCountDown - 1800):
-									break
-								#substract 1800 seconds (30 min increments), until we have 30 mins remaining
-								lenCountDown = lenCountDown - 1800
-							err_count = 6.7
-							tDiff = lenCountDown - tTime
-							err_count = 6.8
-							err_extra = [str(tTime), str(tDiff)]
-							print("length:", tTime, "diff to make up:", tDiff)
-							pregenerated_commercials_list = generate_commercials_list(tDiff)
-							err_count = 6.9
-							err_extra = []
-							#print("Pregenerated Commercials:", pregenerated_commercials_list)
-							commercials_per_break = 0
+						err_count = 6.6
+						lenCountDown = 18000 # set max length of a video (5 hours) and then count down in 30 minute increments
+						if(str(commercials[0])[:7] == "length:"):
+							lenCountDown = int(commercials[0][7:])
+							del commercials[0]
+						while(lenCountDown>1800):
+							#1800 secs (30 mins) is the minimum amount of time to fill
+							if tTime > (lenCountDown - 1800):
+								break
+							#substract 1800 seconds (30 min increments), until we have 30 mins remaining
+							lenCountDown = lenCountDown - 1800
+						err_count = 6.7
+						tDiff = lenCountDown - tTime
+						err_count = 6.8
+						err_extra = [str(tTime), str(tDiff)]
+						print("length:", tTime, "diff to make up:", tDiff)
+						pregenerated_commercials_list = generate_commercials_list(tDiff)
+						err_count = 6.9
+						err_extra = []
+						#print("Pregenerated Commercials:", pregenerated_commercials_list)
+						commercials_per_break = 0
 					elif programming_schedule[2] == "commercial":
 						err_count = 7.0
 						commercials_per_break = 0
