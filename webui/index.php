@@ -8,6 +8,7 @@
 error_reporting(E_ALL);
 ini_set("display_errors", 1);
 
+
 //######################### settings
 require_once("settings.class.inc");
 
@@ -27,24 +28,31 @@ $channel_file = $json_settings["channels"]["file"];
 
 //######################### /settings
 
+require_once("db_manage_ext.inc");
+$db_manage_ext = new DBMANAGEEXT();
+$db_manage_ext->load($database_info["host"], $database_info["username"], $database_info["password"], $database_info["database_name"]);
 
 $mysqli = new mysqli($database_info["host"], $database_info["username"], $database_info["password"], $database_info["database_name"]);
 
 if(isset($_GET["showstats"]) && is_numeric($_GET["id"])) {
 	$res = $mysqli->query("SELECT * FROM played WHERE short_name=\"".addslashes($_GET["showstats"])."\"") or die($mysqli->error);
 	$cnt = array();
+	echo "{$_GET["showstats"]}{$_GET["id"]}\n";
 	while ($brow = $res->fetch_assoc()) {
 		$show = preg_replace(["/_NA_/", "/%T.(.*)\)%/"], ["", ""], pathinfo($brow["name"])["filename"]);
+		echo date('M d, Y h:i A', $brow["played"]) . " @ $show<br />\n";
+		/*
 		if(array_key_exists($show, $cnt)) {
 			$cnt[$show]++;
 		} else {
 			$cnt[$show]=1;
 		}
+		*/
 	}
-	echo "{$_GET["showstats"]}{$_GET["id"]}\n";
-	foreach($cnt as $k => $v) {
-		echo "$k - $v time(s)<br />\n";
-	}
+	
+	//foreach($cnt as $k => $v) {
+	//	echo "$k - $v time(s) <br />\n";
+	//}
 	die("");
 }
 
@@ -147,14 +155,14 @@ if(isset($_GET["delete"])) {
 	}
 }
 
-if(isset($_GET["trim_shows"])) {
-	if($_GET["trim_shows"]=="empty") {
-		$res = $mysqli->query("TRUNCATE TABLE `played`") or die($mysqli->error);
+if(isset($_GET["db_manage_ext"])) {
+	$dbexe = $db_manage_ext->handle($_GET);
+	if($dbexe) {
+		die($dbexe);
 	} else {
-		$res = $mysqli->query("DELETE FROM played WHERE played<=" . (time()-864000) . " ORDER BY id DESC") or die($mysqli->error);
+		header("location: /\n\n");
+		die();
 	}
-	header("location: /\n\n");
-	die();
 }
 
 if(isset($_GET["trim_commercials"])) {
@@ -190,7 +198,7 @@ if(isset($_GET["getshowname2"])) {
 
 function checkShowPlayAmount($sname, $csv) {
 	global $mysqli;
-
+	if(isset($_GET["test"])) echo "$sname\n";
     $csv = array_map('str_getcsv', explode("\r\n", $csv));
 	$narr = [];
 	$keys = [];
@@ -207,23 +215,33 @@ function checkShowPlayAmount($sname, $csv) {
 	//load each show that has been played and their play count
 	while ($brow = $res->fetch_assoc()) {
 		$shows[$brow["short_name"]] = $brow["value_occurrence"]*1;
+		if(isset($_GET["test"])) echo $brow["short_name"] ." = ". $brow["value_occurrence"] ."\n";
 	}
-
+	
 	$selected = null;
 	//populate each type with its shows and how many times it has been played
 	//and whilst doing so, set the current type so we can compare the played times against only the same type of shows
 	for($i=1;$i<count($csv);$i++) {
 		for($j=0;$j<count($csv[$i]);$j++) {
-			if($csv[$i][$j]!="") {
-				if(isset($shows[$csv[$i][$j]])) $cnt = $shows[$csv[$i][$j]]; else $cnt = 0;
-				array_push($narr[$keys[$j]], [$csv[$i][$j], $cnt]);
-				if($csv[$i][$j] == $sname) {
+			$conv_short_name = $csv[$i][$j];
+			if($conv_short_name!="") {
+				
+				if(strpos("S".$conv_short_name, "=")>0) {
+					$conv_short_name = substr($conv_short_name, strpos($conv_short_name, "=") + 1);
+				}
+				
+				if(isset($shows[$conv_short_name])) $cnt = $shows[$conv_short_name]; else $cnt = 0;
+				
+
+				array_push($narr[$keys[$j]], [$conv_short_name, $cnt]);
+				if($conv_short_name == $sname) {
 					$selected = $keys[$j];
 				}
 			}
 		}
 	}
-
+	if(isset($_GET["test"])) echo "///////////////////////////////narr\n";
+	if(isset($_GET["test"])) var_dump($narr);
 	$highest = -1;
 	$lowest = 999999;
 	$lowshow = "";
@@ -264,7 +282,10 @@ function checkShowPlayAmount($sname, $csv) {
 	
 	*/
 
-	//var_dump($list);
+	if(isset($_GET["test"])) echo "///////////////////////////////list\n";
+	if(isset($_GET["test"])) var_dump($list);
+	if(isset($_GET["test"])) echo $lowest."\n";
+	if(isset($_GET["test"])) echo $highest."\n";
 
 	$exit=true;
 
@@ -357,7 +378,11 @@ function parseCSV($csv, $verbose = null) {
 function getShowType($sname, $showList) {
 	foreach($showList as $k=>$v) {
 		for($i=0;$i<count($v);$i++) {
-			if($sname==$v[$i]) return $k;
+			$names = explode("=",$v[$i],2);
+			if(count($names)>1) {
+				if($sname==$names[1]) return $k;
+			}
+			if($sname==$names[0]) return $k;
 		}
 	}
 	
@@ -381,6 +406,7 @@ function getShowNames($url, $force) {
 	}
 }
 
+
 if(isset($_GET["clear_cache"])) {
 	$wasted = parseCSV(getShowNames('https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/export?format=csv&id=1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk&gid=0', true), true);
 	die();
@@ -389,52 +415,270 @@ if(isset($_GET["clear_cache"])) {
 $unparsedCSV = getShowNames('https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/export?format=csv&id=1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk&gid=0', false);
 $parsedShows = parseCSV($unparsedCSV);
 
-if(isset($_GET["getshowname"])) {
+function getPathFromShortName($shortname) {
+	global $mysqli;
+	$res = $mysqli->query("SELECT name FROM `played` WHERE short_name='".addslashes($shortname)."' LIMIT 1") or die($mysqli->error);
+	$shows = [];
+	$brow = $res->fetch_assoc();
+	return dirname($brow["name"]);
+}
 
-//if day = sunday and time > 5am and time < 10am
-
-	if(strpos($_GET["getshowname"], '/commercials/') > 0) {
-		//a commercial is being payed, ignore 
-		die("commercial|0");//."|".$brow["value_occurrence"]);
+function getAvailableShows($sname, $sdir, $csv) {
+	global $mysqli;
+	
+	$dirs_in_dir = array_filter(glob($sdir."/*"), 'is_dir');
+	if(isset($_GET["test"])) var_dump($dirs_in_dir);
+	
+	if(isset($_GET["test"])) echo "$sname\n";
+    $csv = array_map('str_getcsv', explode("\r\n", $csv));
+	$narr = [];
+	$keys = [];
+	
+	//create an array of types (reruns, primetime, cartoons, etc)
+	//and also an array of keys for each type's name
+	for($i=0;$i<count($csv[0]);$i++) {
+			$narr[$csv[0][$i]] = [];
+			$keys[$i] = $csv[0][$i];
 	}
 
-	$dayofweek = date("l",time());
-	$hourofday = date("G",time());
+	$res = $mysqli->query("SELECT *, COUNT(`short_name`) AS `value_occurrence` FROM `played` GROUP BY `short_name` ORDER BY `value_occurrence` DESC") or die($mysqli->error);
+	$shows = [];
+	//load each show that has been played and their play count
+	while ($brow = $res->fetch_assoc()) {
+		$shows[$brow["short_name"]] = $brow["value_occurrence"]*1;
+		if(isset($_GET["test"])) echo $brow["short_name"] ." = ". $brow["value_occurrence"] ."\n";
+	}
 
-	//$thanksgiving = strpos("=".$_GET["getshowname"], "thanksgiving");
+	$selected = null;
+	//populate each type with its shows and how many times it has been played
+	//and whilst doing so, set the current type so we can compare the played times against only the same type of shows
+	for($i=1;$i<count($csv);$i++) {
+		for($j=0;$j<count($csv[$i]);$j++) {
+			$conv_short_name = $csv[$i][$j];
+			if($conv_short_name!="") {
+				
+				if(strpos("S".$conv_short_name, "=")>0) {
+					$conv_short_name = substr($conv_short_name, strpos($conv_short_name, "=") + 1);
+				}
+				
+				if(isset($shows[$conv_short_name])) $cnt = $shows[$conv_short_name]; else $cnt = 0;
+				
+				array_push($narr[$keys[$j]], [$conv_short_name, $cnt]);
+			}
+		}
+	}
+	
+	$selected = $sname;
+	
+	if(isset($_GET["test"])) echo "///////////////////////////////narr\n";
+	if(isset($_GET["test"])) var_dump($narr);
+	if(isset($_GET["test"])) echo "///////////////////////////////selected\n";
+	if(isset($_GET["test"])) var_dump($selected);
+	$highest = -1;
+	$lowest = 999999;
+	$lowshow = "";
+	$list = [];
+	if($selected!=null) {
+		if(!in_array($selected, array_keys($narr))) die('0');
+	//shift the most played shows to the top
+	//and everything else to the bottom
+		for($i=0;$i<count($narr[$selected]);$i++) {
+			//if($i>6) break;
+			if($narr[$selected][$i][1] >= $highest) {
+				$highest = $narr[$selected][$i][1];
+				array_unshift($list, $narr[$selected][$i]);
+			} else {
+				array_push($list, $narr[$selected][$i]);
+			}
+			
+			if($narr[$selected][$i][1] < $lowest) {
+				$lowest = $narr[$selected][$i][1];
+				$lowshow = $narr[$selected][$i][0];
+			}
+		}
+	}
+
+	for($i=0;$i<count($list);$i++) {
+		if(!isset($list[$i][2])) {
+			$dirshort = getPathFromShortName($list[$i][0]);
+			$list[$i][2] = $dirshort;
+		}
+	}
+
+
+	//sometimes every show hasn't been played yet
+	//so we to compare the results versus the actual directory structure
+	//if a show hasn't been played yet, we need to add it to the list as being played 0 times
+	foreach($dirs_in_dir as $d) {
+		
+		$skip = true;
+		for($i=0;$i<count($list);$i++) {
+			if($d == $list[$i][2]) {
+				$skip = true;
+				break;
+			} else {
+				$skip = false;
+			}
+		}
+		if(!$skip) {
+			array_push($list, [0, "test", $d]);
+			$lowest=0;
+		}
+		if(isset($_GET["test"])) echo "$d & $skip\n";
+	}
+
+	if(isset($_GET["test"])) echo "///////////////////////////////list\n";
+	if(isset($_GET["test"])) var_dump($list);
+	if(isset($_GET["test"])) echo $lowest."\n";
+	if(isset($_GET["test"])) echo $highest."\n";
+
+	$exit=true;
+	$retlist = [];
+	//check to make sure not every show has been played an equal amount of times
+	//by seeing if the highest play count is the same for each show
+	for($i=0;$i<count($list);$i++) {
+		array_push($retlist, $list[$i][2]);
+		if($list[$i][1] != $highest) { 
+			$exit = false;
+		}
+	}
+
+
+	if($exit) {
+		return array_filter($retlist);
+	}
+	
+	//see if the current show is in the list of highest shows
+	//if it is, it shouldn't be played
+	$retlist = [];
+	for($i=0;$i<count($list);$i++) {
+		if($list[$i][1] != $highest) { 
+			array_push($retlist, $list[$i][2]);
+		}
+	}
+
+	//play the current show
+	return array_filter($retlist);
+}
+
+
+if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
+	if(!is_dir($_GET["dir"])) die('0');
+	$shortname=getTvShowName($_GET["getavailable"], $parsedShows);
+	$showType=getShowType($shortname, $parsedShows);
+	die(implode("\n", (getAvailableShows($showType, $_GET["dir"], $unparsedCSV))));
+}
+
+
+if(isset($_GET["getshowname"])) {
+
+	if(strpos(strtolower($_GET["getshowname"]), '/commercials/') > 0) {
+		//a commercial is being payed, ignore 
+		die("commercial|0");
+	}
 
 	$shortname=getTvShowName($_GET["getshowname"], $parsedShows);
 	$showType=getShowType($shortname, $parsedShows);
 	
 	$row=0;
-	$brow=0;
+	$remote_diff_set = false;
 
-		// || $showType=="Christmas"
-	if($showType=="Specials" || $showType=="Movies" || $showType=="Primetime" || $showType=="Gameshows" ) {
-		$row=0;
-	} else { //not sunday morning
-		$time_diff = 7200;
-		$row = 0;
-		//xmas time, double the time difference
-		if(date('n')==12) $time_diff = $time_diff*2;
-		$res = $mysqli->query("SELECT played FROM played WHERE short_name='" . addslashes($shortname) . "' AND played>=" . (time()-$time_diff) ." AND played<=" . (time()-1) . "  LIMIT 1") or die($mysqli->error);
-		//echo "SELECT played FROM played WHERE short_name='" . addslashes($shortname) . "' AND played>=" . (time()-$time_diff) ." AND played<=" . (time()-1) . "  LIMIT 1\n\n";
-		//var_dump($res);
-		$row = $res->fetch_row()[0]*1;
-	
-		if(checkShowPlayAmount($shortname, $unparsedCSV)) {
-			//play the show
-			$row=0;
-		} else {
-			//show is one of the top of its category, play something else
-			if($row==0) {
-				$row=time();
+	$time_diff = 7200;
+	$row = 0;
+	//xmas time, double the time difference
+	if(isset($_GET["min_time"])) {
+		if(is_numeric($_GET["min_time"])) {
+			if($_GET["min_time"]*1!=0) {
+				$time_diff = $_GET["min_time"]*1;
+				$remote_diff_set = true;
 			}
-		}		
+		}
+	}
+		
+	$res = $mysqli->query("SELECT played FROM played WHERE short_name='" . addslashes($shortname) . "' AND played>=" . (time()-$time_diff) ." AND played<=" . (time()-1) . "  LIMIT 1") or die($mysqli->error);
+	if(isset($_GET["test"])) echo "SELECT played FROM played WHERE short_name='" . addslashes($shortname) . "' AND played>=" . (time()-$time_diff) ." AND played<=" . (time()-1) . "  LIMIT 1\n\n";
+	$row = $res->fetch_row()[0]*1;
+	if(isset($_GET["test"])) var_dump($row);
+	
+	//if(isset($_GET["test"])) var_dump(checkShowPlayAmount($shortname, $unparsedCSV));
+	
+	if($remote_diff_set && $row>0) { // a custom time difference has been set, so we shouldn't play this video as it was last played with the custom time
+		die("$shortname|$row|$showType|remote diff triggered|played within the last $time_diff seconds");
 	}
 	
-	die("$shortname|$row|$showType");//."|".$brow["value_occurrence"]);
+	if(checkShowPlayAmount($shortname, $unparsedCSV)) { // we should then check if it is one of the top shows of that type
+		if(isset($_GET["test"])) echo "not played too much\n";
+		//it is not, so we should play something else
+		die("$shortname|0|$showType|has not been played too much|$row|$remote_diff_set");
+	} else {
+		if(isset($_GET["test"])) echo "has not been played too much\n";
+		//show is NOT one of the top of its category
+		// just in case the show has been played to recently, we need to override that because there might not be anything else available to play
+		die("$shortname|".time()."|$showType|has been played enough|$row|$remote_diff_set");
+	}		
+	
+	die("$shortname|$row|$showType");
 }
+
+if(isset($_GET["get_next_episode"])) {
+	$nv = addslashes($_GET["get_next_episode"]);
+	$shortname = getTvShowName($nv, $parsedShows);
+	
+	$sql = "SELECT * FROM played WHERE LEFT(name, ".strlen(dirname($nv)).") = '".dirname($nv)."' ORDER BY played DESC LIMIT 1";
+	$res = $mysqli->query($sql) or die($mysqli->error);
+
+	if(isset($_GET["dump"])) {
+		echo "Looking up episodes that played for: <b>$shortname</b> SQL: ";
+		echo "$sql\n<br />";
+	}
+	if(mysqli_num_rows($res)==0) {
+		die("|0|No recently played episodes found|$nv");
+	}
+	$row = $res->fetch_row();
+	//var_dump($row);
+	if(file_exists($row[2]) == false) { //last played file does not exist
+		if(isset($_GET["dump"])) echo "Last played File Does Not Exist! " . $row[2] . "<br />\n";
+		die("|0|last played file does not exist. was it deleted?|$nv");
+	} else {
+		if(isset($_GET["dump"])) echo "Last played: " . $row[2] . "<br />\n";
+	}
+	if(is_dir(dirname($row[2])) == false) {
+		die("|0|directory does not exist|".$row[2]."|$nv");
+	}
+	
+	$files = glob(dirname($row[2]).'/*');
+	if(isset($_GET["dump"])) var_dump($files);
+	$n=1;
+	for($i = 0;$i<count($files);$i++) {
+		if($files[$i] == $row[2]) {
+			$n=1;
+			if($i+$n>=count($files)) {
+				//echo "every episode has aired, go back to the beginning.<br />";
+				$i=0;
+				$n=0;
+			} else {
+				if(strpos(strtolower($files[$i+1]), ".commercials") !== false) {
+					//echo "Next file is a commercials file, go to the file after that.<br />";
+					$n++;
+				}
+				if($i+$n>=count($files)) {
+					//echo "every episode has aired, go back to the beginning.<br />";
+					$i=0;
+					$n=0;
+				}
+			}
+			//echo "Next episode: ". $files[$i+$n] . "<br />";
+			if(file_exists($files[$i+$n])) {
+				die($files[$i+$n]."|1|next episode");
+			} else {
+				die("|0|file does not exist ".$files[$i+$n]);
+			}
+			break;
+		}
+	}
+	die("|0|unknown error|$nv");
+}
+
 
 if(isset($_GET["getshowtestname"])) {
 
@@ -867,16 +1111,8 @@ if(count($channels)>0) {
 } else { echo '</No Channels Defined in Settings</li>'; }
 
 	
-echo '</ul>
-	
-	<h3>Database Management</h3>
-	<ul>
-		<li style="padding:4px;"><a href="/phpmyadmin">phpMyAdmin</a></li>
-		<li style="padding:4px;"><a href="/?trim_shows=now" style="color:red;" onclick="return confirm(\'This will permanently delete all show data older than 10 days. Are you sure?\')">Trim Shows Played Log</a> | <a href="/?trim_shows=empty" style="color:red;" onclick="return confirm(\'This will permanently delete all shows data. Are you sure?\')">[EMPTY]</a></li>
-		<li style="padding:4px;"><a href="/?trim_commercials=now" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data older than 10 days. Are you sure?\')">Trim Commercials Log</a> | <a href="/?trim_commercials=empty" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data. Are you sure?\')">[EMPTY]</a></li>
-		<li style="padding:4px;"><a href="/?trim_errors=now" style="color:red;" onclick="return confirm(\'This will permanently delete all error data older than 10 days. Are you sure?\')">Trim Errors Log</a> | <a href="/?trim_errors=empty" style="color:red;" onclick="return confirm(\'This will permanently delete all error data. Are you sure?\')">[EMPTY]</a></li>
+echo '
 	</ul>
-
 	<h3>Station Programming</h3>
 	<ul>
 		<li style="padding:4px;"><a href="/?clear_cache=now">Update Show Names Cache</a></li>
@@ -896,7 +1132,16 @@ echo '</ul>
 	<ul>
 		<li style="padding:4px;"><a href="/?reboot=now" style="color:red;" onclick="return confirm(\'Are you sure?\')">Reboot</a></li>
 	</ul>
+	<h3>Database Management</h3>
+	<ul>
+		<li style="padding:4px;"><a href="/phpmyadmin">phpMyAdmin</a></li>
+';
 
+echo $db_manage_ext->announce();
+
+
+echo '
+	</ul>
 	<h3>Flagged Videos</h3>
 	<br />
 	<ul>
@@ -951,13 +1196,14 @@ echo '
 echo '
 <div id="Stats" class="tabcontent">
 <table border=1 cellspacing=1 callpadding=8 width="25%">
-<tr style="background:lightgray;"><td>Type</td><td>Show Name</td><td>Count</td></tr>
+<tr style="background:lightgray;"><td></td><td>Type</td><td>Show Name</td><td>Count</td></tr>
   ';
   
 $res = $mysqli->query("SELECT *, COUNT(`short_name`) AS `value_occurrence` FROM `played` GROUP BY `short_name` ORDER BY `value_occurrence` DESC") or die($mysqli->error);
 
 $arrTypes = [];
 $arrCount = [];
+$num=1;
 while ($row = $res->fetch_assoc()) {
 	$showType = getShowType($row["short_name"], $parsedShows);
 	if(isset($arrTypes[$showType])) {
@@ -967,7 +1213,8 @@ while ($row = $res->fetch_assoc()) {
 		$arrCount[$showType] = ($row["value_occurrence"]*1);
 		$arrTypes[$showType] = 1;
 	}
-	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td>' . $showType . '</td><td> <a href="#" onclick="ajax(\'?showstats='.urlencode($row["short_name"]).'&id='.$row["id"].'\'); document.getElementById(\'' . $row["short_name"] . $row["id"] . '\').style.display = \'block\'; return false;">[+]</a> ' . $row["short_name"] . '<div id="' . $row["short_name"] . $row["id"] . '" style="display:none; max-width:500px;overflow:scroll;white-space: nowrap;"></div></td><td align="center">' . $row["value_occurrence"] . '</td></tr>';
+	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td>' . "$num.</td><td>" . $showType . '</td><td> <a href="#" onclick="ajax(\'?showstats='.addslashes(urlencode($row["short_name"])).'&id='.$row["id"].'\'); document.getElementById(\'' . addslashes($row["short_name"]) . $row["id"] . '\').style.display = \'block\'; return false;">[+]</a> ' . $row["short_name"] . '<div id="' . $row["short_name"] . $row["id"] . '" style="display:none; max-width:500px;overflow:scroll;white-space: nowrap;"></div></td><td align="center">' . $row["value_occurrence"] . '</td></tr>';
+	$num++;
 }
 
 echo '</table><br />
