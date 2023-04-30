@@ -14,7 +14,7 @@ It relies on https://github.com/willprice/python-omxplayer-wrapper to play video
 
 # Premade disk image
 
-Download a disk image of the project here: https://biggles.us/files/tv-station.2023.04.28.unallocated.img.rar
+Download a disk image of the project here: *** coming soon *** I just tried to do this and it was not a simple task
 
 Requires at least a 16GB micro SD card, though bigger is better since the MYSQL database is store on the SD card.
 
