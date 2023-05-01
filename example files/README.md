@@ -8,3 +8,5 @@ The Popeye video and commercial files provided here are known to be in the publi
 All video files to be played should have their audio levels normalized. The video files above have been marked with _NA_ to show they have been volume corrected.
 
 All wideos should be tagged in their filename's with the length of the video in seconds rounded up to the second. The Popeye file has been marked with %T(365)% showing it is 365 seconds long. The video commercial's filename has been marked with %T(30)% because it is 30 seconds long.
+
+These functions can be automated using the C# program called VideoSplit https://github.com/mopenstein/VideoSplit
