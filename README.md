@@ -20,4 +20,4 @@ See the README in this project's "disk image install files" https://github.com/m
 
 This project reproduces a near perfect functioning tv station.
 
-!([http://via.placeholder.com/200x150](https://biggles.us/shared/images/raspberry-pi-tv-station-schedule.png) "Title is optional")
+!(![]https://biggles.us/shared/images/raspberry-pi-tv-station-schedule.png)
