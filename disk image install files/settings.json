@@ -1,0 +1,93 @@
+{
+	"version": "0.92",
+	"drive": ["/mnt/usb15"],
+	"play_show_episodes_in_order": true,
+	"insert_commercials": true,
+	"commercials_per_break": "auto",
+	"time_test": null,
+	"time_test_example": "Jan 06 2023 11:01PM",
+	"report_data": true,
+	"player_settings": ["--no-osd", "--blank"],
+
+	"channels":	{
+				"error": "Movies",
+				"names": [null, "Movies", "Cartoons", "Reruns", "90s", "70s"],
+				"file": "/mnt/usb15/.channel"
+			},
+
+	"web-ui": {
+			"show_type_colors": { "Reruns": "F8FFA2", "Easter": "CEF5FA", "Thanksiving": "D68B00", "Cartoons": "A2FFEF","Specials": "FFA2A2","Primetime": "dd8888","Gameshows": "88AAFF","Movies": "A2FFAC", "Christmas": "A2B9FF","sum_Monday": "D5A2FF","sum_Tuesday": "F5A2DF","sum_Wednesday": "A5F2DF","sum_Thursday": "D5F2AF","sum_Friday": "F5F2FF","sum_Saturday": "F5D2AF","sum_Sunday": "A5D2FF","win_Monday": "D5A2FF","win_Tuesday": "F5A2DF","win_Wednesday": "A5F2DF","win_Thursday": "D5F2AF","win_Friday": "F5F2FF","win_Saturday": "F5D2AF","win_Sunday": "A5D2FF","90s shows": "ffff00","90s cartoons": "00ff00", "70s shows": "ff0000", "70s cartoons": "ccccff", "Halloween": "FE9A0A", "halloween": "FE9A0A", "xmas": "d00", "none": "fff" },
+			"tv_schedule_link": "https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/",
+			"database_info": { "host": "localhost", "username": "pi", "password": "raspberry", "database_name": "shows" }
+		  },
+
+	"youtube-dl":	{
+				"command" : "yt-dlp",
+				"update_command": "pip install -U yt-dlp"
+			},
+
+	"times": [
+		{
+			"name": ["%D[1]%/shows"],
+			"dayOfWeek": ["all"],
+			"month": ["all"],
+			"start": [17, 0],
+			"end": [23, 59],
+			"type": "video-show",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/shows"],
+			"dayOfWeek": ["all"],
+			"month": ["all"],
+			"start": [0, 0],
+			"end": [4, 59],
+			"type": "video-show",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/cartoons"],
+			"dayOfWeek": ["all"],
+			"month": ["all"],
+			"start": [5, 0],
+			"end": [16, 59],
+			"type": "video-show",
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/commercials"],
+			"dayOfWeek": null,
+			"month": ["all"],
+			"start": ["*", 16],
+			"end": ["*", 29],
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/commercials"],
+			"dayOfWeek": null,
+			"month": ["all"],
+			"start": ["*", 46],
+			"end": ["*", 59],
+			"type": "commercial",
+			"special": null,
+			"channel": null
+		},
+		{
+			"name": ["%D[1]%/movies"],
+			"dayOfWeek": ["all"],
+			"start": [0, 0],
+			"end": [23, 59],
+			"type": "video",
+			"channel": "Movies"
+		}
+	],
+
+
+	"commercial_times": [{
+			"name": ["%D[1]%/commercials"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+		}
+	]
+}
