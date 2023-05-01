@@ -1018,14 +1018,14 @@ while ($row = $res->fetch_assoc()) {
 		if(substr($row["name"], 0, strlen($d)) == $d) $rname = substr($row["name"], strlen($d));
 	}
 	$splits = explode('/', $rname);
-	if(array_key_exists($splits[2], $comm_months)==false) { $comm_months[$splits[2]]=1; } else { $comm_months[$splits[2]]++; }
+	if(array_key_exists($splits[count($splits)-2], $comm_months)==false) { $comm_months[$splits[count($splits)-2]]=1; } else { $comm_months[$splits[count($splits)-2]]++; }
 	$a = strpos(basename($row["name"]), "%T(");
 	$b = strpos(basename($row["name"]), ")%", $a+1);
 	$len = "";
 	if($a>-1 && $b>-1) {
 		$len = gmdate("H:i:s", (int)substr(basename($row["name"]), $a + 3, $b-$a - 3));
 	}
-	echo '<tr class="clr-'.$splits[2].'"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><a href="/commercials.php?folder=' . $splits[2] . '">' . $splits[2] . '</a></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
+	echo '<tr class="clr-'.$splits[count($splits)-2].'"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><a href="/commercials.php?folder=' . $splits[count($splits)-2] . '">' . $splits[count($splits)-2] . '</a></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
 	$comms_cnt++;
 }
 
