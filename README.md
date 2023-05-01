@@ -14,3 +14,4 @@ It relies on https://github.com/willprice/python-omxplayer-wrapper to play video
 
 # Premade disk image
 
+See the README in this project's "disk image install files" https://github.com/mopenstein/raspberry_pi_tv_station/tree/main/disk%20image%20install%20files
