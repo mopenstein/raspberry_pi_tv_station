@@ -1,8 +1,8 @@
 # Premade Disk Image
 
-Download a disk image of the project here: *** coming soon *** I just tried to do this and it was not a simple task
+Download a disk image of the project here: *** coming soon ***
 
-Requires at least a 16GB micro SD card, though bigger is better since the MYSQL database is store on the SD card.
+Requires at least a 16GB micro SD card, though bigger is better since the MYSQL database is stored on the SD card.
 
 Designed and tested on a Raspberry Pi 3b+ (runs absolutely perfectly). Also tested on a Raspberry Pi B+ v1.2 (runs slowly but does function)
 
