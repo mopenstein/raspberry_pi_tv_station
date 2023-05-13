@@ -1,6 +1,6 @@
 # Premade Disk Image
 
-Download a disk image of my running raspberry pi tv station: https://biggles.us/shared/files/tv-station.2023.04.28.unallocated.img.rar
+Download a disk image of my running raspberry pi tv station: https://biggles.us/shared/files/tv-station.2023.04.28.unallocated.img.rar (~2gb)
 
 Requires at least a 16GB micro SD card, though bigger is better since the MYSQL database is stored on the SD card.
 
