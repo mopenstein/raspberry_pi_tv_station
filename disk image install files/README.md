@@ -1,6 +1,6 @@
 # Premade Disk Image
 
-Download a disk image of my running raspberry pi tv station: *** coming soon ***
+Download a disk image of my running raspberry pi tv station: https://biggles.us/shared/files/tv-station.2023.04.28.unallocated.img.rar
 
 Requires at least a 16GB micro SD card, though bigger is better since the MYSQL database is stored on the SD card.
 
@@ -16,9 +16,11 @@ At the terminal, you'll need to kill python because the script auto executes on 
 
 You'll need to change the static IP address and Wifi settings. Edit fstab to automount your USB drive.
 
-Once you have a IP address and are connected to your local network you can navigate your browser to the pi's IP ADDRESS and edit the settings file 'Settings Editor'.
+Once you have an IP address and are connected to your local network you can navigate your browser to the pi's IP ADDRESS and edit the settings file 'Settings Editor'.
 
 You'll also need to create a .channel file and give it global read/write permissions. Do this even if you don't plan on using the channel feature.
+
+After getting everything running you should use raspi-config to  expan the file system to reallocate the space on your sd card.
 
 Also accessible from the Web UI is a link to phpMyAdmin from where you'll want to truancate the "errors", "commercials", and "played" databases so you can start fresh.
 
