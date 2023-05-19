@@ -1,12 +1,10 @@
 #!/usr/bin/python
 
-# version: 101.4
-# version date: 2022.11.15
-#	Shows and videos can now be played in ASEC order instead of randomly chosen
-#	.commercial files can now set the air time length of the video by setting the first line of the commercials file to "length:MAX_LENGTH_IN_SECONDS" This will allow videos with lengths that would typically end close enough to the half/top of the house to have some commericals.
+# version: 101.5
+# version date: 2023.05.19
+#	Commercials that do not end within their reported length, will be force ended.
 # settings version: 0.92
-#	Video "type" setting has new options besides 'video', 'show', and 'commercial'. Added 'ordered-show' and 'ordered-video'. See above.
-#	New setting for shows 'minimum time between repeats' this will allow individuals shows/videos to have a minimum time between repeated. Useful for LOTS of individual videos in a folder where enough time can elapse before repeating a video would be mandatory
+#	no changes
 
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -122,6 +120,9 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 
 						err_pos = 3.1
 						#loop to play commercials until we've played them all
+						
+						
+						
 						while(comm_i>=0):
 							try:
 							
@@ -168,8 +169,16 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 								err_pos = 3.9
 								comm_player.play()
 								err_pos = 4.0
+
 								#we need to wait until the commercial has completed, so we'll check for the current position of the video until it triggers an error and we can move on
+								comm_length = get_length_from_file(comm_source) 	# get the length of commercial being played
+								comm_start_time = time.time()						# get current time stamp
+								comm_end_time = comm_start_time + comm_length + 2	# calculate at what time the commercial should have ended plus a little buffer (2 seconds)
+								
 								while (1):
+									if time.time() > comm_end_time: # commercial should be over by now, so we move on
+										break
+										
 									try:
 										err_pos = 4.1
 										comm_position = math.floor(comm_player.position())
@@ -1008,14 +1017,7 @@ while(1):
 					pregenerated_commercials_list = None
 					commercials_per_break = settings['commercials_per_break']
 					tTime = get_length_from_file(source) # get video duration from file name
-					
-					# video length was not found, so we revert to random commercials without checking for time
-					if tTime == None: 
-						err_count = 6.5
-						commercials_per_break = 0
-						report_error("COMM_BREAK", ["length of video could not be found", "SOURCE", str(source)])
-					
-					if commercials_per_break == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0:
+					if settings['commercials_per_break'] == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0 and tTime != None:
 						err_count = 6.3
 						#generate a list of commercials that will fill time to the nearest half/top of the hour
 						curr_minute = m
@@ -1028,27 +1030,32 @@ while(1):
 
 						tTime = (tTime + (curr_minute * 60)) + 30
 						
-						err_count = 6.6
-						lenCountDown = 18000 # set max length of a video (5 hours) and then count down in 30 minute increments
-						if(str(commercials[0])[:7] == "length:"):
-							lenCountDown = int(commercials[0][7:])
-							del commercials[0]
-						while(lenCountDown>1800):
-							#1800 secs (30 mins) is the minimum amount of time to fill
-							if tTime > (lenCountDown - 1800):
-								break
-							#substract 1800 seconds (30 min increments), until we have 30 mins remaining
-							lenCountDown = lenCountDown - 1800
-						err_count = 6.7
-						tDiff = lenCountDown - tTime
-						err_count = 6.8
-						err_extra = [str(tTime), str(tDiff)]
-						print("length:", tTime, "diff to make up:", tDiff)
-						pregenerated_commercials_list = generate_commercials_list(tDiff)
-						err_count = 6.9
-						err_extra = []
-						#print("Pregenerated Commercials:", pregenerated_commercials_list)
-						commercials_per_break = 0
+						if tTime == None: # video length was not found, so we revert to random commercials without checking for time
+							err_count = 6.5
+							commercials_per_break = 0
+							report_error("COMM_BREAK", ["length of video could not be found", "SOURCE", str(source)])
+						else:
+							err_count = 6.6
+							lenCountDown = 18000 # set max length of a video (5 hours) and then count down in 30 minute increments
+							if(str(commercials[0])[:7] == "length:"):
+								lenCountDown = int(commercials[0][7:])
+								del commercials[0]
+							while(lenCountDown>1800):
+								#1800 secs (30 mins) is the minimum amount of time to fill
+								if tTime > (lenCountDown - 1800):
+									break
+								#substract 1800 seconds (30 min increments), until we have 30 mins remaining
+								lenCountDown = lenCountDown - 1800
+							err_count = 6.7
+							tDiff = lenCountDown - tTime
+							err_count = 6.8
+							err_extra = [str(tTime), str(tDiff)]
+							print("length:", tTime, "diff to make up:", tDiff)
+							pregenerated_commercials_list = generate_commercials_list(tDiff)
+							err_count = 6.9
+							err_extra = []
+							#print("Pregenerated Commercials:", pregenerated_commercials_list)
+							commercials_per_break = 0
 					elif programming_schedule[2] == "commercial":
 						err_count = 7.0
 						commercials_per_break = 0
