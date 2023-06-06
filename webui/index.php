@@ -915,11 +915,11 @@ echo '
 <div class="tab">
 	<button class="tablinks"><a href="/?date=' . urlencode(date('m/d/y', strtotime($the_date) - 86400)) . '">&lt;&lt;&lt;</a> | <a href="/">'.date("h:i A \o\\n ", time()) . $days[$td] . date(" m/d/Y", time()).'</a></button>
 	<button class="tablinks">Current Channel: '.($curr_channel == "" ? "default" : $curr_channel).'</button>
-	<button class="tablinks">Free Space: ';
-
-
+	<button class="tablinks">Free Space: 
+	<span style="background-color:#'.chr(97).chr(97).chr(97).'">Root SD ' . floor( disk_free_space("/.") / ( 1024 * 1024 * 1024 ) ) . 'GB</span>
+	';
 for($i = 0;$i<count($drive_loc);$i++) {
-	echo '<span style="background-color:#'.chr(97+$i).chr(97+$i).chr(97+$i).'">Disk ' . ($i+1) . ' ' . floor( disk_free_space( $drive_loc[$i] ) / ( 1024 * 1024 * 1024 ) ) . 'GB</span> ';
+	echo '<span style="background-color:#'.chr(98+$i).chr(98+$i).chr(98+$i).'">Disk ' . ($i+1) . ' ' . floor( disk_free_space( $drive_loc[$i] ) / ( 1024 * 1024 * 1024 ) ) . 'GB</span> ';
 }
  
  
