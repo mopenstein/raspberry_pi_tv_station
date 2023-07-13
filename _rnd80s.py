@@ -1,8 +1,9 @@
 #!/usr/bin/python
 
-# version: 101.5
-# version date: 2023.05.19
-#	Commercials that do not end within their reported length, will be force ended.
+# version: 101.6
+# version date: 2023.07.13
+#	Fixed a bug where times in settings file weren't being honored
+#
 # settings version: 0.92
 #	no changes
 
@@ -80,7 +81,6 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 		err_pos = 1.0
 		player.pause()
 		err_pos = 1.1
-		err_pos = 1.2
 		player.play()
 		err_pos = 1.3
 		lt = 0
@@ -255,6 +255,7 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 def wildcard_array():
 	return ['all', 'any', '*']
 
+'''
 def check_video_times(obj, channel=None, allow_chance=True):
 	try:
 		global now
@@ -266,6 +267,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 		ddm = now.day
 		
 		dayOfWeek = getDayOfWeek(d)
+		
 
 		skip = dict (
 			month = None,
@@ -290,7 +292,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 			)
 			
 			video_type = "video"
-		
+			print("timeItem", timeItem)
 			if 'type' in timeItem: # check if it's a show or commercial
 				if timeItem['type'] != None:
 					video_type = timeItem['type']
@@ -365,6 +367,134 @@ def check_video_times(obj, channel=None, allow_chance=True):
 		report_error("CHECK_TIMES", [str(valerr)])
 
 	return None
+'''
+
+def check_video_times(obj, channel=None, allow_chance=True):
+	try:
+		global now
+
+		month = now.month
+		h = now.hour
+		m = now.minute
+		d = now.weekday()
+		ddm = now.day
+		
+		dayOfWeek = getDayOfWeek(d)
+		
+
+		skip = dict (
+			month = None,
+			date = None,
+			dayOfWeek = None,
+			time = None,
+			special = None,
+			chance = None,
+			channel = None
+		)
+
+		for timeItem in reversed(obj):
+			is_static = [False, 0, ""]
+			skip = dict (
+				month = None,
+				date = None,
+				dayOfWeek = None,
+				time = None,
+				special = None,
+				chance = None,
+				channel = None
+			)
+			
+			video_type = "video"
+
+			if 'type' in timeItem: # check if it's a show or commercial
+				if timeItem['type'] != None:
+					video_type = timeItem['type']
+
+			if 'channel' in timeItem: # check if we should be using special channels
+				if timeItem['channel'] == None and channel == None:
+					skip['channel'] = False
+				elif timeItem['channel'] in wildcard_array():
+					skip['channel'] = False
+				else:
+					skip['channel'] = False if timeItem['channel'] == channel else True
+
+			if 'month' in timeItem:
+				if timeItem['month'] != None:
+					test = False
+					for itemX in timeItem['month']:
+						if itemX == month or itemX in wildcard_array(): # if it's the proper month, we proceed
+							test = True
+							break
+					skip['month'] = False if test == True else True
+
+			if 'date' in timeItem:
+				if timeItem['date'] != None:
+					test = False
+					for itemX in timeItem['date']:
+						if itemX == ddm or itemX in wildcard_array(): # if it's on the proper day, we proceed
+							test = True
+							break
+					skip['date'] = False if test == True else True
+
+			if 'dayOfWeek' in timeItem:
+				if timeItem['dayOfWeek'] != None:
+					test = False
+					for itemX in timeItem['dayOfWeek']:
+						if itemX.lower() == dayOfWeek or itemX in wildcard_array(): # if it's the proper day of the week, we proceed
+							test = True
+							break
+					skip['dayOfWeek'] = False if test == True else True
+			
+			if 'start' in timeItem and 'end' in timeItem:
+				ntime = time.strptime(now.strftime("%H:%M"), "%H:%M")
+				if timeItem['start'][0] in wildcard_array():
+					timeItem['start'][0] = h
+				if timeItem['start'][1] in wildcard_array():
+					timeItem['start'][1] = m
+				if timeItem['end'][0] in wildcard_array():
+					timeItem['end'][0] = h
+				if timeItem['end'][1] in wildcard_array():
+					timeItem['end'][1] = m
+
+				stime = time.strptime(str(timeItem['start'][0]) + ":" + str(timeItem['start'][1]), "%H:%M")
+				etime = time.strptime(str(timeItem['end'][0]) + ":" + str(timeItem['end'][1]), "%H:%M")
+
+				if ntime >= stime and ntime <= etime:
+				#if ((h >= timeItem['start'][0] or timeItem['start'][0] in wildcard_array()) and (m>=timeItem['start'][1] or timeItem['start'][1] in wildcard_array())) and ((h <= timeItem['end'][0] or timeItem['end'][0] in wildcard_array()) and (m <= timeItem['end'][1] or timeItem['end'][1] in wildcard_array())):
+					skip['time'] = False
+				else:
+					skip['time'] = True
+		
+			if 'special' in timeItem:
+				if timeItem['special'] != None:
+					skip['special'] = False if is_special_time(timeItem['special']) else True
+
+			if 'static' in timeItem: # this flag establishes that this schedule should stay triggered until the set time runs out
+				if timeItem['static'] != None:
+					if is_number(timeItem['static'][1]) == True:
+						is_static = timeItem['static']
+		
+			if 'chance' in timeItem:
+				chance_eval = timeItem['chance'] # store chance string
+				if type(chance_eval) != float:
+					for word in [["day", ddm], ["month", month], ["hour", h], ["minute", m], ["weekday", d]]: # replace special keywords in the chance string
+						chance_eval = chance_eval.replace(word[0],str(word[1])+".0")
+					chance_eval = eval(chance_eval) # evaluate the math
+				skip['chance'] = False if random.random() <= float(chance_eval) and allow_chance == True else True
+		
+			useThisOne = True
+			for itemX in skip:
+				if skip[itemX] == True:
+					useThisOne = False
+					break
+			
+			if useThisOne:
+				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem]
+	except Exception as valerr:
+		report_error("CHECK_TIMES", [str(valerr)])
+
+	return None
+
 
 def generate_commercials_list(max_time_to_fill):
 	# attempts to generate a list of commercials of varying length to fill up remaining time (max_time_to_fill)
