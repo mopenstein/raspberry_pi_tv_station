@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-# version: 101.6
-# version date: 2023.07.13
-#	Fixed a bug where times in settings file weren't being honored
+# version: 101.7
+# version date: 2023.08.26
+#	directories containing videos are now cached in a text file GREATLY decreasing video select times improving overall speed and auto commercial generation
 #
-# settings version: 0.92
-#	no changes
+# settings version: 0.93
+#	min-length and max-length added to settings. Useful for choosing commercials of the correct length
 
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -255,17 +255,45 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 def wildcard_array():
 	return ['all', 'any', '*']
 
+def update_settings():
+	global settings
+	global settings_file
+	
+	f = open(settings_file, "r")
+	# we need to verify that the settings file is JSON formatted.
+	settings = validate_json(f.read())
+	if settings == None:
+		# report the error and exit script if it is not
+		report_error("SETTINGS", ["settings file isn't valid JSON"])
+		sleep(10)
+		exit()
+
+	f.close()
+
+	settings['load_time'] = os.path.getmtime(settings_file)
+
+	if 'version' in settings:
+		if is_number(settings['version']):
+			if float(settings['version']) != SETTINGS_VERSION:
+				report_error("Settings", ["Settings version mismatch. Things might not work so well."])
+		else:
+			report_error("Settings", ["Settings version mismatch. Things might not work so well."])
+	else:
+		report_error("Settings", ["Settings version mismatch. Things might not work so well."])
+
+
 def check_video_times(obj, channel=None, allow_chance=True):
 	try:
+		update_current_time()
 		global now
-
+		
 		month = now.month
-		h = now.hour
-		m = now.minute
-		d = now.weekday()
+		now_h = now.hour
+		now_m = now.minute
+		now_d = now.weekday()
 		ddm = now.day
 		
-		dayOfWeek = getDayOfWeek(d)
+		dayOfWeek = getDayOfWeek(now_d)
 		
 
 		skip = dict (
@@ -281,13 +309,13 @@ def check_video_times(obj, channel=None, allow_chance=True):
 		for timeItem in reversed(obj):
 			is_static = [False, 0, ""]
 			skip = dict (
-				month = None,
-				date = None,
-				dayOfWeek = None,
-				time = None,
-				special = None,
-				chance = None,
-				channel = None
+				month = False,
+				date = False,
+				dayOfWeek = False,
+				time = False,
+				special = False,
+				chance = False,
+				channel = False
 			)
 			
 			video_type = "video"
@@ -302,7 +330,22 @@ def check_video_times(obj, channel=None, allow_chance=True):
 				elif timeItem['channel'] in wildcard_array():
 					skip['channel'] = False
 				else:
-					skip['channel'] = False if timeItem['channel'] == channel else True
+					if timeItem['channel'] != channel:
+						continue
+
+			if 'special' in timeItem:
+				if timeItem['special'] != None:
+					if is_special_time(timeItem['special']) == False:
+						continue
+
+			if 'chance' in timeItem:
+				chance_eval = timeItem['chance'] # store chance string
+				if type(chance_eval) != float:
+					for word in [["day", ddm], ["month", month], ["hour", now_h], ["minute", now_m], ["weekday", now_d]]: # replace special keywords in the chance string
+						chance_eval = chance_eval.replace(word[0],str(word[1])+".0")
+					chance_eval = eval(chance_eval) # evaluate the math
+				if random.random() > float(chance_eval) or allow_chance == False:
+					continue
 
 			if 'month' in timeItem:
 				if timeItem['month'] != None:
@@ -311,7 +354,8 @@ def check_video_times(obj, channel=None, allow_chance=True):
 						if itemX == month or itemX in wildcard_array(): # if it's the proper month, we proceed
 							test = True
 							break
-					skip['month'] = False if test == True else True
+					if test==False:
+						continue
 
 			if 'date' in timeItem:
 				if timeItem['date'] != None:
@@ -320,7 +364,8 @@ def check_video_times(obj, channel=None, allow_chance=True):
 						if itemX == ddm or itemX in wildcard_array(): # if it's on the proper day, we proceed
 							test = True
 							break
-					skip['date'] = False if test == True else True
+					if test==False:
+						continue
 
 			if 'dayOfWeek' in timeItem:
 				if timeItem['dayOfWeek'] != None:
@@ -329,44 +374,33 @@ def check_video_times(obj, channel=None, allow_chance=True):
 						if itemX.lower() == dayOfWeek or itemX in wildcard_array(): # if it's the proper day of the week, we proceed
 							test = True
 							break
-					skip['dayOfWeek'] = False if test == True else True
+					if test==False:
+						continue
 			
 			if 'start' in timeItem and 'end' in timeItem:
-				ntime = time.strptime(now.strftime("%H:%M"), "%H:%M")
+				ntime = now
 				if timeItem['start'][0] in wildcard_array():
-					timeItem['start'][0] = h
+					timeItem['start'][0] = now_h
 				if timeItem['start'][1] in wildcard_array():
-					timeItem['start'][1] = m
+					timeItem['start'][1] = now_m
 				if timeItem['end'][0] in wildcard_array():
-					timeItem['end'][0] = h
+					timeItem['end'][0] = now_h
 				if timeItem['end'][1] in wildcard_array():
-					timeItem['end'][1] = m
-
-				stime = time.strptime(str(timeItem['start'][0]) + ":" + str(timeItem['start'][1]), "%H:%M")
-				etime = time.strptime(str(timeItem['end'][0]) + ":" + str(timeItem['end'][1]), "%H:%M")
-
+					timeItem['end'][1] = now_m
+			
+				stime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['start'][0]) + ":" + str(timeItem['start'][1]) + ":00", "%d/%m/%Y %H:%M:%S")
+				etime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['end'][0]) + ":" + str(timeItem['end'][1]) + ":59", "%d/%m/%Y %H:%M:%S")
+				print(timeItem['name'], str(stime), now, ntime, etime)
 				if ntime >= stime and ntime <= etime:
-				#if ((h >= timeItem['start'][0] or timeItem['start'][0] in wildcard_array()) and (m>=timeItem['start'][1] or timeItem['start'][1] in wildcard_array())) and ((h <= timeItem['end'][0] or timeItem['end'][0] in wildcard_array()) and (m <= timeItem['end'][1] or timeItem['end'][1] in wildcard_array())):
 					skip['time'] = False
 				else:
-					skip['time'] = True
-		
-			if 'special' in timeItem:
-				if timeItem['special'] != None:
-					skip['special'] = False if is_special_time(timeItem['special']) else True
+					continue
 
 			if 'static' in timeItem: # this flag establishes that this schedule should stay triggered until the set time runs out
 				if timeItem['static'] != None:
 					if is_number(timeItem['static'][1]) == True:
 						is_static = timeItem['static']
 		
-			if 'chance' in timeItem:
-				chance_eval = timeItem['chance'] # store chance string
-				if type(chance_eval) != float:
-					for word in [["day", ddm], ["month", month], ["hour", h], ["minute", m], ["weekday", d]]: # replace special keywords in the chance string
-						chance_eval = chance_eval.replace(word[0],str(word[1])+".0")
-					chance_eval = eval(chance_eval) # evaluate the math
-				skip['chance'] = False if random.random() <= float(chance_eval) and allow_chance == True else True
 		
 			useThisOne = True
 			for itemX in skip:
@@ -375,12 +409,11 @@ def check_video_times(obj, channel=None, allow_chance=True):
 					break
 			
 			if useThisOne:
-				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem]
+				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem, now]
 	except Exception as valerr:
 		report_error("CHECK_TIMES", [str(valerr)])
 
 	return None
-
 
 def generate_commercials_list(max_time_to_fill):
 	# attempts to generate a list of commercials of varying length to fill up remaining time (max_time_to_fill)
@@ -391,11 +424,11 @@ def generate_commercials_list(max_time_to_fill):
 	# where "length" is a whole number representing the actual length of the video in seconds
 	# it can appear anywhere in the filename
 	# see: add_duration_to_video.py
-
+	print("generate_commercials_list", max_time_to_fill)
 	start_time = time.time()
 	ret = []
 	while(True):
-		if time.time() - start_time > 5:
+		if time.time() - start_time > 15:
 			#report_error("GEN_COMM_LIST", ["took more that 5 seconds to generate comercials list"])
 			break
 		c = get_random_commercial()
@@ -408,10 +441,10 @@ def generate_commercials_list(max_time_to_fill):
 			if cTime==None:
 				report_error("GEN_COMM_LIST", ["commercial file has no length", str(c)])		
 		
-		if max_time_to_fill - cTime > 40:
+		if max_time_to_fill - cTime > 60:
 			max_time_to_fill = max_time_to_fill - cTime
 			ret.append(c)
-		elif max_time_to_fill - cTime > 28:
+		else:
 			max_time_to_fill = max_time_to_fill - cTime
 			ret.append(c)
 			break
@@ -455,7 +488,7 @@ def get_length_from_file(file):
 		start = file.index("%T(") + 3
 		end = file.index(")%", start)
 		if is_number(file[start:end]):
-		    return float(file[start:end])
+			return float(file[start:end])
 		else:
 			return None
 	except Exception as ValueError:
@@ -525,6 +558,10 @@ def getDayOfWeek(d):
 	return ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][d]
 		
 def getMonth(m):
+	if m<1:
+		m=m+12
+	elif m>12:
+		m=m-12
 	return [None,'january','february','march','april','may','june','july','august','september','october','november','december'][m]
 
 def get_folders_from_server(showType, showDir):
@@ -545,21 +582,40 @@ def get_folders_by_show_type(type):
 	for i in range(len(dirs)):
 		dirs[i] = path + "/" + dirs[i]
 	return dirs
-	
+
+def clean_up_cache_files(dir_name,dir):
+	test = os.listdir(dir_name)
+
+	for item in test:
+		if item.endswith(".cache"):
+			if item.split()[0] == dir:
+				os.remove(os.path.join(dir_name, item))
 
 def get_videos_from_dir(dir):
-	# loads all video files in a directory into an array
-	results = glob.glob(os.path.join(dir, '*.mp4'))
-	results.extend(glob.glob(os.path.join(dir, '*.avi')))
-	results.extend(glob.glob(os.path.join(dir, '*.webm')))
-	results.extend(glob.glob(os.path.join(dir, '*.mpeg')))
-	results.extend(glob.glob(os.path.join(dir, '*.m4v')))
-	results.extend(glob.glob(os.path.join(dir, '*.mkv')))
-	results.extend(glob.glob(os.path.join(dir, '*.mov')))
-	results.extend(glob.glob(os.path.join(dir, '*.flv')))
-	results.extend(glob.glob(os.path.join(dir, '*.wmv')))
-	
-	return results
+		# loads all video files in a directory into an array
+		# cached name is dir-nonalnum  + " " + last mod time + " " + .cache
+		cache_dir_name = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cache")
+		cache_fname = os.path.join(cache_dir_name, re.sub(r'[^a-zA-Z0-9]', '', dir) + " " + str(os.path.getmtime(dir)) + " .cache")
+		if os.path.isfile(cache_fname) == False:
+			results = glob.glob(os.path.join(dir, '*.mp4'))
+			results.extend(glob.glob(os.path.join(dir, '*.avi')))
+			results.extend(glob.glob(os.path.join(dir, '*.webm')))
+			results.extend(glob.glob(os.path.join(dir, '*.mpeg')))
+			results.extend(glob.glob(os.path.join(dir, '*.m4v')))
+			results.extend(glob.glob(os.path.join(dir, '*.mkv')))
+			results.extend(glob.glob(os.path.join(dir, '*.mov')))
+			results.extend(glob.glob(os.path.join(dir, '*.flv')))
+			results.extend(glob.glob(os.path.join(dir, '*.wmv')))
+
+			clean_up_cache_files(cache_dir_name, re.sub(r'[^a-zA-Z0-9]', '', dir))
+			
+			with open(cache_fname, 'w') as f:
+				json.dump(results, f)
+		else:
+			with open(cache_fname, 'r') as f:
+				results = json.load(f)
+		return results
+
 
 def get_uptime():
 	global script_start_time
@@ -585,11 +641,11 @@ def IsEaster():
 		return False
 
 def is_number(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
+	try:
+		float(s)
+		return True
+	except ValueError:
+		return False
 
 def is_special_time(check):
 	if check.lower() == 'xmas': return True if PastThanksgiving(False) else False
@@ -602,6 +658,10 @@ def kill_omxplayer():
 	process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
 	output = process.communicate()[0]
 	print output
+
+def now_totheminute():
+	jt_string = str(datetime.datetime.now().day).zfill(2) + "/" + str(datetime.datetime.now().month).zfill(2) + "/" + str(datetime.datetime.now().year).zfill(4) + " " + str(datetime.datetime.now().hour).zfill(2) + ":" + str(datetime.datetime.now().minute).zfill(2)
+	return datetime.datetime.strptime(jt_string, "%d/%m/%Y %H:%M")
 
 def open_url(url):
 	try:
@@ -649,7 +709,7 @@ def replace_all_special_words(s):
 	for i in range(len(settings['drive'])):
 		s = s.replace("%D[" + str((i+1)) + "]%", settings['drive'][i])
 	# the day of the week and month special keywords can be replaced with the current day or week or month
-	for r in [["%day%", str(d)], ["%day_of_week%", getDayOfWeek(d)], ["%month%", getMonth(month)]]:
+	for r in [["%day%", str(d)], ["%day_of_week%", getDayOfWeek(d)], ["%month%", getMonth(month)], ["%prev-month%", getMonth(month-1)], ["%next-month%", getMonth(month+1)]]:
 		s = s.replace(*r)
 	return s
 				#   [ first reported time, last reported time, count ]
@@ -709,17 +769,17 @@ def restart():
 	print output
 
 def returncleanASCII(s):
-        sb = ""
-        for i in range(0, len(s)):
-                if (ord(s[i:i+1]) >= 32 and ord(s[i:i+1]) <= 127 or s[i:i+1] == '%'):
-                        sb = sb + s[i:i+1]
-        return sb
+		sb = ""
+		for i in range(0, len(s)):
+				if (ord(s[i:i+1]) >= 32 and ord(s[i:i+1]) <= 127 or s[i:i+1] == '%'):
+						sb = sb + s[i:i+1]
+		return sb
 
 def validate_json(json_str):
-    try:
-        return json.loads(json_str)
-    except ValueError as err:
-        return None
+	try:
+		return json.loads(json_str)
+	except ValueError as err:
+		return None
 
 def get_setting(find):
 	try:
@@ -733,6 +793,18 @@ def get_setting(find):
 		return temp
 	except:
 		return None
+
+def update_current_time():
+	global now
+	global settings
+	now = now_totheminute() # set the date time
+	# check if the settings file has a test date 
+	if 'time_test' in settings:
+		if settings['time_test'] != None:
+			err_count = 2.0
+			# if it is, we set the global 'now' var to the test date
+			# useful for testing holiday programming and other date/time specific programming
+			now = datetime.datetime.strptime(str(settings['time_test']), '%b %d %Y %I:%M%p')
 
 ############################ global variables
 now = datetime.datetime.now() # set the date time
@@ -748,34 +820,15 @@ base_directory = os.path.dirname(__file__)
 ############################ /global variables
 
 ############################ settings
-SETTINGS_VERSION = 0.92
+SETTINGS_VERSION = 0.93
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
 
-settings_file= base_directory + "settings.json" if TEST_FILE == False else base_directory + "test_settings.json"
+settings = None
+settings_file = base_directory + "settings.json" if TEST_FILE == False else base_directory + "test_settings.json"
 
-f = open(settings_file, "r")
-# we need to verify that the settings file is JSON formatted.
-settings = validate_json(f.read())
-if settings == None:
-	# report the error and exit script if it is not
-	report_error("SETTINGS", ["settings file isn't valid JSON"])
-	sleep(10)
-	exit()
-
-f.close()
-
-if 'version' in settings:
-	if is_number(settings['version']):
-		if float(settings['version']) != SETTINGS_VERSION:
-			report_error("Settings", ["Settings version mismatch. Things might not work so well."])
-	else:
-		report_error("Settings", ["Settings version mismatch. Things might not work so well."])
-else:
-	report_error("Settings", ["Settings version mismatch. Things might not work so well."])
-
-settings['load_time'] = os.path.getmtime(settings_file)
+update_settings()
 
 ############################ /settings
 
@@ -791,6 +844,8 @@ error_channel_set = False
 
 while(1):
 	try:
+	
+	
 		if (time.time() - start_time) > 179:
 			report_error("MAIN_LOOP", ["No Video Available to Play", "Check things like TV Schedule names misspelled or erroneously added.", "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now."])
 			#print(get_setting({'channels', 'error'}))
@@ -821,14 +876,10 @@ while(1):
 		# set a minimum of 5 commercial breaks if is not set in the settings file
 		if 'commercials_per_break' not in settings: settings['commercials_per_break'] = 5
 
-		now = datetime.datetime.now() # set the date time
-		# check if the settings file has a test date 
+		update_current_time()
+
 		if 'time_test' in settings:
-			if settings['time_test'] != None:
-				err_count = 2.0
-				# if it is, we set the global 'now' var to the test date
-				# useful for testing holiday programming and other date/time specific programming
-				now = datetime.datetime.strptime(str(settings['time_test']), '%b %d %Y %I:%M%p')
+			if settings['time_test'] != None:	
 				report_error("TEST_TIME", ["Using Test Date Time " + str(now)])
 
 		err_count = 3.0
@@ -850,7 +901,10 @@ while(1):
 		if curr_static == None: # there is no static block
 			err_count = 3.11
 			# checks the current date/time against the programming schedule in the settings file
+			
+			update_settings()
 			programming_schedule = check_video_times(settings['times'], get_current_channel(), allow_chance)
+			
 			err_count = 3.12
 			if programming_schedule[3] != None:
 				if programming_schedule[3][0] == True:
@@ -978,6 +1032,20 @@ while(1):
 				if source==None:
 					err_count = 4.0
 					report_error("PLAY", ["no source video", programming_schedule[0], programming_schedule[1], programming_schedule[2]])
+					continue
+				
+				min_len=-1
+				if 'min-length' in programming_schedule[4]:
+					min_len = programming_schedule[4]['min-length']
+				max_len=172800 # 2 days worth of seconds
+				if 'max-length' in programming_schedule[4]:
+					max_len = programming_schedule[4]['max-length']
+		
+				source_length = get_length_from_file(source)
+				
+				if source_length<min_len or source_length>max_len:
+					#report_error("MIN_MAX LENGTH", ["min:", str(min_len), "max:", str(max_len), "source", str(source_length)])
+					continue
 		
 				acontents = ["default","0","values"]
 				
@@ -1033,24 +1101,25 @@ while(1):
 					pregenerated_commercials_list = None
 					commercials_per_break = settings['commercials_per_break']
 					tTime = get_length_from_file(source) # get video duration from file name
-					if settings['commercials_per_break'] == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0 and tTime != None:
-						err_count = 6.3
-						#generate a list of commercials that will fill time to the nearest half/top of the hour
-						curr_minute = m
-						if curr_minute>30:
-							err_count = 6.4
-							curr_minute = curr_minute - 30
-
-						curr_minute=min(29, curr_minute)
-						curr_minute=max(0, curr_minute)
-
-						tTime = (tTime + (curr_minute * 60)) + 30
-						
+					if settings['commercials_per_break'] == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0:
 						if tTime == None: # video length was not found, so we revert to random commercials without checking for time
 							err_count = 6.5
 							commercials_per_break = 0
 							report_error("COMM_BREAK", ["length of video could not be found", "SOURCE", str(source)])
 						else:
+							otTime = tTime
+							err_count = 6.3
+							#generate a list of commercials that will fill time to the nearest half/top of the hour
+							curr_minute = m
+							if curr_minute>30:
+								err_count = 6.4
+								curr_minute = curr_minute - 30
+
+							curr_minute=min(29, curr_minute)
+							curr_minute=max(0, curr_minute)
+
+							tTime = (tTime + (curr_minute * 60)) + 30
+
 							err_count = 6.6
 							lenCountDown = 18000 # set max length of a video (5 hours) and then count down in 30 minute increments
 							if(str(commercials[0])[:7] == "length:"):
@@ -1066,15 +1135,21 @@ while(1):
 							tDiff = lenCountDown - tTime
 							err_count = 6.8
 							err_extra = [str(tTime), str(tDiff)]
-							print("length:", tTime, "diff to make up:", tDiff)
+
+							print("length:", tTime, "diff to make up:", tDiff, "orig length", otTime, "current time:", month, h, m, d, ddm)
 							pregenerated_commercials_list = generate_commercials_list(tDiff)
+							prect = 0
+							for prec in pregenerated_commercials_list:
+								prect = prect + get_length_from_file(prec)
+							
 							err_count = 6.9
 							err_extra = []
-							#print("Pregenerated Commercials:", pregenerated_commercials_list)
+							print("Pregenerated Commercials:", pregenerated_commercials_list, "total length:", prect)
 							commercials_per_break = 0
 					elif programming_schedule[2] == "commercial":
 						err_count = 7.0
 						commercials_per_break = 0
+						urlcontents = open_url("http://127.0.0.1/?current_comm=" + urllib.quote_plus(source))
 					else:
 						err_count = 8.0
 						if is_number(settings['commercials_per_break']) == False:
@@ -1101,6 +1176,9 @@ while(1):
 					else:
 						err_count = 11.0
 						print('Attempting to play: ', source)
+						#if 'debug' in settings:
+						#	if settings['debug'] != None:
+						#		report_error("PLAY INFO", [str(now), json.dumps(programming_schedule)])
 						play_video(source, commercials, commercials_per_break if pregenerated_commercials_list == None else pregenerated_commercials_list, 0)
 						start_time = time.time()
 						if error_channel_set == True:
