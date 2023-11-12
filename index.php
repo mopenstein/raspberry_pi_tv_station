@@ -342,6 +342,7 @@ function getTvShowName($filename, $showList) {
 		for($i=0;$i<count($v);$i++) {
 			$names = explode("=",$v[$i],2);
 			$name = strtolower(preg_replace("~[_\W\s]~", '', $names[0]));
+			if(!$name) continue;
 			if(strpos("a".strtolower(preg_replace("~[_\W\s]~", '', $filename)), $name) > 0) {
 				return (count($names)==1 ? $v[$i] : $names[1]);
 			}
@@ -365,9 +366,13 @@ function parseCSV($csv, $verbose = null) {
 
 	for($i=1;$i<count($csv);$i++) {
 		for($j=0;$j<count($csv[$i]);$j++) {
-			if($csv[$i][$j]!="") {
+			if(preg_replace('/[^\da-z]/i', '', $csv[$i][$j])!="") {
 				array_push($narr[$keys[$j]], $csv[$i][$j]);
-				if($verbose!=null) echo "Added <b>{$csv[$i][$j]}</b> to <i>{$keys[$j]}</i><br />\n";
+				if($verbose!=null) echo "Added <b>'{$csv[$i][$j]}'</b> to <i>{$keys[$j]}</i> <small>verified against: '" . preg_replace('/[^\da-z]/i', '', $csv[$i][$j]) . "'</small><br />\n";
+			} else {
+				//
+				//file_get_contents("http://127.0.0.1/?error=parseCSV|PHP|check%20your%20spreadsheet%20it%20contains%20an%20all%20white%20spaced%20entry");
+				if($csv[$i][$j]!="") echo "<h1 style=\"color:red;\">Check your spreadsheet. It contains an all white space entry</h1>";
 			}
 		}
 	}
@@ -393,11 +398,11 @@ function getShowType($sname, $showList) {
 function getShowNames($url, $force) {
 	$murl = md5($url) . ".cache";
 	
-	if(!$force) {
+	if(!$force && file_exists($murl)) {
 		return file_get_contents($murl);
 	}
-	
-	try {
+
+	try {		
 		$str = file_get_contents($url);
 		file_put_contents($murl, $str);
 		return $str;
@@ -446,7 +451,7 @@ function getAvailableShows($sname, $sdir, $csv) {
 	//load each show that has been played and their play count
 	while ($brow = $res->fetch_assoc()) {
 		$shows[$brow["short_name"]] = $brow["value_occurrence"]*1;
-		if(isset($_GET["test"])) echo $brow["short_name"] ." = ". $brow["value_occurrence"] ."\n";
+		if(isset($_GET["test"])) var_dump($brow);
 	}
 
 	$selected = null;
@@ -634,16 +639,23 @@ if(isset($_GET["getshowname"])) {
 if(isset($_GET["get_next_episode"])) {
 	$nv = addslashes($_GET["get_next_episode"]);
 	$shortname = getTvShowName($nv, $parsedShows);
-	
-	$sql = "SELECT * FROM played WHERE LEFT(name, ".strlen(dirname($nv)).") = '".dirname($nv)."' ORDER BY played DESC LIMIT 1";
+	$dir_name = dirname($nv);
+	$sql = "SELECT * FROM played WHERE LEFT(name, ".strlen($dir_name).") = '".$dir_name."' ORDER BY played DESC LIMIT 1";
 	$res = $mysqli->query($sql) or die($mysqli->error);
 
 	if(isset($_GET["dump"])) {
-		echo "Looking up episodes that played for: <b>$shortname</b> SQL: ";
+		echo "Looking up episodes that played for: <i>".$dir_name."</i> <b>$shortname</b> SQL: ";
 		echo "$sql\n<br />";
 	}
+	
+	if(is_dir($dir_name) == false) {
+		die("|0|video directory does not exist|$dir_name|$nv");
+	}
+	
 	if(mysqli_num_rows($res)==0) {
-		die("|0|No recently played episodes found|$nv");
+		$files = glob($dir_name.'/*');
+		die($files[0]."|1|play first episode since no episodes of this show has been played yet");
+		//die("|0|No recently played episodes found|$nv|$dir_name|".$files[0]);
 	}
 	$row = $res->fetch_row();
 	//var_dump($row);
@@ -656,6 +668,7 @@ if(isset($_GET["get_next_episode"])) {
 	if(is_dir(dirname($row[2])) == false) {
 		die("|0|directory does not exist|".$row[2]."|$nv");
 	}
+	
 	
 	$files = glob(dirname($row[2]).'/*');
 	if(isset($_GET["dump"])) var_dump($files);
@@ -1209,7 +1222,16 @@ echo '
 <table border=1 cellspacing=1 callpadding=8 width="25%">
 <tr style="background:lightgray;"><td></td><td>Type</td><td>Show Name</td><td>Count</td></tr>
   ';
-  
+ 
+function getShowPathFromFile($fname) {
+	$splits = explode("/", $fname);
+	$path = "";
+	for($i=0;$i<count($splits)-2;$i++) {
+		$path.=$splits[$i] . "/";
+	}
+	return [ $splits[count($splits)-1], $path ];
+}
+ 
 $res = $mysqli->query("SELECT *, COUNT(`short_name`) AS `value_occurrence` FROM `played` GROUP BY `short_name` ORDER BY `value_occurrence` DESC") or die($mysqli->error);
 
 $arrTypes = [];
@@ -1224,7 +1246,8 @@ while ($row = $res->fetch_assoc()) {
 		$arrCount[$showType] = ($row["value_occurrence"]*1);
 		$arrTypes[$showType] = 1;
 	}
-	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td>' . "$num.</td><td>" . $showType . '</td><td> <a href="#" onclick="ajax(\'?showstats='.addslashes(urlencode($row["short_name"])).'&id='.$row["id"].'\'); document.getElementById(\'' . addslashes($row["short_name"]) . $row["id"] . '\').style.display = \'block\'; return false;">[+]</a> ' . $row["short_name"] . '<div id="' . $row["short_name"] . $row["id"] . '" style="display:none; max-width:500px;overflow:scroll;white-space: nowrap;"></div></td><td align="center">' . $row["value_occurrence"] . '</td></tr>';
+	$gavail = getShowPathFromFile($row["name"]);
+	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td>' . $num . '</td><td>' . $showType . ' <a href="/?getavailable=' . urlencode($gavail[0]) . '&dir=' . urlencode($gavail[1]) . '">#</a> <a href="/?get_next_episode=' . urlencode($row["name"]) . '">$</a></td><td> <a href="#" onclick="ajax(\'?showstats='.addslashes(urlencode($row["short_name"])).'&id='.$row["id"].'\'); document.getElementById(\'' . addslashes($row["short_name"]) . $row["id"] . '\').style.display = \'block\'; return false;">[+]</a> ' . $row["short_name"] . '<div id="' . $row["short_name"] . $row["id"] . '" style="display:none; max-width:500px;overflow:scroll;white-space: nowrap;"></div></td><td align="center">' . $row["value_occurrence"] . '</td></tr>';
 	$num++;
 }
 
