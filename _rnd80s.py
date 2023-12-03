@@ -1,11 +1,12 @@
 #!/usr/bin/python
 
-# version: 101.7
-# version date: 2023.08.26
-#	directories containing videos are now cached in a text file GREATLY decreasing video select times improving overall speed and auto commercial generation
+# version: 101.9
+# version date: 2023.11.17
+#	support for balanced-video type added.
+#	minor bug fixes
 #
-# settings version: 0.93
-#	min-length and max-length added to settings. Useful for choosing commercials of the correct length
+# settings version: 0.94.1
+#	added 'balanced-video' type. Selects a random video from a single directory balanced around total video play count (note that if more than one directory is specified, one will be chosen randomly)
 
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -462,7 +463,7 @@ def get_commercials(source):
 	#first line can be text and number to set a minimum length time for the video plus inserted commercials ex: length:MIN_LENGTH
 
 	#load single file for all commercials
-	#usefull when commercial breaks are easily identifiable for a lot of episodes from a single show
+	#usefull when commercial breaks aren't easily identifiable for a lot of episodes from a single show
 	#first 8 chrs need to exactly the same
 	if os.path.isfile(source[:8] + '.commercials.master') == True:
 		with open(source[:8] + '.commercials.master') as temp_file:
@@ -508,10 +509,22 @@ def get_random_commercial():
 		folder = programming_schedule[0] # the results, if any, returns None type of not
 		if folder:
 			#commercials are scheduled, so let's gather the videos from the specified paths (could only be 1 or could be many)
-			#video = get_videos_from_dir(settings['drive'] + replace_all_special_words(folder[0]))
-			video = get_videos_from_dir(replace_all_special_words(folder[0]))
-			for itemX in range(1,len(folder)):
-				video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))
+
+
+			# settings wants the random video to be selected from multiple folders but prefers the random video come from the folders supplied rather than the combine contents of each folder
+			# this can help balance the show played when supplying different shows where a show with more videos would be more randomly favored
+			folder_chance = None 
+			if 'prefer-folder' in programming_schedule[4]:
+				folder_chance = programming_schedule[4]['prefer-folder']
+			
+			if folder_chance != None:
+				rfolder = random.choice(folder)
+				video = get_videos_from_dir(replace_all_special_words(rfolder))
+			else:
+				video = get_videos_from_dir(replace_all_special_words(folder[0]))
+				for itemX in range(1,len(folder)):
+					#print('Selected Folder:', replace_all_special_words(folder[0]))
+					video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))
 				
 			return random.choice(video) #return a random video from the combined paths
 	except Exception as valerr:
@@ -678,18 +691,18 @@ def open_url(url):
 
 def PastThanksgiving(is_thanksgiving):
 	global now # always use the global datetime 'now' so it doesn't break test dates
-	monthdays = calendar.monthrange(now.year, 11)[1]
-	datme = datetime.date(now.year, 11, monthdays)
 
-	daysoff = 4 - datme.isoweekday()
-	if daysoff > 0: daysoff -= 7
-	datme += datetime.timedelta(daysoff)
-
+	
+	year = str(now.year)
+	d = datetime.datetime.strptime(str("Nov 1 " + year), '%b %d %Y')
+	dw = d.weekday()
+	datme = datetime.datetime.strptime(str("Nov " + str(22 + (10 - dw) % 7) + " " + str(d.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
+	print(now, datme)
 	if(is_thanksgiving==True): #check if today is thanksgiving
-		if now.date()==datme:
+		if now==datme and now.month==now.month:
 			return True
 	else:
-		if now.date() > datme:
+		if now > datme:
 			if now.month>=12 and now.day>25:
 				#it's past thanksgiving and also past xmas
 				return False
@@ -820,7 +833,7 @@ base_directory = os.path.dirname(__file__)
 ############################ /global variables
 
 ############################ settings
-SETTINGS_VERSION = 0.93
+SETTINGS_VERSION = 0.94
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
@@ -844,7 +857,6 @@ error_channel_set = False
 
 while(1):
 	try:
-	
 	
 		if (time.time() - start_time) > 179:
 			report_error("MAIN_LOOP", ["No Video Available to Play", "Check things like TV Schedule names misspelled or erroneously added.", "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now."])
@@ -943,11 +955,47 @@ while(1):
 			err_count = 3.2
 			if programming_schedule[2] == "video" or programming_schedule[2] == "video-show" or programming_schedule[2] == "commercial": # just select a random video out of the path
 				err_count = 3.3
-				print("Selecting video from: " + folder[0])
-				video = get_videos_from_dir(replace_all_special_words(folder[0]))
-				for itemX in range(1,len(folder)):
-					#print('Selected Folder:', replace_all_special_words(folder[0]))
-					video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))
+				
+				# settings wants the random video to be selected from multiple folders but prefers the random video come from the folders supplied rather than the combine contents of each folder
+				# this can help balance the show played when supplying different shows where a show with more videos would be more randomly favored
+				folder_chance = None 
+				if 'prefer-folder' in programming_schedule[4]:
+					folder_chance = programming_schedule[4]['prefer-folder']
+				
+				if folder_chance != None:
+					rfolder = random.choice(folder)
+					video = get_videos_from_dir(replace_all_special_words(rfolder))
+					print("Selecting video from: " + rfolder)
+				else:
+					print("Selecting video from: ", folder)
+					video = get_videos_from_dir(replace_all_special_words(folder[0]))
+					for itemX in range(1,len(folder)):
+						#print('Selected Folder:', replace_all_special_words(folder[0]))
+						video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))
+			elif programming_schedule[2] == "balanced-video": # select a random video from a single directory balanced around play count
+				url=""
+				for itemX in range(0,len(folder)):
+					url = url + "&f" + str(itemX+1) + "=" + urllib.quote_plus(replace_all_special_words(folder[itemX]))
+				urlcontents = open_url("http://127.0.0.1/?get_next_rnd_episode_from_dir=1" + url)
+				#rfolder = random.choice(folder)
+				#urlcontents = open_url("http://127.0.0.1/?get_next_rnd_episode=" + urllib.quote_plus(rfolder))
+				print("BV-Response: ", urlcontents, "BV-Sent", "http://127.0.0.1/?get_next_rnd_episode_from_dir=1" + url)
+				acontents = urlcontents.split("|") #split the response, the next episode will be the first result
+				try:
+					if(acontents[1]=="0" or "|" not in urlcontents):
+						#could not find the next episode, so we should just report the error and let a random video be selected below
+						video = [ random.choice(get_videos_from_dir(rfolder)) ]
+						report_error("SHOW BALANCED VIDEO", acontents)
+					else:	
+						# add the returned video as an array, if the file exists, so it can be selected randomly (but it's the only video that can be selected) during the next step
+						if(os.path.exists(acontents[0])):
+							video = [ acontents[0] ]
+						else:
+							# if the file doesn't exist for whatever reason, report error and let a random video be selected below
+							report_error("SHOW BALANCED VIDEO", [ "File does not exist ", acontents[0] ])
+				except:
+					report_error("SHOW BALANCED VIDEO", [ urlcontents ])
+				
 			elif programming_schedule[2] == "ordered-video": # select a random video but
 				err_count = 3.35
 				video = get_videos_from_dir(replace_all_special_words(folder[0]))
@@ -987,7 +1035,14 @@ while(1):
 				
 				selfolder = random.choice(folders) # choose a random one
 				episodes_in_folder = get_videos_from_dir(selfolder) # preload all the files in that directory
-
+				if len(episodes_in_folder) <= 0:
+					report_error("FOLDERS", [ "Issue selecting video from folder.", "Is the folder empty?", selfolder, "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now." ])
+					if get_setting({'channels', 'error'}):
+						channel_name_static = settings['channels']['error']
+						error_channel_set = True
+						continue
+					else:
+						exit()
 				# to get the next video from the PHP front end we need to pass one of the episode's file names so it can determine the "short name"
 				urlcontents = open_url("http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(episodes_in_folder[0]))
 				print("OS-Response: ", urlcontents, "OS-Sent", episodes_in_folder[0])
