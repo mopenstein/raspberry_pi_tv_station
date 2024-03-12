@@ -36,4 +36,4 @@ The settings.json file in this folder is a bare bones example to getting video p
 
 You'll have to edit the location of the "drive" to match your local machine.
 
-You'll also need to make a copy of the google spreadsheet that contains the tv station programming and edit the URL in the "web-ui"->"tv_schedule_link" setting. Your version of the spreadsheet needs to be shared publicly but it doesn't have to be editable (except for your personal edits). Example that I use is here: [https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/](https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/copy)Click to make a Copy]
+You'll also need to make a copy of the google spreadsheet that contains the tv station programming and edit the URL in the "web-ui"->"tv_schedule_link" setting. Your version of the spreadsheet needs to be shared publicly but it doesn't have to be editable (except for your personal edits). Example that I use is here: https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/copy
