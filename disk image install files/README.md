@@ -18,9 +18,9 @@ You'll need to change the static IP address and Wifi settings. Edit fstab to aut
 
 Once you have an IP address and are connected to your local network you can navigate your browser to the pi's IP ADDRESS and edit the settings file 'Settings Editor'.
 
-You'll also need to create a .channel file and give it global read/write permissions. Do this even if you don't plan on using the channel feature.
+You'll also need to create a .channel file and give it global read/write permissions. Do this even if you don't plan on using the channel feature. Channel file location is set in the 'settings' file.
 
-After getting everything running you should use raspi-config to  expan the file system to reallocate the space on your sd card.
+After getting everything running you should use raspi-config to expand the file system to reallocate the space on your sd card.
 
 Also accessible from the Web UI is a link to phpMyAdmin from where you'll want to truancate the "errors", "commercials", and "played" databases so you can start fresh.
 
