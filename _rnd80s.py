@@ -132,6 +132,9 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 								if gend_commercials == None:
 									#user has set a specific number of commercials per break
 									comm_source = get_random_commercial()
+									if comm_source==None:
+										report_error("PLAY_COMM", ["could not get a random commercial"])
+										continue
 								else:
 									#user has chosen to automatically generate the amount of commercials
 									if len(gend_commercials) == 0:
@@ -391,7 +394,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 			
 				stime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['start'][0]) + ":" + str(timeItem['start'][1]) + ":00", "%d/%m/%Y %H:%M:%S")
 				etime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['end'][0]) + ":" + str(timeItem['end'][1]) + ":59", "%d/%m/%Y %H:%M:%S")
-				print(timeItem['name'], str(stime), now, ntime, etime)
+				#print(timeItem['name'], str(stime), now, ntime, etime)
 				if ntime >= stime and ntime <= etime:
 					skip['time'] = False
 				else:
@@ -433,11 +436,18 @@ def generate_commercials_list(max_time_to_fill):
 			#report_error("GEN_COMM_LIST", ["took more that 5 seconds to generate comercials list"])
 			break
 		c = get_random_commercial()
+		if c == None:
+			report_error("GEN_COMM_LOST", ["could not get a random commercial"])
+			continue
 		cTime = get_length_from_file(c)
 		if cTime==None:
 			report_error("GEN_COMM_LIST", ["commercial file has no length", str(c)])		
 		while(cTime == None):
 			c = get_random_commercial()
+			if c == None:
+				report_error("GEN_COMM_LOST", ["could not get a random commercial"])
+				continue
+				
 			cTime = get_length_from_file(c)
 			if cTime==None:
 				report_error("GEN_COMM_LIST", ["commercial file has no length", str(c)])		
@@ -503,14 +513,27 @@ def get_random_commercial():
 		programming_schedule = check_video_times(settings['commercial_times'], get_current_channel()) # check to see if any commercials are scheduled
 		if programming_schedule == None:
 			#no specified commercials were set for this time perioid, even tho the settings suggests there might be
-			report_error("GET_RND_COMM", ["check settings.json file"]) #could be intentional, but we're going to report it just in case
+			report_error("GET_RND_COMM", ["No commercials block found", "check settings.json file"]) #could be intentional, but we're going to report it just in case
 			return None
 
 		folder = programming_schedule[0] # the results, if any, returns None type of not
 		if folder:
 			#commercials are scheduled, so let's gather the videos from the specified paths (could only be 1 or could be many)
 
-
+			# going to loop through all returned directories, replacing special keywords and validating that the directory does exist
+			new_folder=[] # temp list of new directories
+			for i in range(0, len(folder)):
+				tmp_folder = replace_all_special_words(folder[i]) # replace special keywords
+				if os.path.isdir(tmp_folder) == False: # folder doesn't exist
+					report_error("GET_RND_COMM", [folder, "directory does not exist", "check settings.json file"]) # report error that directory exist
+				else:
+					new_folder.append(tmp_folder) # add directories that do exist
+			
+			if len(new_folder)==0: # no directories exist
+				report_error("GET_RND_COMM", ["No searachble directories are found", "check settings.json file"])
+				return None
+			
+			folder = new_folder # replace old folders with the newly verified folders
 			# settings wants the random video to be selected from multiple folders but prefers the random video come from the folders supplied rather than the combine contents of each folder
 			# this can help balance the show played when supplying different shows where a show with more videos would be more randomly favored
 			folder_chance = None 
@@ -530,7 +553,7 @@ def get_random_commercial():
 	except Exception as valerr:
 		#an unknown error occurred, report it and return nothing
 		
-		report_error("GET_RND_COMM", ["##unexpected error## check settings.json file", str(valerr)])
+		report_error("GET_RND_COMM", ["##unexpected error##", "check settings.json file", str(valerr)])
 		return None	
 
 channel_name_static = None
@@ -697,7 +720,7 @@ def PastThanksgiving(is_thanksgiving):
 	d = datetime.datetime.strptime(str("Nov 1 " + year), '%b %d %Y')
 	dw = d.weekday()
 	datme = datetime.datetime.strptime(str("Nov " + str(22 + (10 - dw) % 7) + " " + str(d.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
-	print(now, datme)
+	#print(now, datme)
 	if(is_thanksgiving==True): #check if today is thanksgiving
 		if now==datme and now.month==now.month:
 			return True
@@ -931,8 +954,8 @@ while(1):
 		else: # there is a static block
 			#check if the static block allotted time has passed
 			err_count = 3.15
-			print(time.mktime(now.timetuple()))
-			print(curr_static[3][1])
+			#print(time.mktime(now.timetuple()))
+			#print(curr_static[3][1])
 			if time.mktime(now.timetuple()) > curr_static[3][1]:
 				err_count = 3.16
 				curr_static = None
@@ -949,8 +972,20 @@ while(1):
 		err_count = 3.19
 		folder = programming_schedule[0]
 
-		print('Selected Folder: ', str(programming_schedule[2]) + " - " + replace_all_special_words(folder[0]))
+		#print('Selected Folder: ', str(programming_schedule[2]) + " - " + replace_all_special_words(folder[0]))
 		if folder != None: # folders have been set, load and play video
+			
+			# going to loop through all returned directories, replacing special keywords and validating that the directory does exist
+			new_folder=[] # temp list of new directories
+			for i in range(0, len(folder)):
+				tmp_folder = replace_all_special_words(folder[i]) # replace special keywords
+				if os.path.isdir(tmp_folder) == False: # folder doesn't exist
+					report_error("MAIN_LOOP", [folder, "directory does not exist", "check settings.json file"]) # report error that directory exist
+				else:
+					new_folder.append(tmp_folder) # add directories that do exist
+
+			folder = new_folder # replace old folders with the newly verified folders
+			
 			video = None
 			err_count = 3.2
 			if programming_schedule[2] == "video" or programming_schedule[2] == "video-show" or programming_schedule[2] == "commercial": # just select a random video out of the path
@@ -964,18 +999,18 @@ while(1):
 				
 				if folder_chance != None:
 					rfolder = random.choice(folder)
-					video = get_videos_from_dir(replace_all_special_words(rfolder))
+					video = get_videos_from_dir(rfolder)
 					print("Selecting video from: " + rfolder)
 				else:
 					print("Selecting video from: ", folder)
-					video = get_videos_from_dir(replace_all_special_words(folder[0]))
+					video = get_videos_from_dir(folder[0])
 					for itemX in range(1,len(folder)):
 						#print('Selected Folder:', replace_all_special_words(folder[0]))
-						video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))
+						video = video + get_videos_from_dir(folder[itemX])
 			elif programming_schedule[2] == "balanced-video": # select a random video from a single directory balanced around play count
 				url=""
 				for itemX in range(0,len(folder)):
-					url = url + "&f" + str(itemX+1) + "=" + urllib.quote_plus(replace_all_special_words(folder[itemX]))
+					url = url + "&f" + str(itemX+1) + "=" + urllib.quote_plus(folder[itemX])
 				urlcontents = open_url("http://127.0.0.1/?get_next_rnd_episode_from_dir=1" + url)
 				#rfolder = random.choice(folder)
 				#urlcontents = open_url("http://127.0.0.1/?get_next_rnd_episode=" + urllib.quote_plus(rfolder))
@@ -992,16 +1027,16 @@ while(1):
 							video = [ acontents[0] ]
 						else:
 							# if the file doesn't exist for whatever reason, report error and let a random video be selected below
-							report_error("SHOW BALANCED VIDEO", [ "File does not exist ", acontents[0] ])
+							report_error("SHOW BALANCED VIDEO", [ "File does not exist ", acontents[0], "Did you rename the file?", "Check the database for renamed files." ])
 				except:
 					report_error("SHOW BALANCED VIDEO", [ urlcontents ])
 				
 			elif programming_schedule[2] == "ordered-video": # select a random video but
 				err_count = 3.35
-				video = get_videos_from_dir(replace_all_special_words(folder[0]))
+				video = get_videos_from_dir(folder[0])
 				for itemX in range(1,len(folder)):
 					#print('Selected Folder:', replace_all_special_words(folder[0]))
-					video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]))				
+					video = video + get_videos_from_dir(folder[itemX])
 
 				selvideo = random.choice(video) # choose a random video from the directory to use as a reference (needs to be random in case there are multiple different directories)
 				urlcontents = open_url("http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(selvideo))
@@ -1070,9 +1105,10 @@ while(1):
 			else:
 				report_error("Programming Schedule", [ "unknown type set for video", programming_schedule[2] ])
 
-			if len(video) == 0:
-				err_count = 3.5
-				report_error("PLAY", ["video folder contains no videos", "SOURCE", str(folder[0]),"SELECTED", str(selfolder), "PROGRAMMING:", programming_schedule[0], programming_schedule[1], programming_schedule[2]])
+			if video != None:
+				if len(video) == 0:
+					err_count = 3.5
+					report_error("PLAY", ["video folder contains no videos", "SOURCE", str(folder[0]),"SELECTED", str(selfolder), "PROGRAMMING:", programming_schedule[0], programming_schedule[1], programming_schedule[2]])
 			
 			# if we managed to find some videos, we can proceed	
 			if video:

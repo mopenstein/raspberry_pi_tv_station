@@ -22,7 +22,7 @@ class DBMANAGEEXT {
 			<form method="GET">
 			<ul>
 			Short Name: <input type="text" name="insert" /><br />
-			File Name: <input type="text" name="file" /><br />
+			File Name: <input type="text" name="file" /> <small>*must be full path to file</small><br />
 			How many times? <input type="number" name="times" value="10" /><br />
 			<input type="submit" />
 			</ul>
@@ -83,6 +83,8 @@ class DBMANAGEEXT {
 			break;
 			case "all_but_prime":
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/primetime/') = 0 AND INSTR(name, '/cartoons/') = 0 AND INSTR(name, '/reruns/') = 0") or die($this->mysqlix->error);
+				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/primetime/random/')") or die($this->mysqlix->error);
+				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/thanksgiving/')") or die($this->mysqlix->error);
 				return;
 			break;
 			case "trim_test_now":

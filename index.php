@@ -3,6 +3,17 @@
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
 # Opening it up to the web will ruin your day.
+
+
+		{
+			"name": ["%D[2]%/commercials/january/any", "%D[2]%/commercials/february/any", "%D[2]%/commercials/march/any", "%D[2]%/commercials/april/any", "%D[2]%/commercials/may/any", "%D[2]%/commercials/june/any",
+				 "%D[2]%/commercials/july/any", "%D[2]%/commercials/august/any", "%D[2]%/commercials/september/any", "%D[2]%/commercials/october/any", "%D[2]%/commercials/november/any", "%D[2]%/commercials/december/any"],
+			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+			"prefer-folder": "yes",
+			"chance": ".125"
+		},
+
+
 */
 
 error_reporting(E_ALL);
@@ -38,8 +49,8 @@ $mysqli = new mysqli($database_info["host"], $database_info["username"], $databa
 if(isset($_GET["insert"]) && isset($_GET["file"]) && isset($_GET["times"])) {
 
 	for($i=0;$i<$_GET["times"] * 1;$i++) {
-		$mysqli->real_query("INSERT INTO played (short_name, name, played) VALUES ('" . $_GET["insert"] . "', '" . $_GET["file"] . "', ". time() . ")");
-		echo ($i+1) . ") INSERT INTO played (short_name, name, played) VALUES ('" . $_GET["insert"] . "', '" . $_GET["file"] . "', ". time() . ")<br />\n";
+		$mysqli->real_query("INSERT INTO played (short_name, name, played) VALUES ('" . $_GET["insert"] . "', '" . $_GET["file"] . "', 0)");
+		echo ($i+1) . ") INSERT INTO played (short_name, name, played) VALUES ('" . $_GET["insert"] . "', '" . $_GET["file"] . "', 0)<br />\n";
 	}
 	
 	die($_GET["insert"] . " - " . $_GET["file"] . " - " . $_GET["times"]);
@@ -727,6 +738,7 @@ function getRandomVideoByCount($directory) {
 	$dir_name = addslashes($directory);
 	
 	if(substr($dir_name, -1)!="/") $dir_name.="/";
+	if(substr($dir_name, -1)!="/") $dir_name.="/";
 	if(isset($_GET["dump"])) var_dump($dir_name);
 	
 	$sql = "SELECT * FROM played WHERE LEFT(name, ".strlen($dir_name).") = '".$dir_name."'";
@@ -736,7 +748,11 @@ function getRandomVideoByCount($directory) {
 		die("|0|video directory does not exist|$dir_name");
 	}
 
-	$files = glob($dir_name.'*.mp4');
+	$files = glob($dir_name."*.{mp4,mkv,avi,mpeg,mpg,mov,webm,m4v,flv,wmv}", GLOB_BRACE);
+	
+	if(count($files)==0) {
+		die($directory."|0|no files exist in directory|$dir_name");
+	}
 	
 	if(mysqli_num_rows($res)==0) {
 		die($files[array_rand($files)]."|1|play any random episode since no episodes of this show has been played yet|$dir_name");
@@ -1158,7 +1174,7 @@ while ($row = $res->fetch_assoc()) {
 	
 	//$showTypes = explode("_", $showType);
 	//if(count($showTypes)>1) $showType=$showTypes[1];
-	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td align=center>' . date("h:i A", $row["played"]) . '</td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';" title="'.strtolower(preg_replace("~[_\W\s]~", '', basename($row["name"]))).'">' . $row["short_name"] . '</a> ' . $len . ' </td><td align=center>'.$showType.'</td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_video'.$row["id"].'" onclick="flagVideo('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_video'.$row["id"].'" onclick="unflagVideo('.$row["id"].');">') . '</td></tr>';
+	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td align=center>' . date("h:i A", $row["played"]) . '</td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';" title="'.strtolower(preg_replace("~[_\W\s]~", '', basename($row["name"]))).'">' . $row["short_name"] . '</a> ' . $len . ' <a href="/commercials-times.php?video=' . $row["name"] . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';">&copy;</a></td><td align=center>'.$showType.'</td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_video'.$row["id"].'" onclick="flagVideo('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_video'.$row["id"].'" onclick="unflagVideo('.$row["id"].');">') . '</td></tr>';
 	$shows_cnt++;
 }
 
@@ -1191,15 +1207,37 @@ while ($row = $res->fetch_assoc()) {
 	foreach($drive_loc as $d) {
 		if(substr($row["name"], 0, strlen($d)) == $d) $rname = substr($row["name"], strlen($d));
 	}
+	
+	
+	
 	$splits = explode('/', $rname);
-	if(array_key_exists($splits[count($splits)-2], $comm_months)==false) { $comm_months[$splits[count($splits)-2]]=1; } else { $comm_months[$splits[count($splits)-2]]++; }
+	$month_offset = 2;
+	$comm_type=0;
+	
+	if(strpos($row["name"], "%AM%")>0) $comm_type=1;
+	if(strpos($row["name"], "%PM%")>0) $comm_type=2;
+	if(strpos($row["name"], "%ANY%")>0) $comm_type=3;
+	
+	if($splits[count($splits)-$month_offset]=="any" || $splits[count($splits)-$month_offset]=="am" || $splits[count($splits)-$month_offset]=="pm") {
+		$month_offset = 3;
+	}
+	
+	if(array_key_exists($splits[count($splits)-$month_offset], $comm_months)==false) { 
+		$comm_months[$splits[count($splits)-$month_offset]]=[1, 0, 0, 0];
+		$comm_months[$splits[count($splits)-$month_offset]][$comm_type]=1;
+	} else { 
+		$comm_months[$splits[count($splits)-$month_offset]][0]++;
+		$comm_months[$splits[count($splits)-$month_offset]][$comm_type]++;
+	}
+	
 	$a = strpos(basename($row["name"]), "%T(");
 	$b = strpos(basename($row["name"]), ")%", $a+1);
 	$len = "";
 	if($a>-1 && $b>-1) {
 		$len = gmdate("H:i:s", (int)substr(basename($row["name"]), $a + 3, $b-$a - 3));
 	}
-	echo '<tr style="background-color: #'.getCommercialTypeColor($splits[count($splits)-2]).'; color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><a href="/commercials.php?folder=' . $splits[count($splits)-2] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . $splits[count($splits)-2] . '</a></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
+
+	echo '<tr style="background-color: #'.getCommercialTypeColor($splits[count($splits)-$month_offset]).'; color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><span href="/commercials.php?folder=' . $splits[count($splits)-2] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . $splits[count($splits)-$month_offset] . '</span></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
 	$comms_cnt++;
 }
 
@@ -1209,7 +1247,7 @@ echo '</table><br />
 
 foreach($comm_months as $k=>$v) {
 	
-	echo '<span style="background-color: #'.getCommercialTypeColor($k).'; color:'.invertColor(getCommercialTypeColor($k)).'">'."$v commercials from $k (" . round(($v / $comms_cnt)*100,1) . "%)</span><br />\n";
+	echo '<span style="background-color: #'.getCommercialTypeColor($k).'; color:'.invertColor(getCommercialTypeColor($k)).'">'.$v[0]." commercials from $k [AM " . $v[1] . ", PM " . $v[2] . ", ANY " . $v[3] . "] " . " (" . round(($v[0] / $comms_cnt)*100,1) . "%)</span><br />\n";
 
 }
 
@@ -1221,7 +1259,7 @@ echo '
   <h3>Errors</h3>
   <ol>';
 
-$res = $mysqli->query("SELECT * FROM errors WHERE name NOT LIKE '%UPTIME%' ORDER BY id DESC LIMIT 500") or die($mysqli->error);
+$res = $mysqli->query("SELECT * FROM errors WHERE name NOT LIKE '%UPTIME%' ORDER BY id DESC LIMIT 1500") or die($mysqli->error);
 $odate = "";
 $change = false;
 $GEN_COMM_LIST = 0;
@@ -1397,7 +1435,7 @@ while ($row = $res->fetch_assoc()) {
 		$arrTypes[$showType] = 1;
 	}
 	$gavail = getShowPathFromFile($row["name"]);
-	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td>' . $num . '</td><td>' . $showType . ' <a href="/?getavailable=' . urlencode($gavail[0]) . '&dir=' . urlencode($gavail[1]) . '&h=1">#</a> <a href="/?get_next_episode=' . urlencode($row["name"]) . '&h=1">$</a> <a href="/?get_next_rnd_episode=' . urlencode(dirname($row["name"])) . '&h=1">%</a></td><td> <a href="#" onclick="ajax(\'?showstats='.addslashes(urlencode($row["short_name"])).'&id='.$row["id"].'\'); document.getElementById(\'' . addslashes($row["short_name"]) . $row["id"] . '\').style.display = \'block\'; return false;">[+]</a> ' . $row["short_name"] . '<div id="' . $row["short_name"] . $row["id"] . '" style="display:none; max-width:500px;overflow:scroll;white-space: nowrap;"></div></td><td align="center">' . $row["value_occurrence"] . '</td></tr>';
+	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td>' . $num . '</td><td>' . $showType . ' <a href="/?getavailable=' . urlencode($gavail[0]) . '&dir=' . urlencode($gavail[1]) . '&h=1">#</a> <a href="/?get_next_episode=' . urlencode($row["name"]) . '&h=1">$</a> <a href="/?get_next_rnd_episode=' . urlencode(dirname($row["name"])) . '&h=1" alt="'.$row["name"].'">%</a></td><td> <a href="#" onclick="ajax(\'?showstats='.addslashes(urlencode($row["short_name"])).'&id='.$row["id"].'\'); document.getElementById(\'' . addslashes($row["short_name"]) . $row["id"] . '\').style.display = \'block\'; return false;">[+]</a> ' . $row["short_name"] . '<div id="' . $row["short_name"] . $row["id"] . '" style="display:none; max-width:500px;overflow:scroll;white-space: nowrap;"></div></td><td align="center">' . $row["value_occurrence"] . '</td></tr>';
 	$num++;
 }
 
