@@ -135,5 +135,34 @@ var myInput = document.getElementById("editor");
         }
     }
 </script>
+
+<h3>name:</h3>
+<ul>
+	<li>An array of paths to directorys that contain either video files or sub-directories that contain video files.</li>
+	<li>special words: %D[NUM]% - sets the "drive" (ie base path) based on the the locations where <em>NUM</em> is the index corresponding to what was set in the "<a href="#drive">drive</a>" setting.</li>
+</ul>
+<h3>dayOfWeek:</h3>
+<ul>
+	<li>An array of days of the week on which the content can be played.</li>
+	<li>special words: monday, tuesday, wednesday,thursday,friday,saturday,sunday and the wild cards all,any,*.</li>
+	<li>setting as <em>null</em> is the same as using the wild card special words</li>
+</ul>
+<h3>month:</h3>
+<ul>
+	<li>An array of numbers that correspond to the months of the year on which the content can be played. example: 1 - for the month of january</li>
+	<li>special words: wild cards all,any,*.</li>
+	<li>setting as <em>null</em> is the same as using the wild card special words</li>
+</ul>
+<h3>type:</h3>
+<ul>
+	<li>video = selects random video from a directory consisting only of video files ignoring everything else</li>
+	<li>video-show = selects random "show" from a directory consisting only of video files trying to balance the "shows" based on total play count</li>
+	<li>balanced-video = selects a random video from a single directory balanced around total video play count. If more than a single directory is supplied, one will be chosen based on a weighted play count.</li>
+	<li>ordered-show = selects random "show" from from a directory filled with sub-directories containing video files for that "show" and also selects the next video file in ascending order based on what was previously selected</li>
+	<li>ordered-video = selects random video from from a directory filled with video files and also selects the next video file in ascending order based on what was previously selected from this directory</li>
+	<li>commercial = selects random video from a directory consisting only of video files ignoring everything else identifying itself as a "commercial"</li>
+</ul>
+
+<em>Whole integers must be treated as numbers and floats must be treated as strings. This is a json requirement.</em>
 </body>
 </html>

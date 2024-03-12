@@ -97,7 +97,7 @@ echo '
 function get_video() {
 	var url = document.getElementById(\'vidurl\').value;
 	console.log(\'?youtubedl=\' + url + \'&dir=\' + document.getElementById(\'dirsel\').value);
-	document.getElementById(\'ytdl_frame\').src=\'/?youtubedl=\' + url + \'&dir=\' + document.getElementById(\'dirsel\').value;
+	document.getElementById(\'ytdl_frame\').src=\'?youtubedl=\' + url + \'&dir=\' + document.getElementById(\'dirsel\').value;
 }
 
 function drawLines() {
