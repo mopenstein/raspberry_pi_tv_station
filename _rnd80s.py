@@ -1,12 +1,11 @@
 #!/usr/bin/python
 
-# version: 101.9
-# version date: 2023.11.17
-#	support for balanced-video type added.
-#	minor bug fixes
+# version: 101.91
+# version date: 2024.03.23
+#	fixed hold over minimum time before a commercial could be played (was 5 seconds, now 0 seconds)
 #
 # settings version: 0.94.1
-#	added 'balanced-video' type. Selects a random video from a single directory balanced around total video play count (note that if more than one directory is specified, one will be chosen randomly)
+#	no changes
 
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -101,7 +100,7 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 				#check to see if commercial times were passed and also check to see if the max commercials allowed is greater than 0
 				if len(commercials) > 0 and max_commercials_per_break>0:
 					#found a commercial break, play some commercials
-					if float(position)>=float(commercials[0]) and position>5:
+					if float(position)>=float(commercials[0]) and position>0:
 						#remove the currently selected commercial time from list of positions
 						commercials.pop(0)
 						#pause and hide the main video player
