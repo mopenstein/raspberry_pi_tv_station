@@ -435,11 +435,11 @@ function getShowNames($url, $force) {
 
 
 if(isset($_GET["clear_cache"])) {
-	$wasted = parseCSV(getShowNames('https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/export?format=csv&id=1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk&gid=0', true), true);
+	$wasted = parseCSV(getShowNames($json_settings["web-ui"]["tv_schedule_link"].(substr($json_settings["web-ui"]["tv_schedule_link"],-1)!="/" ? "/" : "").'export?format=csv', true), true);
 	die();
 }
 
-$unparsedCSV = getShowNames('https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/export?format=csv&id=1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk&gid=0', false);
+$unparsedCSV = getShowNames($json_settings["web-ui"]["tv_schedule_link"].(substr($json_settings["web-ui"]["tv_schedule_link"],-1)!="/" ? "/" : "").'export?format=csv', false);
 $parsedShows = parseCSV($unparsedCSV);
 
 function getPathFromShortName($shortname) {
