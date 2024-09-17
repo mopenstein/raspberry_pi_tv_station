@@ -1,11 +1,12 @@
 #!/usr/bin/python
 
-# version: 101.91
-# version date: 2024.03.23
-#	fixed hold over minimum time before a commercial could be played (was 5 seconds, now 0 seconds)
+# version: 101.93
+# version date: 2024.06.09
+#	support for 'between' setting
+#	removed server minimum time between playing the same videos (was 2 hours, now 0), this should be handled in the settings file using the "minimum time between repeats" option
 #
-# settings version: 0.94.1
-#	no changes
+# settings version: 0.96
+#	Added "between" setting which lets scheduling be set down to the second (special epoch time is used) or specific datetime ranges
 
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -306,6 +307,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 			time = None,
 			special = None,
 			chance = None,
+			between = None,
 			channel = None
 		)
 
@@ -318,6 +320,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 				time = False,
 				special = False,
 				chance = False,
+				between = False,
 				channel = False
 			)
 			
@@ -350,6 +353,33 @@ def check_video_times(obj, channel=None, allow_chance=True):
 				if random.random() > float(chance_eval) or allow_chance == False:
 					continue
 
+			# between setting checks how many seconds from the first of the current year and compares it to the settings supplied. 
+			# this allows relative time comparison down to the second instead of relying on month, day, etc
+			# example that would be triggered from 00:00 Jan 01 to 23:59 Dec 31 of the year:
+			#	"between": [ [0, 31536000] ] 
+			# example that would be triggered from 12:00 Jan 01 to 16:00 Mar 22 AND 00:00 Jun 13 to 00:00 Jul 13 of the year:
+			#	"between": [ [43200, 7012800], [14234100, 21837300]  ] 
+
+			if 'between' in timeItem:
+				if timeItem['between'] != None:
+					test = False
+					relativeTime = time.mktime(now.timetuple()) - time.mktime(datetime.datetime.strptime("01/01/" + str(datetime.datetime.now().year).zfill(4) + " 00:00", "%d/%m/%Y %H:%M").timetuple())  # returns how many seconds from 00:00 Jan 1 of the current year
+					
+					for itemX in timeItem['between']: #if it's a number, compare seconds
+						if is_number(itemX[0]):
+							if relativeTime >= itemX[0] and relativeTime <= itemX[1]:
+								test = True
+							else:
+								test = False
+						else: # if it's a string, convert string to datetime
+							if now >= datetime.datetime.strptime(itemX[0] + " " + str(now.year).zfill(4), '%b %d %I:%M%p %Y') and now <= datetime.datetime.strptime(itemX[1] + " " + str(now.year).zfill(4), '%b %d %I:%M%p %Y'):
+								test = True
+							else:
+								test = False
+						
+					if test==False:
+						continue
+						
 			if 'month' in timeItem:
 				if timeItem['month'] != None:
 					test = False
@@ -414,52 +444,50 @@ def check_video_times(obj, channel=None, allow_chance=True):
 			if useThisOne:
 				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem, now]
 	except Exception as valerr:
-		report_error("CHECK_TIMES", [str(valerr)])
+		report_error("CHECK_TIMES", [str(valerr),traceback.format_exc()])
 
 	return None
 
-def generate_commercials_list(max_time_to_fill):
-	# attempts to generate a list of commercials of varying length to fill up remaining time (max_time_to_fill)
-	# commercial AND shows/movies filenames must contain the length of the video in this format:
-	#
-	#		video_file_name_%T(length)%.mp4
-	#
-	# where "length" is a whole number representing the actual length of the video in seconds
-	# it can appear anywhere in the filename
-	# see: add_duration_to_video.py
-	print("generate_commercials_list", max_time_to_fill)
+def generate_commercials_list(total_time_seconds):
+	"""
+	Fills the given total time with randomly selected choices from a random commercial.
+	:param total_time_seconds: Total time in seconds.
+	:return: A list of randomly selected commercials that (roughly) sum up to the total time.
+	"""
+	remaining_time = total_time_seconds
+	selected_intervals = []
+	lowest_time = 1000
 	start_time = time.time()
-	ret = []
-	while(True):
-		if time.time() - start_time > 15:
-			#report_error("GEN_COMM_LIST", ["took more that 5 seconds to generate comercials list"])
-			break
+	while remaining_time > 40:
 		c = get_random_commercial()
 		if c == None:
 			report_error("GEN_COMM_LOST", ["could not get a random commercial"])
 			continue
+		
 		cTime = get_length_from_file(c)
 		if cTime==None:
 			report_error("GEN_COMM_LIST", ["commercial file has no length", str(c)])		
+		
 		while(cTime == None):
 			c = get_random_commercial()
 			if c == None:
 				report_error("GEN_COMM_LOST", ["could not get a random commercial"])
 				continue
-				
 			cTime = get_length_from_file(c)
 			if cTime==None:
 				report_error("GEN_COMM_LIST", ["commercial file has no length", str(c)])		
+
+		#if cTime <= remaining_time:
+		if remaining_time - cTime > 29:
+			selected_intervals.append(c)
+			remaining_time -= cTime
 		
-		if max_time_to_fill - cTime > 60:
-			max_time_to_fill = max_time_to_fill - cTime
-			ret.append(c)
-		else:
-			max_time_to_fill = max_time_to_fill - cTime
-			ret.append(c)
-			break
+		if cTime < lowest_time: lowest_time = cTime
+
+		if time.time() - start_time > 5:
+			if remaining_time < lowest_time: break
 		
-	return ret if len(ret)>0 else None
+	return selected_intervals
 
 def get_args(index):
 	if index < len(sys.argv):
@@ -844,6 +872,7 @@ def update_current_time():
 ############################ global variables
 now = datetime.datetime.now() # set the date time
 script_start_time = time.time()
+channel_name_static = None
 
 error_count = 0
 last_video_played = ""
@@ -855,7 +884,7 @@ base_directory = os.path.dirname(__file__)
 ############################ /global variables
 
 ############################ settings
-SETTINGS_VERSION = 0.94
+SETTINGS_VERSION = 0.96
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
@@ -876,6 +905,8 @@ start_time = time.time()
 err_extra = []
 error_channel_set = False
 ########################## main loop
+
+report_error("STARTUP", ["Script is now running!"])
 
 while(1):
 	try:
@@ -938,6 +969,14 @@ while(1):
 			
 			update_settings()
 			programming_schedule = check_video_times(settings['times'], get_current_channel(), allow_chance)
+			if programming_schedule == None:
+				report_error("PROGRAMMING_SCHEDULE", [ "The programming schedule returned no results.", "Check your settings file to ensure programming is set for this time.", "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now." ])
+				if get_setting({'channels', 'error'}):
+					channel_name_static = settings['channels']['error']
+					error_channel_set = True
+					continue
+				else:
+					exit()
 			
 			err_count = 3.12
 			if programming_schedule[3] != None:
