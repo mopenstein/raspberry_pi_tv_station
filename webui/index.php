@@ -34,6 +34,7 @@ $drive_loc = $json_settings["drive"];
 
 $database_info = $json_settings["web-ui"]["database_info"];
 
+if(!array_key_exists("name", $json_settings)) { $settings_name =""; } else { $settings_name = " - " . $json_settings["name"]; }
 $channels = $json_settings["channels"]["names"];
 $channel_file = $json_settings["channels"]["file"];
 
@@ -45,12 +46,38 @@ $db_manage_ext->load($database_info["host"], $database_info["username"], $databa
 
 $mysqli = new mysqli($database_info["host"], $database_info["username"], $database_info["password"], $database_info["database_name"]);
 
+if(isset($_GET["test_settings"])) {
+
+	$pythonScript = '/home/pi/Desktop/test_settings.py';
+	echo "python " . escapeshellarg($pythonScript) . (isset($_GET["time"]) ? ' '.escapeshellarg($_GET["time"]) : '');
+	$output = shell_exec("python " . escapeshellarg($pythonScript) . (isset($_GET["time"]) ? ' '.escapeshellarg($_GET["time"]) : ''));
+
+	echo "<pre>$output</pre>";
+
+	die();
+}
+
+if(isset($_GET["backup"])) {
+	$result = exec('sudo mysqldump --extended-insert=FALSE shows played | gzip > shows.sql.gz');
+	while(!file_exists('shows.sql.gz')) {
+		sleep(1);
+	}
+	//header('Content-type: text/plain');
+	header("Cache-Control: public");
+    header("Content-Description: File Transfer");
+    header("Content-Disposition: attachment; filename=backup".date("Y-m-d.H.i") .".sql.gz");
+	header("Content-Type: application/zip");
+    header("Content-Transfer-Encoding: binary");
+	readfile('shows.sql.gz');
+	unlink('shows.sql.gz');
+	die();
+}
 
 if(isset($_GET["insert"]) && isset($_GET["file"]) && isset($_GET["times"])) {
 
 	for($i=0;$i<$_GET["times"] * 1;$i++) {
-		$mysqli->real_query("INSERT INTO played (short_name, name, played) VALUES ('" . $_GET["insert"] . "', '" . $_GET["file"] . "', 0)");
-		echo ($i+1) . ") INSERT INTO played (short_name, name, played) VALUES ('" . $_GET["insert"] . "', '" . $_GET["file"] . "', 0)<br />\n";
+		$mysqli->real_query("INSERT INTO played (short_name, name, played) VALUES ('" . $mysqli->real_escape_string($_GET["insert"]) . "', '" . $mysqli->real_escape_string($_GET["file"]) . "', 0)");
+		echo ($i+1) . ") INSERT INTO played (short_name, name, played) VALUES ('" . $mysqli->real_escape_string($_GET["insert"]) . "', '" . $mysqli->real_escape_string($_GET["file"]) . "', 0)<br />\n";
 	}
 	
 	die($_GET["insert"] . " - " . $_GET["file"] . " - " . $_GET["times"]);
@@ -605,7 +632,26 @@ if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
 	$shortname=getTvShowName($_GET["getavailable"], $parsedShows);
 	$showType=getShowType($shortname, $parsedShows);
 	if(isset($_GET["h"])) {
-		die("<h1>$shortname $showType</h1>\n" . implode("<br />\n", (getAvailableShows($showType, $_GET["dir"], $unparsedCSV))));
+		
+		function highlightDiff($string1, $string2) {
+			for($i=0;$i<strlen($string1);$i++) {
+				if(substr($string1,$i,1) != substr($string2,$i,1)) break;
+			}
+			return "<b>" . substr($string2,0,$i) . "</b><i>" . substr($string2,$i) . "</i>";
+		}
+		
+		$avh = getAvailableShows($showType, $_GET["dir"], $unparsedCSV);
+		echo "<h1>$shortname $showType</h1>\n";
+		$lshow = "";
+		foreach($avh as $show) {
+			if($lshow=="") {
+				echo "<i>$show</i><br />\n";
+			} else {
+				echo highlightDiff($lshow,$show) . "<br />\n";
+			}
+			$lshow=$show;
+		}
+		die();
 	} else {
 		die(implode("\n", (getAvailableShows($showType, $_GET["dir"], $unparsedCSV))));
 	}
@@ -625,7 +671,7 @@ if(isset($_GET["getshowname"])) {
 	$row=0;
 	$remote_diff_set = false;
 
-	$time_diff = 7200;
+	$time_diff = 0;
 	$row = 0;
 	//xmas time, double the time difference
 	if(isset($_GET["min_time"])) {
@@ -941,9 +987,9 @@ echo '
 <head>
 <link href="data:image/x-icon;base64,AAABAAEAEBAAAAEACABoBQAAFgAAACgAAAAQAAAAIAAAAAEACAAAAAAAAAEAAAAAAAAAAAAAAAEAAAAAAAAAAAAA2tnYAI+MigB/fXsASdG7AEtJSQAkMLsAZGFgAPf39wCvst0AMKTpACg2zABWVFQAN656ABwppwB6d3UAX11cAIZBZwDT2/YAsnWiALiRQgDh4N8AlpORAJ1PeQCQR28AdzdbALR3pQCUl7gAd+j3ACiIWgAysvUA0c/OAHCM8gBN2MMAheD9AKGjyAAumeEAAqvJAGhmZQBDQUIAvLq4ANHZ9QAAw+EAx55IAHFvbQCzt+MA1KhNAEaOhADm5eQAkujwAFdVVQBDxagAesDVAInj/wBgXl0AMazwAN6wUABGREQAL5ZnADu4gwBRT04ASsD5AADW8ACYTHUAlvX+ACw52QBMy7kAT01MAHOP9QDz05MALY/XADOkcgCLc0IAdnRyAEpOYwCTkI4APz4+AO/PjwABt9UAIXdNAJGOjAAAzeoAqazUAEJAQQCkgjkAER+QAI/x+wAuPOMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATExMTExMTExMTExMAAAAU1MDVUYlT09IMlNTD1MAADlJGw4kTh0dVBk5OTk5AAAFHyMGCio6OhQRNgUoBQAAPAFSCzdRR0crGBA8PDwAADIVCUEePg0NLj8MMjIyAAAQMC1XPRwzOzgXQxAQEAAAAggpICJWBARNEwcmJiYAAFAnEkQ1QCEhRRpQUFAsAABLS0xKNDFCL0xLS0tLSwAAABYWFhYWFhYWFhYWFgAAAAAAAAAAFgAAFgAAAAAAAAAAAAAAABYAABYAAAAAAAAAAAAAABYAAAAAFgAAAAAAAAAAFhYWAAAAABYWFgAAAP//AADAAwAAgAEAAIABAACAAQAAgAEAAIABAACAAQAAgAEAAIABAACAAQAAwAMAAP2/AAD9vwAA+98AAOPHAAA=" rel="icon" type="image/x-icon" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TV Station</title>
+<title>TV Station'.$settings_name.'</title>
 <script type="text/javascript">
-function openCity(cityName) {
+function swapTab(cityName) {
   // Declare all variables
   var i, tabcontent, tablinks;
 
@@ -973,7 +1019,7 @@ function openCity(cityName) {
 
 window.onload = function() {
 	if(window.location.hash) {
-		openCity(window.location.hash.substr(1));
+		swapTab(window.location.hash.substr(1));
 	}
 }
 
@@ -1113,11 +1159,11 @@ echo '</button>
 </div>
 
 <div class="tab">
-  <button id="btnShows" class="tablinks active" onclick="openCity(\'Shows\')">Shows</button>
-  <button id="btnCommercials" class="tablinks" onclick="openCity(\'Commercials\')">Commercials</button>
-  <button id="btnErrors" class="tablinks" onclick="openCity(\'Errors\')">Errors</button>
-  <button id="btnSettings" class="tablinks" onclick="openCity(\'Settings\')">Settings</button>
-  <button id="btnStats" class="tablinks" onclick="openCity(\'Stats\')">Stats</button>
+  <button id="btnShows" class="tablinks active" onclick="swapTab(\'Shows\')">Shows</button>
+  <button id="btnCommercials" class="tablinks" onclick="swapTab(\'Commercials\')">Commercials</button>
+  <button id="btnMessages" class="tablinks" onclick="swapTab(\'Messages\')">Messages</button>
+  <button id="btnSettings" class="tablinks" onclick="swapTab(\'Settings\')">Settings</button>
+  <button id="btnStats" class="tablinks" onclick="swapTab(\'Stats\')">Stats</button>
 </div>
 
 <!-- Tab content -->
@@ -1198,6 +1244,7 @@ $bit = 1;
 //echo strtotime('today 23:59');
 
 $res = $mysqli->query("SELECT * FROM commercials WHERE played>=" . strtotime($the_date . ' 00:00') . " AND played<=" . strtotime($the_date . ' 23:59') . " ORDER BY id DESC") or die($mysqli->error);
+$comms_cnt = mysqli_num_rows($res);
 $comm_months = [];
 
 
@@ -1227,7 +1274,7 @@ while ($row = $res->fetch_assoc()) {
 		$comm_months[$splits[count($splits)-$month_offset]][$comm_type]=1;
 	} else { 
 		$comm_months[$splits[count($splits)-$month_offset]][0]++;
-		$comm_months[$splits[count($splits)-$month_offset]][$comm_type]++;
+		if($comm_type) $comm_months[$splits[count($splits)-$month_offset]][$comm_type]++;
 	}
 	
 	$a = strpos(basename($row["name"]), "%T(");
@@ -1237,8 +1284,8 @@ while ($row = $res->fetch_assoc()) {
 		$len = gmdate("H:i:s", (int)substr(basename($row["name"]), $a + 3, $b-$a - 3));
 	}
 
-	echo '<tr style="background-color: #'.getCommercialTypeColor($splits[count($splits)-$month_offset]).'; color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><span href="/commercials.php?folder=' . $splits[count($splits)-2] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . $splits[count($splits)-$month_offset] . '</span></td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
-	$comms_cnt++;
+	echo '<tr style="background-color: #'.getCommercialTypeColor($splits[count($splits)-$month_offset]).'; color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><span href="/commercials.php?folder=' . $splits[count($splits)-2] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . $splits[count($splits)-$month_offset] . '</span></td><td style="padding-left:20px;">'.$comm_months[$splits[count($splits)-$month_offset]][0].'. <a href="/?video=' . $row["name"] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
+	//$comms_cnt++;
 }
 
 echo '</table><br />
@@ -1255,8 +1302,8 @@ echo '
 <br />' . $comms_cnt . ' commercials today.<br />
 </div>
 
-<div id="Errors" class="tabcontent">
-  <h3>Errors</h3>
+<div id="Messages" class="tabcontent">
+  <h3>Messages</h3>
   <ol>';
 
 $res = $mysqli->query("SELECT * FROM errors WHERE name NOT LIKE '%UPTIME%' ORDER BY id DESC LIMIT 1500") or die($mysqli->error);
@@ -1265,7 +1312,7 @@ $change = false;
 $GEN_COMM_LIST = 0;
 while ($row = $res->fetch_assoc()) {
 	$rows = explode("|", $row["name"]);
-	if($rows[0] != "GEN_COMM_LIST") {
+	//if($rows[0] != "GEN_COMM_LIST") {
 		$date = date("m/d/Y", $row["played"]);
 		$time = date("h:i A", $row["played"]);
 		if($odate != $date) {
@@ -1295,9 +1342,9 @@ while ($row = $res->fetch_assoc()) {
 		}
 
 		echo '</ul></div></li>';
-	} else {
-		$GEN_COMM_LIST++;
-	}
+	//} else {
+	//	$GEN_COMM_LIST++;
+	//}
 }
 
 echo '
@@ -1347,6 +1394,7 @@ echo '
 	<h3>Database Management</h3>
 	<ul>
 		<li style="padding:4px;"><a href="/phpmyadmin">phpMyAdmin</a></li>
+		<li style="padding:4px;"><a href="/?backup=now">Backup Shows DB (sql/gzip)</a></li>
 ';
 
 echo $db_manage_ext->announce();

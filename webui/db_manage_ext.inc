@@ -9,7 +9,8 @@ class DBMANAGEEXT {
 		<!-- database manage extension -->
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_shows" style="color:red;" onclick="return confirm(\'This will permanently delete all show data older than 10 days. Are you sure?\')">Trim Shows Played Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_shows_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all shows data. Are you sure?\')">[EMPTY]</a></li>		
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_commercials" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data older than 10 days. Are you sure?\')">Trim Commercials Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_commercials_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data. Are you sure?\')">[EMPTY]</a></li>
-			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_errors" style="color:red;" onclick="return confirm(\'This will permanently delete all error data older than 10 days. Are you sure?\')">Trim Errors Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_errors_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all error data. Are you sure?\')">[EMPTY]</a></li>
+			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_errors" style="color:red;" onclick="return confirm(\'This will permanently delete all error data older than 10 days. Are you sure?\')">Trim Messages Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_errors_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all messages. Are you sure?\')">[EMPTY]</a></li>
+			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_shorts" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /shorts/ in its path. Are you sure?\')">Expunge Shorts</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_special" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /specials/ in its path. Are you sure?\')">Expunge Specials</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_cartoons" style="color:red;" onclick="return confirm(\'This will permanently delete all shows with /cartoons/ in its path. Are you sure?\')">Expunge Cartoons</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_reruns" style="color:red;" onclick="return confirm(\'This will permanently delete all shows with /reruns/ in its path. Are you sure?\')">Expunge Reruns</a></li>
@@ -61,6 +62,10 @@ class DBMANAGEEXT {
 				$res = $this->mysqlix->query("DELETE FROM errors WHERE played<=" . (time()-864000) . " ORDER BY id DESC") or die($this->mysqlix->error);
 				return; //"er trim";
 			break;
+			case "trim_shorts":
+				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/shorts/')") or die($this->mysqlix->error);
+				return; //"er trim";
+			break;
 			case "trim_special":
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/specials/')") or die($this->mysqlix->error);
 				return; //"er trim";
@@ -82,7 +87,7 @@ class DBMANAGEEXT {
 				return;
 			break;
 			case "all_but_prime":
-				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/primetime/') = 0 AND INSTR(name, '/cartoons/') = 0 AND INSTR(name, '/reruns/') = 0") or die($this->mysqlix->error);
+				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/primetime/') = 0 AND INSTR(name, '/cartoons/') = 0 AND INSTR(name, '/reruns/') = 0 AND INSTR(name, '/specials/') = 0") or die($this->mysqlix->error);
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/primetime/random/')") or die($this->mysqlix->error);
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/thanksgiving/')") or die($this->mysqlix->error);
 				return;

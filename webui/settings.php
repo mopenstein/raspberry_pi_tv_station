@@ -146,7 +146,7 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>string&gt;</i> used to identify the script in the web front end</li>
 	</ul>
-	<h3>drive:</h3>
+	<h3><a name="drive"></a>drive:</h3>
 	<ul>
 		<li><i>[ string&gt;, array&gt; ]</i> list of strings containing locations of programming content. <i>(will automatically be converted to %D[index]% keyword)</i></li>
 	</ul>
@@ -178,6 +178,10 @@ var myInput = document.getElementById("editor");
 		<li>An array of paths to directorys that contain either video files or sub-directories that contain video files.</li>
 		<li>special words: %D[NUM]% - sets the "drive" (ie base path) based on the the locations where <em>NUM</em> is the index corresponding to what was set in the "<a href="#drive">drive</a>" setting.</li>
 	</ul>
+	<h3>between:</h3>
+	<ul>
+		<li>An array of seconds (total seconds from 01 Jan 00:00) <i>OR</i> &lt;datetime&gt; <i>(%b %d %I:%M%p)</i> (YEAR should be omitted) during which the content can be played. (cannot be mixed must be seconds or datetime but never both)</li>
+	</ul>
 	<h3>dayOfWeek:</h3>
 	<ul>
 		<li>An array of days of the week on which the content can be played.</li>
@@ -201,7 +205,7 @@ var myInput = document.getElementById("editor");
 			<li>ordered-show = selects random "show" from from a directory filled with sub-directories containing video files for that "show" and also selects the next video file in ascending order based on what was previously selected</li>
 			<li>ordered-video = selects random video from from a directory filled with video files and also selects the next video file in ascending order based on what was previously selected from this directory</li>
 			<li>commercial = selects random video from a directory consisting only of video files ignoring everything else identifying itself as a "commercial"</li>
-		</ol>
+		</ul>
 	</ul>
 	<h3>start:</h3>
 	<ul>
@@ -216,6 +220,57 @@ var myInput = document.getElementById("editor");
 		<li><i>&lt;string&gt;</i> when set video from only this 'channel' will be played</li>
 	</ul>
 </ul>
-<em>Whole integers must be treated as numbers and floats must be treated as strings. This is a json requirement.</em>
+<br><br>
+<h3><em>Whole integers must be treated as numbers and floats must be treated as strings. This is a json requirement.</em></h3>
+<br />
+<br />
+<h1>Between maker:</h1>
+    <label for="datetime1">Select First Date and Time:</label>
+    <input type="datetime-local" id="datetime1" min="2024-01-01T00:00" max="2024-12-31T23:59"> (must be before second date)
+    <br><br>
+    <label for="datetime2">Select Second Date and Time:</label>
+    <input type="datetime-local" id="datetime2" min="2024-01-01T00:00" max="2024-12-31T23:59"> (must be after first date)
+    <br><br>
+    <button onclick="calculateDifference(0)">Generate Seconds Setting</button> <button onclick="calculateDifference(1)">Generate Seconds Array</button><br>
+	<button onclick="calculateDifference(2)">Generate DateTime Setting</button> <button onclick="calculateDifference(3)">Generate DateTime Array</button><br>
+	<br>
+	Result: <input type="text" id="betweenResult" size="50">
+    <p id="result"></p>
+
+    <script>
+		function formatDate(date) {
+			month = date.toLocaleString('en-US',     {month: 'short' });
+			day  =  date.toLocaleDateString('en-US', {day: '2-digit'});
+			// year =  date.toLocaleDateString('en-US', {year: 'numeric'}); // year isn't needed
+			time =  date.toLocaleDateString('en-US', {year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true}).toString().substr(-8).replace(/\s/g, "")
+			
+			return month + ' ' + day + ' ' + time;
+		}
+		
+        function calculateDifference(type) {
+            const datetime1 = new Date(document.getElementById('datetime1').value);
+            const datetime2 = new Date(document.getElementById('datetime2').value);
+            const startOfYear = new Date('2024-01-01T00:00:00');
+
+            if (isNaN(datetime1) || isNaN(datetime2)) {
+                document.getElementById('result').value = 'Please select both dates and times.';
+                return;
+            }
+
+            const diff1 = (datetime1 - startOfYear) / 1000;
+            const diff2 = (datetime2 - startOfYear) / 1000;
+			
+            if(!type) {
+				document.getElementById('betweenResult').value = `"between": [ [${diff1}, ${diff2}] ]`;
+			} else if(type==1) {
+				document.getElementById('betweenResult').value = `[${diff1}, ${diff2}]` ;
+			} else if(type==2) {
+				document.getElementById('betweenResult').value = '"between": [ ["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"] ]';
+			} else if(type==3) {
+				document.getElementById('betweenResult').value = '["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"]';
+			}
+        }
+    </script>
+
 </body>
 </html>
