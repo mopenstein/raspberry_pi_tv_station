@@ -1,7 +1,7 @@
 {
-	"version": "0.95",
+	"version": "0.96",
 	"drive": ["/media/pi/ssd", "/media/pi/ssd_b"],
-	"name": "TV STATION NAME",
+	"name": "TV Station Name",
 	"play_show_episodes_in_order": true,
 	"insert_commercials": true,
 	"commercials_per_break": "auto",
@@ -18,8 +18,8 @@
 			},
 
 	"web-ui": {
-			"show_type_colors": { "Latenight": "FFAA22", "winter_Reruns": "F8FFA2", "summer_Reruns": "C8CF72", "Easter": "CEF5FA", "Thanksgiving": "DAA520", "summer_Cartoons": "A2FFEF", "winter_Cartoons": "F2AFEF", "spring_Cartoons": "F2FFAF", "fall_Cartoons": "A2AFEF","Specials": "FFA2A2","Primetime": "dd8888","Gameshows": "88AAFF","Movies": "A2FFAC", "Christmas": "A2B9FF","sum_Monday": "D5A2FF","sum_Tuesday": "F5A2DF","sum_Wednesday": "A5F2DF","sum_Thursday": "D5F2AF","sum_Friday": "F5F2FF","sum_Saturday": "F5D2AF","sum_Sunday": "A5D2FF","win_Monday": "D5A2FF","win_Tuesday": "F5A2DF","win_Wednesday": "A5F2DF","win_Thursday": "D5F2AF","win_Friday": "F5F2FF","win_Saturday": "F5D2AF","win_Sunday": "A5D2FF","90s shows": "FFFF00","90s cartoons": "00FF00", "70s shows": "FF0000", "70s cartoons": "CCCCFF", "Halloween": "FE9A0A", "halloween": "FE9A0A", "xmas": "DD0000", "Error": "FF0000", "none": "FFFFFF" },
-			"commmercial_type_colors": { "january": "FFFACD", "february": "FF8C00", "march": "FF1493", "april": "CD7F32", "may": "FFA07A", "june": "F4A460", "july": "A62A2A", "august": "A52A2A", "september": "DDDDDD", "october": "CD853F", "november": "3F86CC", "december": "00FF00", "local": "6495ED", "common": "8E6B23", "movie_trailers": "FFF0F5", "xmas": "FF0000", "thanksgiving": "FFA500" },
+			"show_type_colors": { "Latenight": "FFAA22", "winter_Reruns": "F8FFA2", "summer_Reruns": "C8CF72", "Easter": "CEF5FA", "Thanksgiving": "DAA520", "summer_Cartoons": "A2FFEF", "winter_Cartoons": "F2AFEF", "spring_Cartoons": "F2FFAF", "fall_Cartoons": "A2AFEF","Specials": "FFA2A2","Primetime": "dd8888","Gameshows": "88AAFF","Movies": "A2FFAC", "Christmas": "A2B9FF","sum_Monday": "D5A2FF","sum_Tuesday": "F5A2DF","sum_Wednesday": "A5F2DF","sum_Thursday": "D5F2AF","sum_Friday": "F5F2FF","sum_Saturday": "F5D2AF","sum_Sunday": "75A2CF","win_Monday": "A572BF","win_Tuesday": "C572CF","win_Wednesday": "95C2AF","win_Thursday": "A5C28E","win_Friday": "C5C2CF","win_Saturday": "C5A27F","win_Sunday": "75A2CF","90s shows": "FFFF00","90s cartoons": "00FF00", "70s shows": "FF0000", "70s cartoons": "CCCCFF", "Halloween": "FE9A0A", "halloween": "FE9A0A", "xmas": "DD0000", "Error": "FF0000", "none": "FFFFFF" },
+			"commmercial_type_colors": { "january": "FFFACD", "february": "FF8C00", "march": "FF1493", "april": "CD7F32", "may": "FFA07A", "june": "F4A460", "july": "A62A2A", "august": "A52A2A", "september": "DDDDDD", "october": "CD853F", "november": "3F86CC", "december": "00FF00", "local": "6495ED", "common": "8E6B23", "movie_trailers": "dFd0F5", "xmas": "FF0000", "thanksgiving": "FFA500" },
 			"tv_schedule_link": "https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/",
 			"database_info": { "host": "localhost", "username": "pi", "password": "raspberry", "database_name": "shows" }
 		  },
@@ -31,196 +31,155 @@
 
 	"times": [{
 			"name": ["%D[1]%/techdiff"],
-			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [23, 45],
-			"type": "video",
-			"channel": null
+			"type": "video"
 		},
 		{
 			"name": ["%D[2]%/movies"],
-			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [3, 45],
-			"type": "balanced-video",
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[1]%/cartoons/winter_cartoons"],
-			"month": [12, 1, 2],
-			"dayOfWeek": ["all"],
+			"between": [ ["Jan 01 12:00AM", "Mar 22 11:59PM"] ],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/spring_cartoons"],
-			"month": [3, 4, 5],
-			"dayOfWeek": ["all"],
+			"between": [ ["Mar 23 12:00AM", "Jun 12 11:59PM"] ],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/summer_cartoons"],
-			"month": [6, 7, 8],
-			"dayOfWeek": ["all"],
+			"between": [ ["Jun 13 12:00AM", "Sep 01 11:59PM"] ],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/fall_cartoons"],
-			"month": [9, 10, 11],
-			"dayOfWeek": ["all"],
+			"between": [ ["Sep 02 12:00AM", "Nov 30 11:59PM"] ],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/reruns/winter"],
 			"month": [1,2,9,10,11,12],
-			"dayOfWeek": ["all"],
 			"start": [12, 0],
 			"end": [14, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/reruns/summer"],
 			"month": [3,4,5,6,7,8],
-			"dayOfWeek": ["all"],
 			"start": [12, 0],
 			"end": [14, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/winter_cartoons"],
-			"month": [12, 1, 2],
-			"dayOfWeek": ["all"],
+			"between": [ ["Jan 01 12:00PM", "Mar 22 11:59PM"] ],
 			"start": [15, 0],
 			"end": [16, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/spring_cartoons"],
-			"month": [3, 4, 5],
-			"dayOfWeek": ["all"],
+			"between": [ ["Mar 23 12:00AM", "Jun 12 11:59PM"] ],
 			"start": [15, 0],
 			"end": [16, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/summer_cartoons"],
-			"month": [6, 7, 8],
-			"dayOfWeek": ["all"],
+			"between": [ ["Jun 13 12:00AM", "Sep 01 11:59PM"] ],
 			"start": [15, 0],
 			"end": [16, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/fall_cartoons"],
-			"month": [9, 10, 11],
-			"dayOfWeek": ["all"],
+			"between": [ ["Sep 02 12:00AM", "Nov 30 11:59PM"] ],
 			"start": [15, 0],
 			"end": [16, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/reruns/winter"],
 			"month": [1,2,9,10,11,12],
-			"dayOfWeek": ["all"],
 			"start": [17, 0],
 			"end": [18, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/reruns/summer"],
 			"month": [3,4,5,6,7,8],
-			"dayOfWeek": ["all"],
 			"start": [17, 0],
 			"end": [18, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[2]%/specials/double dare"],
-			"dayOfWeek": ["*"],
 			"start": [19, 30],
 			"end": [19, 45],
-			"type": "ordered-video",
-			"channel": null
+			"type": "ordered-video"
 		},
 		{
 			"name": ["%D[2]%/specials/starcade"],
-			"dayOfWeek": ["*"],
 			"start": [19, 0],
 			"end": [19, 15],
-			"type": "ordered-video",
-			"channel": null
+			"type": "ordered-video"
 		},
 		{
 			"name": ["%D[1]%/gameshows"],
 			"dayOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
-			"start": [11, 0],
+			"start": [11, 0], 
 			"end": [11, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[2]%/primetime/win_%day_of_week%"],
-			"dayOfWeek": ["all"],
 			"month": [1, 2, 9, 10, 11, 12],
 			"start": [20, 0],
 			"end": [22, 45],
 			"type": "ordered-show",
-			"note": "primetime shows that only air during winter(ish) time",
-			"channel": null
+			"note": "primetime shows that only air during winter(ish) time"
 		},
 		{
 			"name": ["%D[2]%/primetime/sum_%day_of_week%"],
-			"dayOfWeek": ["all"],
 			"month": [3, 4, 5, 6, 7, 8],
 			"start": [20, 0],
 			"end": [22, 45],
 			"type": "ordered-show",
-			"note": "primetime shows that only air during the summer(ish) time",
-			"channel": null
+			"note": "primetime shows that only air during the summer(ish) time"
 		},
 		{
 			"name": ["%D[2]%/primetime/random"],
-			"dayOfWeek": ["all"],
 			"start": [20, 0],
 			"end": [22, 45],
 			"type": "balanced-video",
-			"chance": "0.02",
-			"channel": null
+			"chance": "0.02"
 		},
 		{
 			"name": ["%D[1]%/latenight"],
 			"dayOfWeek": ["monday", "tuesday", "wednesday", "thursday", "friday", "sunday"],
 			"start": [23, 0],
 			"end": [23, 45],
-			"type": "balanced-video",
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[1]%/latenight/snl"],
 			"dayOfWeek": ["saturday"],
 			"start": [23, 0],
 			"end": [23, 45],
-			"type": "balanced-video",
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[1]%/cartoons/winter_cartoons"],
@@ -228,8 +187,7 @@
 			"dayOfWeek": ["saturday"],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/spring_cartoons"],
@@ -237,8 +195,7 @@
 			"dayOfWeek": ["saturday"],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/summer_cartoons"],
@@ -246,8 +203,7 @@
 			"dayOfWeek": ["saturday"],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[1]%/cartoons/fall_cartoons"],
@@ -255,16 +211,14 @@
 			"dayOfWeek": ["saturday"],
 			"start": [4, 0],
 			"end": [10, 45],
-			"type": "ordered-show",
-			"channel": null
+			"type": "ordered-show"
 		},
 		{
 			"name": ["%D[2]%/specials/sunday_morning"],
 			"dayOfWeek": ["sunday"],
 			"start": [6, 0],
 			"end": [7, 45],
-			"type": "balanced-video",
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/baseball"],
@@ -272,12 +226,11 @@
 			"start": [14, 0],
 			"end": [14, 45],
 			"month": [4, 5, 6, 7, 8, 9],
-			"type": "video",
-			"channel": null
+			"type": "video"
 		},
 		{
 			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%/any"],
-			"start": ["*", 16],
+			"start": ["*", 5],
 			"end": ["*", 29],
 			"prefer-folder": "yes",
 			"type": "commercial",
@@ -287,7 +240,7 @@
 		},
 		{
 			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%/any"],
-			"start": ["*", 46],
+			"start": ["*", 35],
 			"end": ["*", 59],
 			"prefer-folder": "yes",
 			"type": "commercial",
@@ -297,99 +250,76 @@
 		},
 		{
 			"name": ["%D[2]%/commercials/common", "%D[2]%/commercials/local", "%D[2]%/commercials/movie_trailers", "%D[2]%/commercials/%month%/any"],
-			"dayOfWeek": null,
 			"start": [4, 0],
 			"end": [4, 29],
 			"month": [1,2,3,4,5,6,7,8,9,10,11,12],
 			"prefer-folder": "yes",
-			"date": null,
-			"type": "commercial",
-			"special": null,
-			"channel": null
+			"type": "commercial"
 		},
 		{
 			"name": ["%D[2]%/commercials/common"],
-			"dayOfWeek": null,
 			"start": [3, 0],
 			"end": [3, 45],
-			"date": null,
-			"type": "commercial",
-			"special": null,
-			"channel": null
+			"type": "commercial"
 		},
 		{
 			"name": ["%D[2]%/specials/shorts"],
-			"dayOfWeek": ["all"],
 			"start": [3, 0],
 			"end": [3, 45],
 			"type": "balanced-video",
-			"chance": "0.25",
-			"channel": null
+			"chance": "0.25"
 		},
 		{
 			"name": ["%D[2]%/specials/mini_series/v part 1"],
-			"dayOfWeek": null,
 			"start": [20, 0],
 			"end": [20, 15],
 			"month": [5],
 			"date": [1],
-			"type": "video",
-			"channel": null
+			"type": "video"
 		},
 		{
 			"name": ["%D[2]%/specials/mini_series/v part 2"],
-			"dayOfWeek": null,
 			"start": [20, 0],
 			"end": [20, 15],
 			"month": [5],
 			"date": [2],
-			"type": "video",
-			"channel": null
+			"type": "video"
 		},
 		{
 			"name": ["%D[2]%/specials/valentines"],
-			"dayOfWeek": null,
 			"start": [20, 0],
 			"end": [21, 45],
 			"month": [2],
 			"date": [14],
-			"type": "balanced-video",
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/valentines"],
-			"dayOfWeek": null,
 			"start": [20, 0],
 			"end": [21, 45],
 			"month": [2],
 			"chance": "0.25",
 			"date": [1,2,3,4,5,6,7,8,9,10,11,12,13,14],
-			"type": "balanced-video",
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/4th of july"],
-			"dayOfWeek": null,
 			"start": [20, 0],
 			"end": [21, 45],
 			"month": [7],
 			"date": [4],
-			"type": "ordered-video",
-			"channel": null
+			"type": "ordered-video"
 		},
 		{
 			"name": ["%D[2]%/specials/halloween"],
-			"dayOfWeek": null,
 			"start": [5, 0],
 			"end": [23, 45],
 			"month": [10],
 			"date": [31],
-			"type": "video",
-			"channel": null
+			"type": "video"
 		},
 		{
 			"name": ["%D[2]%/specials/halloween"],
-			"dayOfWeek": null,
 			"start": [5, 0],
 			"end": [22, 45],
 			"month": [10],
@@ -398,19 +328,15 @@
 		},
 		{
 			"name": ["%D[2]%/specials/easter"],
-			"dayOfWeek": null,
 			"start": [0, 0],
 			"end": [23, 45],
-			"month": null,
-			"date": null,
 			"type": "ordered-video",
-			"special": "easter",
-			"channel": null
+			"special": "easter"
 		},
 
 		{
 			"name": ["%D[2]%/commercials/easter"],
-			"start": ["*", 16],
+			"start": ["*", 5],
 			"end": ["*", 29],
 			"type": "commercial",
 			"special": "easter",
@@ -418,7 +344,7 @@
 		},
 		{
 			"name": ["%D[2]%/commercials/easter"],
-			"start": ["*", 46],
+			"start": ["*", 35],
 			"end": ["*", 59],
 			"type": "commercial",
 			"special": "easter",
@@ -427,171 +353,114 @@
 
 		{
 			"name": ["%D[2]%/specials/thanksgiving/cartoons"],
-			"dayOfWeek": null,
 			"start": [4, 0],
 			"end": [11, 45],
 			"month": [11],
-			"date": null,
 			"chance": ".15",
-			"type": "balanced-video",
-			"special": null,
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/thanksgiving/shows"],
-			"dayOfWeek": null,
 			"start": [12, 0],
 			"end": [14, 45],
 			"month": [11],
-			"date": null,
 			"chance": ".15",
-			"type": "balanced-video",
-			"special": null,
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/thanksgiving/cartoons"],
-			"dayOfWeek": null,
 			"start": [15, 0],
 			"end": [17, 45],
 			"month": [11],
-			"date": null,
 			"chance": ".15",
-			"type": "balanced-video",
-			"special": null,
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/thanksgiving/shows"],
-			"dayOfWeek": null,
 			"start": [18, 0],
 			"end": [19, 45],
 			"month": [11],
-			"date": null,
 			"chance": ".15",
-			"type": "balanced-video",
-			"special": null,
-			"channel": null
+			"type": "balanced-video"
 		},
 		{
 			"name": ["%D[2]%/specials/thanksgiving/shows", "%D[2]%/specials/thanksgiving/cartoons", "%D[2]%/specials/thanksgiving/cprime"],
-			"dayOfWeek": null,
 			"start": [0, 0],
 			"end": [23, 45],
-			"month": null,
-			"date": null,
 			"type": "balanced-video",
-			"special": "thanksgiving",
-			"channel": null
+			"special": "thanksgiving"
 		},
 		{
 			"name": ["%D[2]%/specials/thanksgiving/parades"],
-			"dayOfWeek": null,
 			"start": [8, 0],
 			"end": [9, 45],
-			"month": null,
-			"date": null,
 			"type": "video",
-			"special": "thanksgiving",
-			"channel": null
+			"special": "thanksgiving"
 		},
 		{
 			"name": ["%D[2]%/commercials/thanksgiving", "%D[2]%/commercials/%month%/any"],
-			"dayOfWeek": null,
-			"start": ["*", 16],
+			"start": ["*", 5],
 			"end": ["*", 29],
 			"month": [11],
-			"date": null,
 			"type": "commercial",
-			"prefer-folder": "yes",
-			"special": null,
-			"channel": null
+			"prefer-folder": "yes"
 		},
 		{
 			"name": ["%D[2]%/commercials/thanksgiving", "%D[2]%/commercials/%month%/any"],
-			"dayOfWeek": null,
-			"start": ["*", 46],
+			"start": ["*", 35],
 			"end": ["*", 59],
 			"month": [11],
-			"date": null,
 			"type": "commercial",
-			"prefer-folder": "yes",
-			"special": null,
-			"channel": null
+			"prefer-folder": "yes"
 		},
 		{
 			"name": ["%D[2]%/specials/xmas"],
-			"dayOfWeek": null,
 			"start": [4, 0],
 			"end": [23, 45],
-			"month": null,
-			"date": null,
 			"type": "balanced-video",
 			"minimum time between repeats": 25200,
-			"special": "xmas",
-			"channel": null
+			"special": "xmas"
 		},
 		{
 			"name": ["%D[2]%/specials/xmas_yule_log"],
-			"dayOfWeek": null,
 			"start": [4, 0],
 			"end": [4, 45],
-			"month": null,
-			"date": null,
 			"type": "video",
-			"special": "xmas",
-			"channel": null
+			"special": "xmas"
 		},
 		{
 			"name": ["%D[2]%/commercials/xmas", "%D[2]%/commercials/%month%/any"],
-			"dayOfWeek": null,
-			"start": ["*", 16],
+			"start": ["*", 5],
 			"end": ["*", 29],
-			"month": null,
-			"date": null,
 			"type": "commercial",
 			"prefer-folder": "yes",
-			"special": "xmas",
-			"channel": null
+			"special": "xmas"
 		},
 		{
 			"name": ["%D[2]%/commercials/xmas", "%D[2]%/commercials/%month%/any"],
-			"dayOfWeek": null,
-			"start": ["*", 46],
+			"start": ["*", 35],
 			"end": ["*", 59],
-			"month": null,
-			"date": null,
 			"type": "commercial",
 			"prefer-folder": "yes",
-			"special": "xmas",
-			"channel": null
+			"special": "xmas"
 		},
 		{
 			"name": ["%D[2]%/commercials/xmas"],
-			"dayOfWeek": null,
 			"start": [5, 0],
 			"end": [5, 59],
-			"month": null,
-			"date": null,
 			"type": "commercial",
-			"special": "xmas",
-			"channel": null
+			"special": "xmas"
 		},
          	{
 			"name": ["%D[2]%/specials/xmas_music_videos"],
-			"dayOfWeek": null,
 			"start": [5, 0],
 			"end": [5, 54],
-			"month": null,
-			"date": null,
 			"type": "balanced-video",
 			"special": "xmas",
-			"chance": "0.125",
-			"channel": null
+			"chance": "0.125"
 		},
 		{
 			"name": ["%D[2]%/movies"],
-			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [23, 45],
 			"type": "video",
@@ -599,7 +468,6 @@
 		},
 		{
 			"name": ["%D[1]%/cartoons"],
-			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [23, 45],
 			"type": "ordered-show",
@@ -607,7 +475,6 @@
 		},
 		{
 			"name": ["%D[1]%/reruns/winter","%D[1]%/reruns/summer"],
-			"dayOfWeek": ["all"],
 			"start": [0, 0],
 			"end": [23, 45],
 			"type": "ordered-show",
@@ -615,6 +482,8 @@
 		},
 		{
 			"name": ["%D[1]%/techdiff"],
+			"start": [0, 0],
+			"end": [23, 59],
 			"type": "video",
 			"channel": "Error"
 		}
@@ -627,80 +496,68 @@
 			"name": ["%D[2]%/commercials/%month%/pm", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [0, 0],
-			"end": [3, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [3, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/am", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [4, 0],
-			"end": [10, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [10, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/pm", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [11, 0],
-			"end": [14, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [14, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/am", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [15, 0],
-			"end": [16, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [16, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/pm", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [17, 0],
-			"end": [19, 29],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [19, 29]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/am", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [19, 30],
-			"end": [19, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [19, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/pm", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"start": [20, 0],
-			"end": [23, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [23, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/am", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"dayOfWeek": ["saturday"],
 			"start": [4, 0],
-			"end": [10, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [10, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/%month%/pm", "%D[2]%/commercials/%month%/any"],
 			"prefer-folder": "yes",
 			"dayOfWeek": ["saturday"],
 			"start": [23, 0],
-			"end": [23, 59],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+			"end": [23, 59]
 		},
 		{
 			"name": ["%D[2]%/commercials/common"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			"chance": ".15"
 		},
 		{
 			"name": ["%D[2]%/commercials/movie_trailers"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			"chance": ".02"
 		},
 		{
 			"name": ["%D[2]%/commercials/local"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			"chance": ".05"
 		},
 		{
@@ -730,18 +587,17 @@
 		},
 		{
 			"name": ["%D[1]%/channels/90s/commercials"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			"channel": "90s"
 		},
 		{
 			"name": ["%D[1]%/channels/70s/commercials"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
 			"channel": "70s"
 		},
 		{
-			"name": ["%D[2]%/commercials/april/am","%D[2]%/commercials/april/pm", "%D[2]%/commercials/april/any", "%D[2]%/commercials/easter"],
+			"name": ["%D[2]%/commercials/easter"],
 			"prefer-folder": "yes",
-			"special": "easter"
+			"special": "easter",
+			"chance": "0.25"
 		}
 	]
 }
