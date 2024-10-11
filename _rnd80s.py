@@ -1,13 +1,15 @@
 #!/usr/bin/python
 
-# version: 101.93
-# version date: 2024.06.09
-#	support for 'between' setting
-#	removed server minimum time between playing the same videos (was 2 hours, now 0), this should be handled in the settings file using the "minimum time between repeats" option
+# version: 101.94
+# version date: 2024.10.08
+#	Settings: support for user defined variables so station programming can become less tedious
 #
-# settings version: 0.96
-#	Added "between" setting which lets scheduling be set down to the second (special epoch time is used) or specific datetime ranges
-
+# settings version: 0.97
+#	Inputs in the settings file (especially "times" and "commercials") can now reference user defined variables. See 'settings.php' from the Web front end for more information.
+#
+#
+#
+#
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
 # Opening it up to the web will ruin your day.
@@ -285,12 +287,38 @@ def update_settings():
 	else:
 		report_error("Settings", ["Settings version mismatch. Things might not work so well."])
 
+# json.loads class that allows references to itself
+class ReferenceDecoder(json.JSONDecoder):
+        def __init__(self, *args, **kwargs):
+                super(ReferenceDecoder, self).__init__(object_hook=self.object_hook, *args, **kwargs)
+                self.references = []
+
+        def object_hook(self, obj):
+                self.references.append(obj)
+                for item in obj:
+                        if str(obj[item]).startswith("$ref/"):
+                                oref = str(obj[item]).split("/")
+                                for x in range(0, len(self.references), 1):
+                                        if oref[1] in self.references[x]:
+                                                target = self.references[x]
+                                                try:
+                                                        for idx in oref[1:]:
+                                                            if type(target) == list and is_number(idx) == True:
+                                                                    target = target[int(idx)]
+                                                            else:
+                                                                    target = target[idx]
+                                                        obj[item] = target
+                                                except Exception as e:
+                                                        report_error("JSON_REF_DECODER", [ "error parsing variable in settings", e, str(item), str(obj[item]) ])
+                                                        pass
+
+                return obj
 
 def check_video_times(obj, channel=None, allow_chance=True):
 	try:
 		update_current_time()
 		global now
-		
+		print(now)
 		month = now.month
 		now_h = now.hour
 		now_m = now.minute
@@ -618,14 +646,10 @@ def get_current_channel():
 	return line
 
 def getDayOfWeek(d):
-	return ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'][d]
+	return calendar.day_name[d].lower()
 		
 def getMonth(m):
-	if m<1:
-		m=m+12
-	elif m>12:
-		m=m-12
-	return [None,'january','february','march','april','may','june','july','august','september','october','november','december'][m]
+	return [None,'january','february','march','april','may','june','july','august','september','october','november','december'][m % 12 or 12]
 
 def get_folders_from_server(showType, showDir):
 	#http://tv.station/?getavailable=win_Tuesday&dir=/media/pi/ssd_b/primetime/win_tuesday
@@ -775,8 +799,10 @@ def replace_all_special_words(s):
 	for r in [["%day%", str(d)], ["%day_of_week%", getDayOfWeek(d)], ["%month%", getMonth(month)], ["%prev-month%", getMonth(month-1)], ["%next-month%", getMonth(month+1)]]:
 		s = s.replace(*r)
 	return s
-				#   [ first reported time, last reported time, count ]
+
+#   			    [ first reported time, last reported time, count ]
 last_report_error = [0, 0, 0]
+
 def report_error(type, input, local_only=False):
 
 	# some times the script will get stuck in an error loop (maybe the hard drive failed for example)
@@ -840,7 +866,7 @@ def returncleanASCII(s):
 
 def validate_json(json_str):
 	try:
-		return json.loads(json_str)
+		return json.loads(json_str, cls=ReferenceDecoder)
 	except ValueError as err:
 		return None
 
@@ -884,7 +910,7 @@ base_directory = os.path.dirname(__file__)
 ############################ /global variables
 
 ############################ settings
-SETTINGS_VERSION = 0.96
+SETTINGS_VERSION = 0.97
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
