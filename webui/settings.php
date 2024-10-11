@@ -146,7 +146,7 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>string&gt;</i> used to identify the script in the web front end</li>
 	</ul>
-	<h3><a name="drive"></a>drive:</h3>
+	<h3>drive:</h3>
 	<ul>
 		<li><i>[ string&gt;, array&gt; ]</i> list of strings containing locations of programming content. <i>(will automatically be converted to %D[index]% keyword)</i></li>
 	</ul>
@@ -180,7 +180,7 @@ var myInput = document.getElementById("editor");
 	</ul>
 	<h3>between:</h3>
 	<ul>
-		<li>An array of seconds (total seconds from 01 Jan 00:00) <i>OR</i> &lt;datetime&gt; <i>(%b %d %I:%M%p)</i> (YEAR should be omitted) during which the content can be played. (cannot be mixed must be seconds or datetime but never both)</li>
+		<li>An array of seconds (total seconds from 01 Jan 00:00) <i>OR</i> &lt;datetime&gt; <i>(%b %d %Y %I:%M%p)</i> during which the content can be played. (cannot be mixed must be seconds or datetime but never both)</li>
 	</ul>
 	<h3>dayOfWeek:</h3>
 	<ul>
@@ -219,6 +219,36 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>&lt;string&gt;</i> when set video from only this 'channel' will be played</li>
 	</ul>
+</ul>
+<h2><em>Details concerning references</em></h2>
+<ul>
+Settings can refer to variables defined within itself. Should aid with content that is repeated at certain time, especially if those times might change in the future.<br>
+<br>
+Format: $ref/var_name/index/or/key<br>
+<br>
+Must begin with "$ref/" and the variable must be defined before being referenced!<br>
+<br>
+<li>
+	Example:<br>
+		<pre>
+	"vars": {
+			"cartoons": { "am": { "start": [4, 0], "end": [10, 45] }, "pm": { "start": [15, 0], "end": [16, 45] } },
+			}
+
+	"times": [{
+			"name": ["%D[1]%/cartoons/am"],
+			"start": "$ref/cartoons/am/start",
+			"end": "$ref/cartoons/am/end",
+			"type": "video"
+		},
+		{
+			"name": ["%D[1]%/cartoons/pm"],
+			"start": "$ref/cartoons/pm/start",
+			"end": "$ref/cartoons/pm/end",
+			"type": "video"
+		}]
+		</pre>
+	</li>
 </ul>
 <br><br>
 <h3><em>Whole integers must be treated as numbers and floats must be treated as strings. This is a json requirement.</em></h3>
@@ -267,7 +297,7 @@ var myInput = document.getElementById("editor");
 			} else if(type==2) {
 				document.getElementById('betweenResult').value = '"between": [ ["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"] ]';
 			} else if(type==3) {
-				document.getElementById('betweenResult').value = '["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"]';
+				document.getElementById('betweenResult').value = '["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"] ]';
 			}
         }
     </script>

@@ -666,7 +666,11 @@ if(isset($_GET["getshowname"])) {
 	}
 
 	$shortname=getTvShowName($_GET["getshowname"], $parsedShows);
+	if(isset($_GET["short"])) die($shortname);
+	
 	$showType=getShowType($shortname, $parsedShows);
+	
+	
 	
 	$row=0;
 	$remote_diff_set = false;
