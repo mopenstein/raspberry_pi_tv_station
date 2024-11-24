@@ -8,7 +8,7 @@ This script is for use with the Raspberry Pi utilizing OMXPlayer and DBus to pla
 
 I use this to play old 80's tv shows along with 80's tv commercials for that authentic 80's vibe.
 
-I also wrote a companion program in C# for Windows that utilizes FFMPEG to find commercial breaks by splitting video at black frames and also normalizing audio: https://github.com/mopenstein/VideoSplit
+I also wrote a companion program in C# for Windows that utilizes FFMPEG to find commercial breaks by splitting video at black frames and also normalizing audio: https://github.com/mopenstein/VideoSplit and Bulk Commercial Compilation converting in preperation of splitting videos into commercials https://github.com/mopenstein/Commercial-Convertor/
 
 As well as a C# for Windows program that is a FFMPEG frontend for simple video editing that allows for precise video splitting and combining: https://github.com/mopenstein/Simple-Video-Editor
 
