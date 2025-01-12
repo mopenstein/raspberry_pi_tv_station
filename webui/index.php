@@ -74,13 +74,13 @@ if(isset($_GET["backup"])) {
 }
 
 if(isset($_GET["insert"]) && isset($_GET["file"]) && isset($_GET["times"])) {
-
-	for($i=0;$i<$_GET["times"] * 1;$i++) {
-		$mysqli->real_query("INSERT INTO played (short_name, name, played) VALUES ('" . $mysqli->real_escape_string($_GET["insert"]) . "', '" . $mysqli->real_escape_string($_GET["file"]) . "', 0)");
-		echo ($i+1) . ") INSERT INTO played (short_name, name, played) VALUES ('" . $mysqli->real_escape_string($_GET["insert"]) . "', '" . $mysqli->real_escape_string($_GET["file"]) . "', 0)<br />\n";
+	if(!file_exists(urldecode($_GET["file"]))) die("File does not exist. Confirm path and try again. ".$_GET["file"]);
+	for($i=0;$i<urldecode($_GET["times"]) * 1;$i++) {
+		$mysqli->real_query("INSERT INTO played (short_name, name, played) VALUES ('" . $mysqli->real_escape_string(urldecode($_GET["insert"])) . "', '" . $mysqli->real_escape_string(urldecode($_GET["file"])) . "', 0)");
+		echo ($i+1) . ") INSERT INTO played (short_name, name, played) VALUES ('" . $mysqli->real_escape_string(urldecode($_GET["insert"])) . "', '" . $mysqli->real_escape_string(urldecode($_GET["file"])) . "', 0)<br />\n";
 	}
 	
-	die($_GET["insert"] . " - " . $_GET["file"] . " - " . $_GET["times"]);
+	die(urldecode($_GET["insert"]) . " - " . urldecode($_GET["file"]) . " - " . urldecode($_GET["times"]));
 }
 
 if(isset($_GET["showstats"]) && is_numeric($_GET["id"])) {
@@ -173,6 +173,7 @@ if(isset($_GET["start"])) {
 
 if(isset($_GET["skip"])) {
     //header("Location: /\n\n");
+	$mysqli->real_query("INSERT INTO errors (name, played) VALUES ('SKIPPED|Current Video was skipped|".addslashes($_GET["skip"])."', ". time() . ")");
 	$result = exec('sudo ./kill.sh');
 	die($result);
 }
@@ -628,8 +629,10 @@ function getAvailableShows($sname, $sdir, $csv) {
 
 
 if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
-	if(!is_dir($_GET["dir"])) die('0');
-	$shortname=getTvShowName($_GET["getavailable"], $parsedShows);
+	$dir = urldecode($_GET["dir"]);
+	$getavailable = urldecode($_GET["getavailable"]);
+	if(!is_dir($dir)) die('0');
+	$shortname=getTvShowName($getavailable, $parsedShows);
 	$showType=getShowType($shortname, $parsedShows);
 	if(isset($_GET["h"])) {
 		
@@ -640,7 +643,7 @@ if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
 			return "<b>" . substr($string2,0,$i) . "</b><i>" . substr($string2,$i) . "</i>";
 		}
 		
-		$avh = getAvailableShows($showType, $_GET["dir"], $unparsedCSV);
+		$avh = getAvailableShows($showType, $dir, $unparsedCSV);
 		echo "<h1>$shortname $showType</h1>\n";
 		$lshow = "";
 		foreach($avh as $show) {
@@ -653,7 +656,7 @@ if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
 		}
 		die();
 	} else {
-		die(implode("\n", (getAvailableShows($showType, $_GET["dir"], $unparsedCSV))));
+		die(implode("\n", (getAvailableShows($showType, $dir, $unparsedCSV))));
 	}
 }
 
@@ -713,9 +716,14 @@ if(isset($_GET["getshowname"])) {
 }
 
 if(isset($_GET["get_next_episode"])) {
-	$nv = addslashes($_GET["get_next_episode"]);
+	$nv = addslashes(urldecode($_GET["get_next_episode"]));
 	$shortname = getTvShowName($nv, $parsedShows);
-	$dir_name = dirname($nv);
+	$dir_name = dirname(urldecode($nv));
+	
+	if(is_dir($dir_name) == false) {
+		die("|0|video directory does not exist|$dir_name|$nv|1");
+	}
+	
 	$sql = "SELECT * FROM played WHERE LEFT(name, ".strlen($dir_name).") = '".$dir_name."' ORDER BY played DESC LIMIT 1";
 	$res = $mysqli->query($sql) or die($mysqli->error);
 
@@ -723,16 +731,13 @@ if(isset($_GET["get_next_episode"])) {
 		echo "Looking up episodes that played for: <i>".$dir_name."</i> <b>$shortname</b> SQL: ";
 		echo "$sql\n<br />";
 	}
-	
-	if(is_dir($dir_name) == false) {
-		die("|0|video directory does not exist|$dir_name|$nv");
-	}
-	
+
 	if(mysqli_num_rows($res)==0) {
 		$files = glob($dir_name.'/*');
 		die($files[0]."|1|play first episode since no episodes of this show has been played yet");
 		//die("|0|No recently played episodes found|$nv|$dir_name|".$files[0]);
 	}
+
 	$row = $res->fetch_row();
 	//var_dump($row);
 	if(file_exists($row[2]) == false) { //last played file does not exist
@@ -742,7 +747,7 @@ if(isset($_GET["get_next_episode"])) {
 		if(isset($_GET["dump"])) echo "Last played: " . $row[2] . "<br />\n";
 	}
 	if(is_dir(dirname($row[2])) == false) {
-		die("|0|directory does not exist|".$row[2]."|$nv");
+		die("|0|directory does not exist|".$row[2]."|$nv|2");
 	}
 	
 	
@@ -850,7 +855,8 @@ if(isset($_GET["get_next_rnd_episode_from_dir"])) {
 	$dirs = [];
 	for($i=1;$i<100;$i++) {
 		if(isset($_GET["f$i"])) {
-			$dir_name = $_GET["f$i"];
+			$dir_name = urldecode($_GET["f$i"]);
+			if(isset($_GET["dump"])) { var_dump($dir_name); }
 			if(substr($dir_name, -1)!="/") $dir_name.="/";
 			if(file_exists($dir_name)) {
 				$sql = "SELECT COUNT(short_name) AS t FROM played WHERE LEFT(name, ".strlen($dir_name).") = '".$dir_name."'";
@@ -895,7 +901,7 @@ if(isset($_GET["get_next_rnd_episode_from_dir"])) {
 }
 
 if(isset($_GET["get_next_rnd_episode"])) {
-	die(getRandomVideoByCount($_GET["get_next_rnd_episode"]) . "|1|random video selected");
+	die(getRandomVideoByCount(urldecode($_GET["get_next_rnd_episode"])) . "|1|random video selected");
 }
 
 
@@ -913,7 +919,7 @@ if(isset($_GET["getshowtestname"])) {
 
 	//$thanksgiving = strpos("=".$_GET["getshowname"], "thanksgiving");
 
-	$shortname=getTvShowName2($_GET["getshowtestname"], $parsedShows);
+	$shortname=getTvShowName2(urldecode($_GET["getshowtestname"]), $parsedShows);
 	$showType=getShowType($shortname, $parsedShows);
 	
 
@@ -1153,13 +1159,14 @@ for($i = 0;$i<count($drive_loc);$i++) {
 	echo '<span style="background-color:#'.chr(98+$i).chr(98+$i).chr(98+$i).'">Disk ' . ($i+1) . ' ' . floor( disk_free_space( $drive_loc[$i] ) / ( 1024 * 1024 * 1024 ) ) . 'GB</span> ';
 }
  
- 
+$res = $mysqli->query("SELECT * FROM played WHERE played>=" . strtotime($the_date .' 00:00') . " AND played<=" . strtotime($the_date . ' 23:59') . "  ORDER BY id DESC") or die($mysqli->error);
+$curr_video = $res->fetch_assoc()["name"];
 
 echo '</button>
 	<button class="tablinks">Load: ' . (sys_getloadavg()[0]*100) . '%</button>
 	<button class="tablinks">Uptime: ' . getUptime() . '</button>
 	<button class="tablinks">Temp: ' . (round((($int_temp/1000) * (9/5))) + 32) . '<sup>&deg;</sup></button>
-	<button class="tablinks" style="background-color:lightblue;"><a href="/?skip=now" style="color:white;">Skip >></a></button>
+	<button class="tablinks" style="background-color:lightblue;"><a href="/?skip='.$curr_video.'" style="color:white;">Skip >></a></button>
 </div>
 
 <div class="tab">
