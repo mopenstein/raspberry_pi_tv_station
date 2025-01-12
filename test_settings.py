@@ -218,30 +218,115 @@ def parse_vars(instr):
 	print("ERROR")
 
 class ReferenceDecoder(json.JSONDecoder):
-        def __init__(self, *args, **kwargs):
-                super(ReferenceDecoder, self).__init__(object_hook=self.object_hook, *args, **kwargs)
-                self.references = []
+		def __init__(self, *args, **kwargs):
+				super(ReferenceDecoder, self).__init__(object_hook=self.object_hook, *args, **kwargs)
+				self.references = []
 
-        def object_hook(self, obj):
-                self.references.append(obj)
-                for item in obj:
-                        if str(obj[item]).startswith("$ref/"):
-                                oref = str(obj[item]).split("/")
-                                for x in range(0, len(self.references), 1):
-                                        if oref[1] in self.references[x]:
-                                                target = self.references[x]
-                                                try:
-                                                        for idx in oref[1:]:
-                                                            if type(target) == list and is_number(idx) == True:
-                                                                    target = target[int(idx)]
-                                                            else:
-                                                                    target = target[idx]
-                                                        obj[item] = target
-                                                except Exception as e:
-                                                        report_error("JSON_REF_DECODER", [ "error parsing variable in settings", e, str(item), str(obj[item]) ])
-                                                        pass
+		def object_hook(self, obj):
+				self.references.append(obj)
+				for item in obj:
+						if str(obj[item]).startswith("$ref/"):
+								oref = str(obj[item]).split("/")
+								for x in range(0, len(self.references), 1):
+										if oref[1] in self.references[x]:
+												target = self.references[x]
+												try:
+														for idx in oref[1:]:
+															if type(target) == list and is_number(idx) == True:
+																	target = target[int(idx)]
+															else:
+																	target = target[idx]
+														obj[item] = target
+												except Exception as e:
+														report_error("JSON_REF_DECODER", [ "error parsing variable in settings", e, str(item), str(obj[item]) ])
+														pass
 
-                return obj
+				return obj
+
+def eval_equation(chance, now):
+	# tries to take a string that should be a mathematical equation and calculate and return an answer
+	# uses EVAL() but santizes by removing anything not a number, math symbol, period, or parentheses
+	# replaces certain KEYWORDS to the corresponding value
+	try:
+		chance = chance.lower()
+		replacements = {
+			"maxdays": calendar.monthrange(now.year, now.month)[1],
+			"weekday": now.weekday(),
+			"day": now.day,
+			"month": now.month,
+			"hour": now.hour,
+			"minute": now.minute,
+			"year": now.year
+		}
+		for key, value in replacements.items():
+			chance = chance.replace(key, str(value) + ".0")
+		equation = re.sub(re.compile(r'[^\d+\-*/^=<>()\.]'), '', chance)
+		return eval(equation)
+	except:
+		return 0
+
+# Function to replace %MAXDAYS% with the correct number of days in the month
+def replace_max_days(date_str):
+	global now
+	if "%MAXDAYS%" in date_str:
+		# Extract the month
+		month_str = date_str.split(" ")[0]
+		
+		# Determine the year (current year)
+		current_year = now.year
+		
+		# Find the last day of the month
+		month_num = datetime.datetime.strptime(month_str, "%b").month
+		next_month = datetime.datetime(current_year, month_num % 12 + 1, 1)
+		max_days = (next_month - datetime.timedelta(days=1)).day
+		
+		# Replace %MAXDAYS% with the calculated max days
+		date_str = date_str.replace("%MAXDAYS%", str(max_days))
+	
+	return date_str
+
+# Function to check if the current date and time fall within the ranges
+def is_within_range(data):
+	global now
+	current_datetime = now
+	current_date = current_datetime.strftime("%b %d")
+	current_time = current_datetime.strftime("%I:%M%p")
+	current_year = now.year
+
+	date_ranges = data.get("dates", [])
+	time_ranges = data.get("times", [])
+	year_ranges = data.get("years", [])
+
+	# Check if the current year is within any of the year ranges
+	year_within_range = True
+	for year_range in year_ranges:
+		year_within_range = False
+		if str(year_range) == str(current_year):
+			year_within_range = True
+			break
+
+	# Check if the current date is within any of the date ranges
+	date_within_range = False
+	for date_range in date_ranges:
+		start_date_str = replace_max_days(date_range[0])
+		end_date_str = replace_max_days(date_range[1])
+		
+		start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+		end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
+		if start_date <= current_datetime <= end_date:
+			date_within_range = True
+			break
+	
+	# Check if the current time is within any of the time ranges
+	time_within_range = False
+	for time_range in time_ranges:
+		start_time = datetime.datetime.strptime(time_range[0], "%I:%M%p")
+		end_time = datetime.datetime.strptime(time_range[1], "%I:%M%p")
+		if start_time.time() <= current_datetime.time() <= end_time.time():
+			time_within_range = True
+			break
+	
+	return date_within_range and time_within_range and year_within_range
 
 def check_video_times(obj, channel=None, allow_chance=True):
 	try:
@@ -253,6 +338,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 		now_m = now.minute
 		now_d = now.weekday()
 		ddm = now.day
+		now_y = now.year
 		
 		dayOfWeek = getDayOfWeek(now_d)
 		
@@ -304,37 +390,13 @@ def check_video_times(obj, channel=None, allow_chance=True):
 			if 'chance' in timeItem:
 				chance_eval = timeItem['chance'] # store chance string
 				if type(chance_eval) != float:
-					for word in [["day", ddm], ["month", month], ["hour", now_h], ["minute", now_m], ["weekday", now_d]]: # replace special keywords in the chance string
-						chance_eval = chance_eval.replace(word[0],str(word[1])+".0")
-					chance_eval = eval(chance_eval) # evaluate the math
+					chance_eval = eval_equation(chance_eval, now)
 				if random.random() > float(chance_eval) or allow_chance == False:
 					continue
 
-			# between setting checks how many seconds from the first of the current year and compares it to the settings supplied. 
-			# this allows relative time comparison down to the second instead of relying on month, day, etc
-			# example that would be triggered from 00:00 Jan 01 to 23:59 Dec 31 of the year:
-			#	"between": [ [0, 31536000] ] 
-			# example that would be triggered from 12:00 Jan 01 to 16:00 Mar 22 AND 00:00 Jun 13 to 00:00 Jul 13 of the year:
-			#	"between": [ [43200, 7012800], [14234100, 21837300]  ] 
-
 			if 'between' in timeItem:
 				if timeItem['between'] != None:
-					test = False
-					relativeTime = time.mktime(now.timetuple()) - time.mktime(datetime.datetime.strptime("01/01/" + str(datetime.datetime.now().year).zfill(4) + " 00:00", "%d/%m/%Y %H:%M").timetuple())  # returns how many seconds from 00:00 Jan 1 of the current year
-					
-					for itemX in timeItem['between']: #if it's a number, compare seconds
-						if is_number(itemX[0]):
-							if relativeTime >= itemX[0] and relativeTime <= itemX[1]:
-								test = True
-							else:
-								test = False
-						else: # if it's a string, convert string to datetime
-							if now >= datetime.datetime.strptime(itemX[0] + " " + str(now.year).zfill(4), '%b %d %I:%M%p %Y') and now <= datetime.datetime.strptime(itemX[1] + " " + str(now.year).zfill(4), '%b %d %I:%M%p %Y'):
-								test = True
-							else:
-								test = False
-						
-					if test==False:
+					if is_within_range(timeItem['between'])==False:
 						continue
 						
 			if 'month' in timeItem:
@@ -392,14 +454,14 @@ def check_video_times(obj, channel=None, allow_chance=True):
 						is_static = timeItem['static']
 		
 		
-			useThisOne = True
-			for itemX in skip:
-				if skip[itemX] == True:
-					useThisOne = False
-					break
+			#useThisOne = True
+			#for itemX in skip:
+			#	if skip[itemX] == True:
+			#		useThisOne = False
+			#		break
 			
-			if useThisOne:
-				return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem, now]
+			#if useThisOne:
+			return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem, now]
 	except Exception as valerr:
 		report_error("CHECK_TIMES", [str(valerr),traceback.format_exc()])
 
@@ -434,3 +496,6 @@ print("<h1>Results</h1><ul>")
 for k in programming_schedule[4]:
 	print("<b>" + k + "</b>: " + str(programming_schedule[4][k]) + "")
 print("</ul>")
+print("<pre>")
+print(settings)
+print("</pre>")
