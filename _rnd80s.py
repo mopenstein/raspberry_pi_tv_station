@@ -865,15 +865,14 @@ def is_special_time(check):
 		if is_number(check[4:].strip()):
 			num = int(check[4:])
 		else:
-			if IsThanksgiving(8) and IsXmas(-25):
-				print(True)
-			else:
-				print(False)
+			return True if IsThanksgiving(8) and IsXmas(-25) else False
+		return True if IsXmas(num) else False
 
 	if check[:12].lower() == 'thanksgiving':
 			num = 0
 			if is_number(check[12:].strip()):
 					num = int(check[12:])
+			return True if IsThanksgiving(num) else False
 
 	if check[:6].lower() == 'easter':
 		num = 0
