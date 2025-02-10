@@ -11,6 +11,7 @@ class DBMANAGEEXT {
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_commercials" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data older than 10 days. Are you sure?\')">Trim Commercials Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_commercials_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data. Are you sure?\')">[EMPTY]</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_errors" style="color:red;" onclick="return confirm(\'This will permanently delete all error data older than 10 days. Are you sure?\')">Trim Messages Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_errors_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all messages. Are you sure?\')">[EMPTY]</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_shorts" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /shorts/ in its path. Are you sure?\')">Delete Shorts</a></li>
+			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_latenight" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /latenight/ in its path. Are you sure?\')">Delete Late Night</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_special" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /specials/ in its path. Are you sure?\')">Delete Specials</a></li>
 			<ul>
 				<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_special_xmas" style="color:red;" onclick="return confirm(\'This will permanently delete all shows with /specials/xmas in its path. Are you sure?\')">Delete Specials: Xmas</a></li>
@@ -30,6 +31,7 @@ class DBMANAGEEXT {
 				<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_winter_reruns" style="color:red;" onclick="return confirm(\'This will permanently delete all shows with /reruns/winter/ in its path. Are you sure?\')">Delete Winter Reruns</a></li>
 				<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_summer_reruns" style="color:red;" onclick="return confirm(\'This will permanently delete all shows with /reruns/summer/ in its path. Are you sure?\')">Delete Summer Reruns</a></li>
 			</ul>
+			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_gameshows" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /gameshows/ in its path. Are you sure?\')">Delete Gameshows</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_channels" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /channels/ in its path. Are you sure?\')">Delete Channels</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_movies" style="color:red;" onclick="return confirm(\'This will permanently delete all content with /movies/ in its path. Are you sure?\')">Delete Movies</a></li>
 			<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=all_but_prime" style="color:red;" onclick="return confirm(\'This will permanently delete all entries EXCEPT those with /primetime/, /cartoons, and /reruns/ in its path. Are you sure?\')">Delete ALL but PRIMETIME, CARTOONS, and RERUNS</a></li>
@@ -82,12 +84,20 @@ class DBMANAGEEXT {
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/shorts/')") or die($this->mysqlix->error);
 				return;
 			break;
+			case "trim_latenight":
+				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/latenight/')") or die($this->mysqlix->error);
+				return;
+			break;
 			case "trim_special":
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/specials/')") or die($this->mysqlix->error);
 				return;
 			break;
 			case "trim_special_xmas":
 				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/specials/xmas')") or die($this->mysqlix->error);
+				return;
+			break;
+			case "trim_gameshows":
+				$res = $this->mysqlix->query("DELETE FROM `played` WHERE INSTR(name, '/gameshows/')") or die($this->mysqlix->error);
 				return;
 			break;
 			case "trim_special_halloween":

@@ -1389,6 +1389,7 @@ echo '
 		<li style="padding:4px;"><a href="'.$json_settings["web-ui"]["tv_schedule_link"].'" target="_new">TV Schedule</a></li>
 		<li style="padding:4px;"><a href="/programming.php">Programming</a></li>	
 		<li style="padding:4px;"><a href="/settings.php">Settings Editor</a></li>
+		<li style="padding:4px;"><a href="/?test_settings=1&time=Sep%2009%202025%2002:01PM">Test Settings</a></li>
 	</ul>
 	
 	<h3>File Management</h3>

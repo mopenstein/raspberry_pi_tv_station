@@ -140,38 +140,37 @@ var myInput = document.getElementById("editor");
 <h2><em>Details concerning base settings</em></h2>
 	<h3>version:</h3>
 	<ul>
-		<li><i>float&gt;</i> the version number to which the main script compares ensuring compatibility</li>
+		<li><i>&lt;float&gt;</i> the version number to which the main script compares ensuring compatibility</li>
 	</ul>
 	<h3>name:</h3>
 	<ul>
-		<li><i>string&gt;</i> used to identify the script in the web front end</li>
+		<li><i>&lt;string&gt;</i> used to identify the script in the web front end</li>
 	</ul>
 	<h3>drive:</h3>
 	<ul>
-		<li><i>[ string&gt;, array&gt; ]</i> list of strings containing locations of programming content. <i>(will automatically be converted to %D[index]% keyword)</i></li>
+		<li><i>[ &lt;string&gt;, &lt;array&gt; ]</i> list of strings containing locations of programming content. <i>(will automatically be converted to %D[index]% keyword)</i></li>
 	</ul>
 	<h3>insert_commercials:</h3>
 	<ul>
-		<li><i>boolean&gt;</i> setting to true will attempt to insert commercials into programming, false will disable this practice</li>
+		<li><i>&lt;boolean&gt;</i> setting to true will attempt to insert commercials into programming, false will disable this practice</li>
 	</ul>
 	<h3>commercials_per_break:</h3>
 	<ul>
-		<li><i>string&gt;</i> OR <i>whole integer&gt;</i> can be set to <b>'auto'</b> to allow the script to insert commercials based on lengths of video or a <b>whole integer</b> to force a set number of commercials to be played per break</li>
+		<li><i>&lt;string&gt;</i> OR <i>whole integer&gt;</i> can be set to <b>'auto'</b> to allow the script to insert commercials based on lengths of video or a <b>whole integer</b> to force a set number of commercials to be played per break</li>
 	</ul>
 	<h3>time_test:</h3>
 	<ul>
-		<li><i>string&gt;</i> python date and time in string format which will force the script to program based on that time. (example: "Jul 18 2023 11:59AM")</li>
+		<li><i>&lt;string&gt;</i> python date and time in string format which will force the script to program based on that time. (example: "Jul 18 2023 11:59AM")</li>
 	</ul>
 	<h3>report_data:</h3>
 	<ul>
-		<li><i>boolean&gt;</i> if set to false, no out going internet requests will be permitted (not even local requests).</li>
+		<li><i>&lt;boolean&gt;</i> if set to false, no out going internet requests will be permitted (not even local requests).</li>
 	</ul>
 	<h3>player_settings:</h3>
 	<ul>
-		<li><i>[ string&gt;, array&gt; ]</i> list of arguments/commands to be sent to OMXplayer upon playing a video</li>
+		<li><i>[ &lt;string&gt;, &lt;array&gt; ]</i> list of arguments/commands to be sent to OMXplayer upon playing a video</li>
 	</ul>
-<h1>times/commercial_times:</h1>
-<h2><em>Details concerning programming</em></h2>
+<h1><em>Details concerning programming</em></h1>
 <ul>
 	<h3>name:</h3>
 	<ul>
@@ -180,7 +179,10 @@ var myInput = document.getElementById("editor");
 	</ul>
 	<h3>between:</h3>
 	<ul>
-		<li>An array of seconds (total seconds from 01 Jan 00:00) <i>OR</i> &lt;datetime&gt; <i>(%b %d %Y %I:%M%p)</i> during which the content can be played. (cannot be mixed must be seconds or datetime but never both)</li>
+		<li>An array of &lt;dates&gt; <i>(%b %d)</i> and &lt;times&gt; <i>(%I:%M%p)</i> during which the content can be played.</li>
+		<ul>
+			<li>Example: "between": { "dates": [ ["Mar 01", "Apr 01"] ], "times": [ ["08:00AM", "10:00PM"] ] } // returns true if date is between Mar 01 and Apr 01 and time of days is between 8am and 10pm</li>
+		</ul>
 	</ul>
 	<h3>dayOfWeek:</h3>
 	<ul>
@@ -219,8 +221,36 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>&lt;string&gt;</i> when set video from only this 'channel' will be played</li>
 	</ul>
+	<h3>special</h3>
+	<ul>
+		<li><i>&lt;string&gt;</i> special keywords corresponding with holidays</li>
+		<li>Special words: <i>can be modified with +/- days (see examples below)</i></li>
+			<ul>
+				<li><i>thanksgiving</i> - returns True if it is currently Thanksgiving day in the USA
+				<li><i>xmas</i> - returns True beginning the day after Thanksgiving up until Dec 25th
+				<li><i>easter</i> - returns True if it is Easter day. 
+			</ul>
+			<li>Example: "special": "easter-10" // returns True if it is between 10 days before Easter day and Easter day itself</li>
+			<li>Example: "special": "thanksgiving+5" // returns True if current date is within 5 days after Thanksgiving</li>
+			<li>Example: "special": "xmas" // returns True if it's after Thanksgiving day and Christmas day or earlier</li>
+	</ul>
+	<h3>chance</h3>
+	<ul>
+		<li><i>&lt;float&gt;</i> percentage represented by decimal from 0 - 1. (ie. .5 would be a 50% chance)</li>
+		<li>Special words:</li>
+			<ul>
+				<li><i>weekday</i> - current day of week (Sunday - 0 / Saturday - 6)
+				<li><i>maxdays</i> - total days in current month
+				<li><i>year</i> - current year
+				<li><i>day</i> - current day of the month
+				<li><i>month</i> - current month of the year
+				<li><i>hour</i> - current hour of day
+				<li><i>minute</i> - current minute of the hour
+			</ul>
+		<li>Example: "chance": "(day / maxdays)" - the chance that this program will trigger increases everyday from 0% to 100% as the days tick away in the month</li>
+	</ul>
 </ul>
-<h2><em>Details concerning references</em></h2>
+<h1><em>Details concerning references</em></h1>
 <ul>
 Settings can refer to variables defined within itself. Should aid with content that is repeated at certain time, especially if those times might change in the future.<br>
 <br>
@@ -233,7 +263,7 @@ Must begin with "$ref/" and the variable must be defined before being referenced
 		<pre>
 	"vars": {
 			"cartoons": { "am": { "start": [4, 0], "end": [10, 45] }, "pm": { "start": [15, 0], "end": [16, 45] } },
-			}
+		}
 
 	"times": [{
 			"name": ["%D[1]%/cartoons/am"],
@@ -254,53 +284,5 @@ Must begin with "$ref/" and the variable must be defined before being referenced
 <h3><em>Whole integers must be treated as numbers and floats must be treated as strings. This is a json requirement.</em></h3>
 <br />
 <br />
-<h1>Between maker:</h1>
-    <label for="datetime1">Select First Date and Time:</label>
-    <input type="datetime-local" id="datetime1" min="2024-01-01T00:00" max="2024-12-31T23:59"> (must be before second date)
-    <br><br>
-    <label for="datetime2">Select Second Date and Time:</label>
-    <input type="datetime-local" id="datetime2" min="2024-01-01T00:00" max="2024-12-31T23:59"> (must be after first date)
-    <br><br>
-    <button onclick="calculateDifference(0)">Generate Seconds Setting</button> <button onclick="calculateDifference(1)">Generate Seconds Array</button><br>
-	<button onclick="calculateDifference(2)">Generate DateTime Setting</button> <button onclick="calculateDifference(3)">Generate DateTime Array</button><br>
-	<br>
-	Result: <input type="text" id="betweenResult" size="50">
-    <p id="result"></p>
-
-    <script>
-		function formatDate(date) {
-			month = date.toLocaleString('en-US',     {month: 'short' });
-			day  =  date.toLocaleDateString('en-US', {day: '2-digit'});
-			// year =  date.toLocaleDateString('en-US', {year: 'numeric'}); // year isn't needed
-			time =  date.toLocaleDateString('en-US', {year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true}).toString().substr(-8).replace(/\s/g, "")
-			
-			return month + ' ' + day + ' ' + time;
-		}
-		
-        function calculateDifference(type) {
-            const datetime1 = new Date(document.getElementById('datetime1').value);
-            const datetime2 = new Date(document.getElementById('datetime2').value);
-            const startOfYear = new Date('2024-01-01T00:00:00');
-
-            if (isNaN(datetime1) || isNaN(datetime2)) {
-                document.getElementById('result').value = 'Please select both dates and times.';
-                return;
-            }
-
-            const diff1 = (datetime1 - startOfYear) / 1000;
-            const diff2 = (datetime2 - startOfYear) / 1000;
-			
-            if(!type) {
-				document.getElementById('betweenResult').value = `"between": [ [${diff1}, ${diff2}] ]`;
-			} else if(type==1) {
-				document.getElementById('betweenResult').value = `[${diff1}, ${diff2}]` ;
-			} else if(type==2) {
-				document.getElementById('betweenResult').value = '"between": [ ["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"] ]';
-			} else if(type==3) {
-				document.getElementById('betweenResult').value = '["' + formatDate(datetime1) + '", "' + formatDate(datetime2) + '"] ]';
-			}
-        }
-    </script>
-
 </body>
 </html>
