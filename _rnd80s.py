@@ -1,26 +1,24 @@
 #!/usr/bin/python
 
-# version: 101.95
-# version date: 202X.XX.XX
+# version: 101.97
+# version date: 2025.02.10
 #	Programming: 
+#		All special holidays can now be checked within a +/- range in the settings.
 #
 #	Web-UI: 
-#		fixed possible 'gotcha' situation when inserting undecoded URL-encoded paths to a show into the database from web front end
+#		The documentation on settings.php has been added to and updated to reflect the latest changes.
+#		dir.php now has more precise control over video playing.
 #
 #	Settings:
-#		'chance' setting will attempt to restrict the input evaluated.
-#		found and fixed bug in 'between' setting where multiple time frames might fail to trigger when expected.
-#		'between' setting has been both expanded and constricted:
-#				will no longer accept relative seconds as an option
-#				can now accept a time based string containing any portion of datetime. This will probably eliminate the need for the 'start' and 'end' settings. 
-#					Uses pythons string to time:  "Oct 12:00AM" "Nov 13 11:59PM" "11:59PM" "Sep" "Jan 2028"
-#					Settings Example: "between": { "dates": [ ["Oct 01", "Oct 31"], ["May 01", "May 31"], ["Feb 01", "Feb %MAXDAYS%"] ] } // will trigger during the months of October, May, or February
-#					Settings Example: "between": { "dates": [ ["Oct 01", "Oct 31"] ], "times": [ ["04:00AM", "05:00AM"], ["04:00PM", "05:00PM"] ] }  // will trigger during the month of October but only between 4AM and 5AM or 4PM and 5PM
-#					Settings Example: "between": { "dates": [ ["Mar 01", "Mar 31"] ], "times": [ ["10:00AM", "10:30AM"] ], "years": [ 1999, 2000 ] }  // will trigger during the month of Mar but only between 10AM and 10:30AM in the years 1999 or 2000
+#		The changes to speacial keyword Special Holidays effects Settings as well
 #
-# settings version: 0.98
-#	the 'between' setting has been significantly altered and will break with older versions
-#
+# settings version: 0.991
+#	special keyword 'easter' will now return True if it's Easter as well as a range of days from easer.
+#		example:
+#			"special": "easter"		// returns True if it's Easter day
+#			"special": "thanksgiving"	// returns True it's Thanksgiving day
+#			"special": "thanksgiving-10"	// returns True if current date is within 10 days before Thanksgiving 
+#			"special": "xmas"	// returns True if it's after Thanksgiving day and Christmas day or earlier
 #
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
@@ -54,7 +52,10 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 	#		If set to a number, a random commercial will be continually selected up until the supplied number has been reached
 	#		if an array of commercials video file locations is provided, each commercial will be played until there are none left
 	#	start_pos: attempts to resume the video from this value
-	
+	if os.path.splitext(source)[1].lower() == ".commercials":
+		report_error("PLAY_LOOP", ["Error", "Commercial file supplied as video file. Something aint right...", "SOURCE", str(source)])
+		return
+
 	global settings
 	if source==None:
 		return
@@ -349,9 +350,31 @@ def eval_equation(chance, now):
 	except:
 		return 0
 
+def get_short_month_name(month_number):
+	month_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+	if 1 <= month_number <= 12:
+		return month_abbr[month_number - 1]
+	else:
+		raise ValueError("Month number must be in the range 1-12")
+
 # Function to replace %MAXDAYS% with the correct number of days in the month
-def replace_max_days(date_str):
+def replace_special_words(date_str):
 	global now
+	# Create a dictionary for placeholders and their replacement values
+	replacements = {
+		"%HOUR%": now.strftime("%I"),
+		"%AMPM%": now.strftime("%p"),
+		"%MIN%": now.strftime("%M"),
+		"%MONTH%": get_short_month_name(now.month),
+		"%DAY%": "{:02d}".format(now.day),
+		"%YEAR%": str(now.year)
+	}
+
+	# Replace each placeholder with its corresponding value
+	for key, value in replacements.items():
+		if key in date_str:
+			date_str = date_str.replace(key, value)
+
 	if "%MAXDAYS%" in date_str:
 		# Extract the month
 		month_str = date_str.split(" ")[0]
@@ -366,7 +389,6 @@ def replace_max_days(date_str):
 		
 		# Replace %MAXDAYS% with the calculated max days
 		date_str = date_str.replace("%MAXDAYS%", str(max_days))
-	
 	return date_str
 
 # Function to check if the current date and time fall within the ranges
@@ -385,30 +407,49 @@ def is_within_range(data):
 	year_within_range = True
 	for year_range in year_ranges:
 		year_within_range = False
-		if str(year_range) == str(current_year):
+		if replace_special_words(str(year_range)) == str(current_year):
 			year_within_range = True
 			break
 
 	# Check if the current date is within any of the date ranges
-	date_within_range = False
+	date_within_range = True
 	for date_range in date_ranges:
-		start_date_str = replace_max_days(date_range[0])
-		end_date_str = replace_max_days(date_range[1])
+		date_within_range = False
+		if isinstance(date_range, list): # a list of dates
+			start_date_str = replace_special_words(date_range[0])
+			end_date_str = replace_special_words(date_range[1])
 		
-		start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
-		end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
-		if start_date <= current_datetime <= end_date:
-			date_within_range = True
-			break
+			start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+			end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
+			if start_date.date() <= current_datetime.date() <= end_date.date():
+				date_within_range = True
+				break
+		else: # a single date
+			start_date_str = replace_special_words(date_range)
+			start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+			if start_date.date() == current_datetime.date():
+				date_within_range = True
+				break
 	
 	# Check if the current time is within any of the time ranges
-	time_within_range = False
+	time_within_range = True
 	for time_range in time_ranges:
-		start_time = datetime.datetime.strptime(time_range[0], "%I:%M%p")
-		end_time = datetime.datetime.strptime(time_range[1], "%I:%M%p")
-		if start_time.time() <= current_datetime.time() <= end_time.time():
-			time_within_range = True
-			break
+		time_within_range = False
+		if isinstance(time_range, list): # a list of dates
+			start_time_str = replace_special_words(time_range[0])
+			end_time_str = replace_special_words(time_range[1])
+
+			start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
+			end_time = datetime.datetime.strptime(end_time_str, "%I:%M%p")
+			if start_time.time() <= current_datetime.time() <= end_time.time():
+				time_within_range = True
+				break
+		else:
+			start_time_str = replace_special_words(time_range)
+			start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
+			if start_time.time() == current_datetime.time():
+				time_within_range = True
+				break
 	
 	return date_within_range and time_within_range and year_within_range
 
@@ -783,24 +824,34 @@ def get_uptime():
 	global script_start_time
 	return (time.time() - script_start_time)
 
-def IsEaster():
-	# Created by Martin Diers 
-	# https://code.activestate.com/recipes/576517-calculate-easter-western-given-a-year/
-	# Licensed under the MIT License https://mit-license.org/
-	global now # always use the global datetime 'now' so it doesn't break test dates
-	a = now.year % 19
-	b = now.year // 100
-	c = now.year % 100
-	d = (19 * a + b - b // 4 - ((b - (b + 8) // 25 + 1) // 3) + 15) % 30
-	e = (32 + 2 * (b % 4) + 2 * (c // 4) - d - (c % 4)) % 7
-	f = d + e - 7 * ((a + 11 * d + 22 * e) // 451) + 114
-	month = f // 31
-	day = f % 31 + 1
-	
-	if(now.date()== datetime.date(now.year, month, day)):
+def is_date_within_range(date1, date2, range_days):
+	delta = (date1 - date2).days
+	if (range_days >= 0 and 0 <= delta <= range_days) or (range_days < 0 and range_days <= delta <= 0):
 		return True
-	else:
-		return False
+	return False
+
+def IsEaster(daysFromEaster):
+	global now	
+	# Using the Anonymous Gregorian algorithm to calculate Easter Sunday
+	year = now.year  # Determine the year from the global variable 'now'
+	a = year % 19
+	b = year // 100
+	c = year % 100
+	d = b // 4
+	e = b % 4
+	f = (b + 8) // 25
+	g = (b - f + 1) // 3
+	h = (19 * a + b - d - g + 15) % 30
+	i = c // 4
+	k = c % 4
+	l = (32 + 2 * e + 2 * i - h - k) % 7
+	m = (a + 11 * h + 22 * l) // 451
+	month = (h + l - 7 * m + 114) // 31
+	day = ((h + l - 7 * m + 114) % 31) + 1
+    
+	easter_sunday = datetime.date(year, month, day)
+	target_date = easter_sunday + datetime.timedelta(days=daysFromEaster)
+	return is_date_within_range(datetime.date(now.year, now.month, now.day), easter_sunday, daysFromEaster)
 
 def is_number(s):
 	try:
@@ -810,16 +861,32 @@ def is_number(s):
 		return False
 
 def is_special_time(check):
-	if check.lower() == 'xmas': return True if PastThanksgiving(False) else False
-	if check.lower() == 'thanksgiving': return True if PastThanksgiving(True) else False
-	if check.lower() == 'easter': return True if IsEaster() else False
+	if check[:4].lower() == 'xmas':
+		if is_number(check[4:].strip()):
+			num = int(check[4:])
+		else:
+			if IsThanksgiving(8) and IsXmas(-25):
+				print(True)
+			else:
+				print(False)
+
+	if check[:12].lower() == 'thanksgiving':
+			num = 0
+			if is_number(check[12:].strip()):
+					num = int(check[12:])
+
+	if check[:6].lower() == 'easter':
+		num = 0
+		if is_number(check[6:].strip()):
+			num = int(check[6:])
+		return True if IsEaster(num) else False
 	return False
 
 def kill_omxplayer():
 	command = "/usr/bin/sudo pkill omxplayer"
 	process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
 	output = process.communicate()[0]
-	print output
+	print(output)
 
 def now_totheminute():
 	jt_string = str(datetime.datetime.now().day).zfill(2) + "/" + str(datetime.datetime.now().month).zfill(2) + "/" + str(datetime.datetime.now().year).zfill(4) + " " + str(datetime.datetime.now().hour).zfill(2) + ":" + str(datetime.datetime.now().minute).zfill(2)
@@ -837,6 +904,23 @@ def open_url(url):
 		return urllib2.urlopen(url).read()
 	except:
 		return None
+
+def IsXmas(daysFromXmas):
+	global now # always use the global datetime 'now' so it doesn't break test dates
+	
+	xmas = datetime.datetime.strptime(str("Dec 25 " + str(now.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
+	target_date = xmas + datetime.timedelta(days=daysFromXmas)
+	return is_date_within_range(now, xmas, daysFromXmas)
+
+def IsThanksgiving(daysFromThanksgiving):
+	global now # always use the global datetime 'now' so it doesn't break test dates
+	
+	year = str(now.year)
+	d = datetime.datetime.strptime(str("Nov 1 " + year), '%b %d %Y')
+	dw = d.weekday()
+	thanksgiving = datetime.datetime.strptime(str("Nov " + str(22 + (10 - dw) % 7) + " " + str(d.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
+	target_date = thanksgiving + datetime.timedelta(days=daysFromThanksgiving)
+	return is_date_within_range(now, thanksgiving, daysFromThanksgiving)
 
 def PastThanksgiving(is_thanksgiving):
 	global now # always use the global datetime 'now' so it doesn't break test dates
@@ -985,7 +1069,7 @@ base_directory = os.path.dirname(__file__)
 ############################ /global variables
 
 ############################ settings
-SETTINGS_VERSION = 0.98
+SETTINGS_VERSION = 0.991
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
