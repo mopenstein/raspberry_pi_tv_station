@@ -1,7 +1,7 @@
 {
 	"version": "0.992",
 	"drive": ["/media/pi/ssd", "/media/pi/ssd_b"],
-	"name": "WJTH Channel 8 - Hanover, PA",
+	"name": "My TV Station",
 	"insert_commercials": true,
 	"commercials_per_break": "auto",
 	"commercials_offset_time": 30,
