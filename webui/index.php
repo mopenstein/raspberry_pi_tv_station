@@ -3,17 +3,6 @@
 # Do not expose your Raspberry Pi directly to the internet via port forwarding or DMZ.
 # This software is designed for local network use only.
 # Opening it up to the web will ruin your day.
-
-
-		{
-			"name": ["%D[2]%/commercials/january/any", "%D[2]%/commercials/february/any", "%D[2]%/commercials/march/any", "%D[2]%/commercials/april/any", "%D[2]%/commercials/may/any", "%D[2]%/commercials/june/any",
-				 "%D[2]%/commercials/july/any", "%D[2]%/commercials/august/any", "%D[2]%/commercials/september/any", "%D[2]%/commercials/october/any", "%D[2]%/commercials/november/any", "%D[2]%/commercials/december/any"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-			"prefer-folder": "yes",
-			"chance": ".125"
-		},
-
-
 */
 
 error_reporting(E_ALL);
@@ -40,7 +29,7 @@ $channel_file = $json_settings["channels"]["file"];
 
 //######################### /settings
 
-require_once("db_manage_ext.inc");
+require_once("db_manage_extx.inc");
 $db_manage_ext = new DBMANAGEEXT();
 $db_manage_ext->load($database_info["host"], $database_info["username"], $database_info["password"], $database_info["database_name"]);
 
@@ -49,10 +38,41 @@ $mysqli = new mysqli($database_info["host"], $database_info["username"], $databa
 if(isset($_GET["test_settings"])) {
 
 	$pythonScript = '/home/pi/Desktop/test_settings.py';
-	echo "python " . escapeshellarg($pythonScript) . (isset($_GET["time"]) ? ' '.escapeshellarg($_GET["time"]) : '');
-	$output = shell_exec("python " . escapeshellarg($pythonScript) . (isset($_GET["time"]) ? ' '.escapeshellarg($_GET["time"]) : ''));
+
+	$py_cmd = "python " . escapeshellarg($pythonScript) . (isset($_GET["test_settings"]) ? ' '.escapeshellarg($_GET["test_settings"]) : '') . (isset($_GET["file"]) ? ' '.escapeshellarg($_GET["file"]) : '');
+
+	echo $py_cmd;
+
+	$output = shell_exec($py_cmd);
 
 	echo "<pre>$output</pre>";
+
+	echo '
+    <script>
+        function formatDateTime() {
+            const dateInput = document.getElementById(\'date\').value;
+            const timeInput = document.getElementById(\'time\').value;
+
+            if (dateInput && timeInput) {
+                const date = new Date(`${dateInput}T${timeInput}`);
+                const options = { month: \'short\', day: \'2-digit\', year: \'numeric\' };
+                const formattedDate = date.toLocaleDateString(\'en-US\', options).replace(\',\', \'\');
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const formattedTime = `${(hours % 12 || 12).toString().padStart(2, \'0\')}:${minutes.toString().padStart(2, \'0\')}${hours < 12 ? \'AM\' : \'PM\'}`;
+                
+                document.location.href = \'/?test_settings=\' + encodeURIComponent(formattedDate + \' \' + formattedTime);
+            } else {
+                document.getElementById(\'output\').textContent = "Please select both date and time.";
+            }
+        }
+    </script>
+    <h1>Date and Time Picker</h1>
+    <label for="date">Select a Date:</label> <input type="date" id="date" /> <label for="time">Select a Time:</label> <input type="time" id="time" />
+    <br><br>
+    <button onclick="formatDateTime()">Use this date/time</button>
+    <p id="output"></p>
+	';
 
 	die();
 }
@@ -172,10 +192,21 @@ if(isset($_GET["start"])) {
 
 
 if(isset($_GET["skip"])) {
-    //header("Location: /\n\n");
-	$mysqli->real_query("INSERT INTO errors (name, played) VALUES ('SKIPPED|Current Video was skipped|".addslashes($_GET["skip"])."', ". time() . ")");
+    
+	$last_played = "_not_found_";
+	//$result = $mysqli->query("SELECT * FROM played ORDER BY played LIMIT 1 ASC");
+
+	$result = $mysqli->query("SELECT * FROM played ORDER BY id DESC") or die($mysqli->error);
+
+	if ($result->num_rows > 0) {
+		$last_played = $result->fetch_assoc()["name"];
+	}
+	
+	$mysqli->real_query("INSERT INTO errors (name, played) VALUES ('SKIPPED|Current Video was skipped|".addslashes($last_played)."', ". time() . ")");
+
 	$result = exec('sudo ./kill.sh');
-	die($result);
+	//die($result);
+	header("Location: /?skipped=yes\n\n");
 }
 
 if(isset($_GET["restart"])) {
@@ -1159,14 +1190,11 @@ for($i = 0;$i<count($drive_loc);$i++) {
 	echo '<span style="background-color:#'.chr(98+$i).chr(98+$i).chr(98+$i).'">Disk ' . ($i+1) . ' ' . floor( disk_free_space( $drive_loc[$i] ) / ( 1024 * 1024 * 1024 ) ) . 'GB</span> ';
 }
  
-$res = $mysqli->query("SELECT * FROM played WHERE played>=" . strtotime($the_date .' 00:00') . " AND played<=" . strtotime($the_date . ' 23:59') . "  ORDER BY id DESC") or die($mysqli->error);
-$curr_video = $res->fetch_assoc()["name"];
-
 echo '</button>
 	<button class="tablinks">Load: ' . (sys_getloadavg()[0]*100) . '%</button>
 	<button class="tablinks">Uptime: ' . getUptime() . '</button>
 	<button class="tablinks">Temp: ' . (round((($int_temp/1000) * (9/5))) + 32) . '<sup>&deg;</sup></button>
-	<button class="tablinks" style="background-color:lightblue;"><a href="/?skip='.$curr_video.'" style="color:white;">Skip >></a></button>
+	<button class="tablinks" style="background-color:lightblue;"><a href="/?skip=1" style="color:white;">Skip >></a></button>
 </div>
 
 <div class="tab">
@@ -1231,7 +1259,7 @@ while ($row = $res->fetch_assoc()) {
 	
 	//$showTypes = explode("_", $showType);
 	//if(count($showTypes)>1) $showType=$showTypes[1];
-	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td align=center>' . date("h:i A", $row["played"]) . '</td><td style="padding-left:20px;"><a href="/?video=' . $row["name"] . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';" title="'.strtolower(preg_replace("~[_\W\s]~", '', basename($row["name"]))).'">' . $row["short_name"] . '</a> ' . $len . ' <a href="/commercials-times.php?video=' . $row["name"] . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';">&copy;</a></td><td align=center>'.$showType.'</td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_video'.$row["id"].'" onclick="flagVideo('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_video'.$row["id"].'" onclick="unflagVideo('.$row["id"].');">') . '</td></tr>';
+	echo '<tr style="background:#'.getShowTypeColor($showType).';"><td align=center>' . date("h:i A", $row["played"]) . '</td><td style="padding-left:20px;"><a href="/?video=' . urlencode($row["name"]) . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';" title="'.strtolower(preg_replace("~[_\W\s]~", '', basename($row["name"]))).'">' . $row["short_name"] . '</a> ' . $len . ' <a href="/commercials-times.php?video=' . urlencode($row["name"]) . '" style="color:' . invertColor(getShowTypeColor($showType)) . ';">&copy;</a></td><td align=center>'.$showType.'</td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_video'.$row["id"].'" onclick="flagVideo('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_video'.$row["id"].'" onclick="unflagVideo('.$row["id"].');">') . '</td></tr>';
 	$shows_cnt++;
 }
 
@@ -1280,6 +1308,8 @@ while ($row = $res->fetch_assoc()) {
 		$month_offset = 3;
 	}
 	
+	$comm_type_emoji = [ "1F4FA", "1F476", "1F37A", "1F46A"];
+
 	if(array_key_exists($splits[count($splits)-$month_offset], $comm_months)==false) { 
 		$comm_months[$splits[count($splits)-$month_offset]]=[1, 0, 0, 0];
 		$comm_months[$splits[count($splits)-$month_offset]][$comm_type]=1;
@@ -1295,7 +1325,7 @@ while ($row = $res->fetch_assoc()) {
 		$len = gmdate("H:i:s", (int)substr(basename($row["name"]), $a + 3, $b-$a - 3));
 	}
 
-	echo '<tr style="background-color: #'.getCommercialTypeColor($splits[count($splits)-$month_offset]).'; color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><span href="/commercials.php?folder=' . $splits[count($splits)-2] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . $splits[count($splits)-$month_offset] . '</span></td><td style="padding-left:20px;">'.$comm_months[$splits[count($splits)-$month_offset]][0].'. <a href="/?video=' . $row["name"] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
+	echo '<tr style="background-color: #'.getCommercialTypeColor($splits[count($splits)-$month_offset]).'; color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);"><td align=center>' . date("h:i&\\nb\\sp;A", $row["played"]) . '</td><td align=center><span href="/commercials.php?folder=' . $splits[count($splits)-2] . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . $splits[count($splits)-$month_offset] . '</span></td><td style="padding-left:20px;">'.$comm_months[$splits[count($splits)-$month_offset]][0].'. &#x'.$comm_type_emoji[$comm_type].'; <a href="/?video=' . urlencode($row["name"]) . '" style="color:white; text-shadow: 1px 1px 1px rgba(0,0,0,0.44);">' . basename($row["name"]) . '</a> ' . $len . '</td><td><a href="/videoeditor.php?file=' . $row["name"] . '"><img src="images/video_edit.png" /></a> <a href="/?delete=' . $row["name"] . '" onclick="return confirm(\'Deleting video is permanent.\n\nAre you sure?\')"><img src="images/video_delete.png" /></a></td><td align="center">' . ($row["flag"]=="0" ? '<input type="button" value="flag" id="flag_comm'.$row["id"].'" onclick="flagCommercial('.$row["id"].');">' : '<input type="button" value="unflag" id="unflag_comm'.$row["id"].'" onclick="unflagCommercial('.$row["id"].');">') . '</td></tr>';
 	//$comms_cnt++;
 }
 
@@ -1375,7 +1405,7 @@ if(count($channels)>0) {
 	foreach($channels as $c) {
 		$cc = $c;
 		if($c==null || $c=="") $c = "default";
-		echo '	<li style="padding:4px;"><a href="/?channel='.urlencode($c).'" style="padding:4px;'.($cc==$curr_channel ? ' background-color:lightgreen;' : '').'">'.$c.'</a></li>
+		echo '	<li style="padding:4px;"><a href="/?channel='.urlencode($c).'" style="padding:4px;'.($cc==$curr_channel ? ' background-color:lightgreen;' : '').'" onclick="return confirm(\'This will change the channel to '.$c.'. Are you sure?\')">'.$c.'</a></li>
 	';
 	}
 } else { echo '</No Channels Defined in Settings</li>'; }
@@ -1425,7 +1455,7 @@ $res = $mysqli->query("SELECT * FROM played WHERE flag!=0 ORDER BY id DESC") or 
 
 while ($row = $res->fetch_assoc()) {
 	if(!$row) break;
-	echo '<li><a href="/?video='.$row["name"].'" target="_new">'.$row["name"].'</a> | <input type="button" value="unflag" onclick="unflagVideo('.$row["id"].');"></li>';
+	echo '<li><a href="/?video='.urlencode($row["name"]).'" target="_new">'.$row["name"].'</a> | <input type="button" value="unflag" onclick="unflagVideo('.$row["id"].');"></li>';
 	$shows_cnt++;
 	$flagged = true;
 }
@@ -1445,7 +1475,7 @@ $res = $mysqli->query("SELECT * FROM commercials WHERE flag!=0 ORDER BY id DESC"
 
 while ($row = $res->fetch_assoc()) {
 	if(!$row) break;
-	echo '<li id="comm'.$row["id"].'"><a href="/?video='.$row["name"].'" target="_new">'.$row["name"].'</a> | <input type="button" value="unflag" onclick="unflagCommercial('.$row["id"].');"></li>';
+	echo '<li id="comm'.$row["id"].'"><a href="/?video='.urlencode($row["name"]).'" target="_new">'.$row["name"].'</a> | <input type="button" value="unflag" onclick="unflagCommercial('.$row["id"].');"></li>';
 	$shows_cnt++;
 	$flagged = true;
 }

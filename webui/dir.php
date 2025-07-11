@@ -64,6 +64,18 @@ if(isset($_GET["f"]) && isset($_GET["delete"])) {
 	}
 }
 
+if(isset($_GET["f"]) && isset($_GET["movie"])) {
+	if($_GET["movie"]!="") {
+		$file = $_GET["f"];
+		if(file_exists($file)) {
+			rename($file, dirname($file) . '/../movie_trailers/' . $_GET["movie"] . "." . pathinfo($file, PATHINFO_EXTENSION));
+			die("1|movie trailer set");
+		} else {
+			die("file no exist");
+		}
+	}
+}
+
 if(isset($_GET["f"]) && isset($_GET["set"])) {
 	$file = $_GET["f"];
 	
@@ -150,6 +162,30 @@ echo '
 	}
 </style>
 <script type="text/javascript">
+counterStarted = false;
+function startCounter(elementId) {
+	if (counterStarted) return;
+	counterStarted = true;
+
+	let seconds = 0;
+	const element = document.getElementById(elementId);
+
+	function formatTime(sec) {
+		let hours = Math.floor(sec / 3600);
+		let minutes = Math.floor((sec % 3600) / 60);
+		let seconds = sec % 60;
+
+		return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+	}
+
+	function updateCounter() {
+		seconds++;
+		element.textContent = formatTime(seconds);
+	}
+
+	setInterval(updateCounter, 1000);
+}
+
 function showPlayer() {
 	document.getElementById("vidplayer").style.display="block";
 }
@@ -193,6 +229,13 @@ function delVideo(that, file) {
 	that.parentNode.remove();
 }
 
+function movieVideo(that, file) {
+	console.log("movie", file);
+	name = prompt("Enter movie name (without extension):", "");
+	ajax("dir.php?f="+file+"&movie="+encodeURIComponent(name));
+	that.parentNode.remove();
+}
+
 
 lastKey = null;
 lastKeyTime = 0;
@@ -206,7 +249,7 @@ document.onkeydown = function(evt) {
     } else if (evt.key=="a") {
         video = document.getElementById("vidplayer");
 		video.currentTime -= skipTime;
-	} else if (lastKey==null && (evt.key=="q" || evt.key=="w" || evt.key=="e" || evt.key=="x")) {
+	} else if (lastKey==null && (evt.key=="q" || evt.key=="w" || evt.key=="e" || evt.key=="x" || evt.key=="z")) {
 		lastKey = evt.key;
     } else if (evt.key=="q" && lastKey=="q") { //double tape to set AM
 		document.getElementById(\'am\' + currID).click();
@@ -224,9 +267,17 @@ document.onkeydown = function(evt) {
 		document.getElementById(\'del\' + currID).click();
 		lastKey = null;
 		setTimeout(function() { document.getElementById(\'plus\' + (currID+1)).click(); }, 750);
+	} else if (evt.key=="z" && lastKey=="z") { //double tape to set ANY
+		document.getElementById(\'movie\' + currID).click();
+		lastKey = null;
+		setTimeout(function() { document.getElementById(\'plus\' + (currID+1)).click(); }, 750);
+	} else if (evt.key=="r") { //double tape to skip to next video
+	 	window.scrollBy(0, 54);
+		setTimeout(function() { document.getElementById(\'plus\' + (currID+1)).click(); }, 250);
 	} else {
 		lastKey = null;
 	}
+	startCounter("counter");
 	console.log(lastKey);
 };
 
@@ -235,9 +286,10 @@ document.onkeydown = function(evt) {
 <body style="white-space:nowrap;">
 	<div style="float:right; width:650;"><button onlick="this.parentElement.remove();">X</button>
 		<video width="640" height="480" controls id="vidplayer" style="position:fixed; float:right; z-index:1000;">
-		</video>
+		</video><p id="counter" style="position:fixed; background-color:#fff; float:right; z-index:1000; font-size:10px;" id="counter">00:00:00</p>
+		
 	</div>
-</div>Click plus to play video; A = go back 5 seconds; D = ahead 5 seconds; Double tap Q = set current video AM; WW = PM; EE = Either; XX = Delete video;<br>
+</div>Click plus to play video; A = go back 5 seconds; D = ahead 5 seconds; Double tap Q = set current video AM; WW = PM; EE = Either; XX = Delete video; ZZ = Movie Trailer<br>
 ';
 
 if ($path) echo '<div><a href="?file='.urlencode(substr(dirname($path), strlen($root) + 1)).'" style="position:relative;top:-5px;font-size:20px;text-decoration:none;"><img src="images/return.png" /></a></div>';
@@ -258,7 +310,7 @@ foreach ($root as $r) {
 				echo '<div><small style="font-size:16px;">'.$ic.'.</small> <img src="images/video.png" /> <a href="/?video='.urlencode($file).'&return='.urlencode($_SERVER['REQUEST_URI']).'" style="position:relative;top:-5px;font-size:20px;text-decoration:none;'.(strpos($file, "_NA_")==0 ? 'background:#aff;' : '').(strpos($file, "%T(")==0 ? 'color:#faf;' : '').'">'.basename($file).'</a> <a href="javascript:null;" onclick="playVideo(\'/?video='.urlencode($file).'\', '.$ic.');this.style.backgroundColor=\'green\';" id="plus'.$ic.'">+</a>';
 					
 					if(strpos($file, "%AM%")==0 && strpos($file, "%PM%")==0 && strpos($file, "%ANY%")==0) {
-						echo ' <a href="javascript:null;" onclick="setAMPM(\''.urlencode($file).'\',0);this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="am'.$ic.'">AM</a> <a href="javascript:null;" onclick="setAMPM(\''.urlencode($file).'\',1);this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="pm'.$ic.'">PM</a> <a href="javascript:null;" onclick="setAMPM(\''.urlencode($file).'\',2);this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="any'.$ic.'">Either</a>';
+						echo ' <a href="javascript:null;" onclick="setAMPM(\''.urlencode($file).'\',0);this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="am'.$ic.'">AM</a> <a href="javascript:null;" onclick="setAMPM(\''.urlencode($file).'\',1);this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="pm'.$ic.'">PM</a> <a href="javascript:null;" onclick="setAMPM(\''.urlencode($file).'\',2);this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="any'.$ic.'">Either</a> <a href="javascript:null;" onclick="movieVideo(this, \''.urlencode($file).'\');this.style.backgroundColor=\'red\'; window.scrollBy(0, 54);" style="font-size:33%;" id="movie'.$ic.'">Movie</a>';
 					}
 					
 				echo ' <a href="javascript:null;" onclick="if(confirm(\'Delete cannot be undone. Are you sure?\')) { delVideo(this, \''.urlencode($file).'\'); }" style="font-size:33%;"  id="del'.$ic.'">[ X ]</a></div>

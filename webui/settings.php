@@ -154,6 +154,14 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>&lt;boolean&gt;</i> setting to true will attempt to insert commercials into programming, false will disable this practice</li>
 	</ul>
+	<h3>commercials_fill_time_multiplier:</h3>
+	<ul>
+		<li><i>&lt;number&gt;</i> multiplier in the timeout logic that is used when generating commercials to fill remaining time.</li>
+	</ul>
+	<h3>commercials_offset_time</h3>
+	<ul>
+		<li><i>&lt;whole number&gt;</i> number of seconds to offset the amount of time calculated to fill the remaining time of a video and the half/top of the hour. Positive numbers will add time, negative will subtract time. Use positive if your shows are starting too early and negative if starting too late.</li>
+	</ul>
 	<h3>commercials_per_break:</h3>
 	<ul>
 		<li><i>&lt;string&gt;</i> OR <i>whole integer&gt;</i> can be set to <b>'auto'</b> to allow the script to insert commercials based on lengths of video or a <b>whole integer</b> to force a set number of commercials to be played per break</li>
@@ -182,6 +190,15 @@ var myInput = document.getElementById("editor");
 		<li>An array of &lt;dates&gt; <i>(%b %d)</i> and &lt;times&gt; <i>(%I:%M%p)</i> during which the content can be played.</li>
 		<ul>
 			<li>Example: "between": { "dates": [ ["Mar 01", "Apr 01"] ], "times": [ ["08:00AM", "10:00PM"] ] } // returns true if date is between Mar 01 and Apr 01 and time of days is between 8am and 10pm</li>
+		</ul>
+		<li>special keywords:</li>
+		<ul>
+			<li>"%HOUR%": current hour of the day in 12 hour format</li>
+			<li>"%AMPM%": current AM/PM</li>
+			<li>"%MIN%": current minute of the hour</li>
+			<li>"%MONTH%": current month of the year in 3 letter format</li>
+			<li>"%DAY%": current day of the month</li>
+			<li>"%YEAR%": current year</li>
 		</ul>
 	</ul>
 	<h3>dayOfWeek:</h3>
@@ -221,6 +238,49 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>&lt;string&gt;</i> when set video from only this 'channel' will be played</li>
 	</ul>
+	<h3>min-length</h3>
+	<ul>
+		<li><i>&lt;integer&gt;</i> minimum length of video in seconds</li>
+	</ul>
+	<h3>max-length</h3>
+	<ul>
+		<li><i>&lt;integer&gt;</i> maximum length of video in seconds</li>
+	</ul>
+	<h3>prefer-folder</h3>
+	<ul>
+		<li><i>&lt;boolean&gt;</i> when set, the script will make its selection from the supplied list of folders rather than select a video from a combined list of all videos from all folders</li>
+	</ul>
+	<h3>note</h3>
+	<ul>
+		<li><i>&lt;string&gt;</i> text that has no effect other than for the settings programmer</li>
+	</ul>
+	<h3>set-tag</h3>
+	<em>* note: filename tags override programming tags *</em>
+	<ul>
+		<li><i>&lt;string&gt;</i> sets the current tag used for commercials block programming</li>
+	</ul>
+	<h3>minimum time between repeats</h3>
+	<ul>
+		<li><i>&lt;integer&gt;</i> minimum time in seconds before the same video can be played again</li>
+	</ul>
+	<h3>weighted</h3>
+	<ul>
+		<li><i>&lt;list of integers&gt;</i> the weight of the video. The higher the number the more likely it will be played <i>(must be used in conjuction with "prefer-folder" setting and works only with video types set to 'commercial')</i></li>
+		<li>Example: 
+			<ul>
+				<pre>
+	"name": ["%D[1]%/folder1", "%D[1]%/folder2", "%D[1]%/folder3,"],
+	"prefer-folder": "yes",
+	"weighted": [ 25, 50, 25 ] // a video from folder 2 will be selected 50% of the time, folder 1 and 3 will be selected 25% of the time
+				</pre>
+			</ul>
+		</li>
+	</ul>
+	<h3>tag</h3>
+	<ul>
+		<li><i>&lt;string&gt;</i> allow commercials to be played specifically for a video with a certain tag</li>
+		<li>Example: "tag": "cartoons" // if a video is tagged in its filename as @cartoons@, this setting will be trigger</li>
+	</ul>
 	<h3>special</h3>
 	<ul>
 		<li><i>&lt;string&gt;</i> special keywords corresponding with holidays</li>
@@ -229,6 +289,8 @@ var myInput = document.getElementById("editor");
 				<li><i>thanksgiving</i> - returns True if it is currently Thanksgiving day in the USA
 				<li><i>xmas</i> - returns True beginning the day after Thanksgiving up until Dec 25th
 				<li><i>easter</i> - returns True if it is Easter day. 
+				<li><i>mothers day</i> - returns True if it is Mother's day. 
+				<li><i>fathers day</i> - returns True if it is Father's day. 
 			</ul>
 			<li>Example: "special": "easter-10" // returns True if it is between 10 days before Easter day and Easter day itself</li>
 			<li>Example: "special": "thanksgiving+5" // returns True if current date is within 5 days after Thanksgiving</li>
@@ -236,18 +298,37 @@ var myInput = document.getElementById("editor");
 	</ul>
 	<h3>chance</h3>
 	<ul>
-		<li><i>&lt;float&gt;</i> percentage represented by decimal from 0 - 1. (ie. .5 would be a 50% chance)</li>
+		<li><i>&lt;float&gt;</i> mechanism to determines the likelihood of content being shown based on time-sensitive expressions. <em>percentage represented by decimal from 0 - 1. (e.g., .5 would be a 50% chance)</em></li>
 		<li>Special words:</li>
 			<ul>
-				<li><i>weekday</i> - current day of week (Sunday - 0 / Saturday - 6)
-				<li><i>maxdays</i> - total days in current month
-				<li><i>year</i> - current year
-				<li><i>day</i> - current day of the month
-				<li><i>month</i> - current month of the year
-				<li><i>hour</i> - current hour of day
-				<li><i>minute</i> - current minute of the hour
+				<li><i>weekday</i> - current day of the week (Monday = 0 / Sunday = 6)</li>
+				<li><i>maxdays</i> - total number of days in the current month</li>
+				<li><i>year</i> - current year (e.g., 2025)</li>
+				<li><i>day</i> - current day of the month (1-31)</li>
+				<li><i>month</i> - current month of the year (1 = January, 12 = December)</li>
+				<li><i>hour</i> - current hour of the day (0-23)</li>
+				<li><i>minute</i> - current minute of the hour (0-59)</li>
+				<li><i>sin</i> - sine function; useful for creating smooth, cyclical patterns</li>
+				<li><i>cos</i> - cosine function; similar to sine but offset in phase</li>
+				<li><i>abs</i> - absolute value; returns the non-negative value of a number</li>
+				<li><i>min</i> - returns the smaller of two values</li>
+				<li><i>max</i> - returns the larger of two values</li>
+				<li><i>round</i> - rounds a number to the nearest whole number</li>
+				<li><i>floor</i> - rounds a number down to the nearest whole number</li>
+				<li><i>ceil</i> - rounds a number up to the nearest whole number</li>
+				<li><i>log</i> - natural logarithm (base e); useful for slow-growth curves</li>
+				<li><i>exp</i> - exponential function (e^x); useful for rapid-growth curves</li>
+				<li><i>pi</i> - the mathematical constant π (≈ 3.14159)</li>
+				<li><i>e</i> - the mathematical constant e (≈ 2.71828)</li>
+				<li><i>scale</i> - converts a whole number to a 0.0-1.0 scale by dividing by 100</li>
+				<li><i>clamp</i> - restricts a value to the 0.0-1.0 range</li>
 			</ul>
-		<li>Example: "chance": "(day / maxdays)" - the chance that this program will trigger increases everyday from 0% to 100% as the days tick away in the month</li>
+			<br>
+			<h3>Examples:</h3>
+			<ul>
+				<li>"chance": "scale(day / maxdays)" // the chance that this program will trigger increases everyday from 0% to 100% as the days tick away in the month</li>
+				<li>"chance": "clamp((4 - abs(hour - 8)) / 3.0 * (weekday in [5,6]) * .8)" // this example of chance starts ramping up at 5 AM, peaks around 8 AM, and fades by 12 PM on Saturday and Sundays only</li>
+			</ul>
 	</ul>
 </ul>
 <h1><em>Details concerning references</em></h1>
