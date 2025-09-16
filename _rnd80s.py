@@ -1,61 +1,39 @@
 #!/usr/bin/python
 
-# version: 102.0
-# version date: 2025.xx.x
-#	'chance' setting now supports mathematical equations
-#	New settings added "cache_path" which is used to define the path to the cache directory.
-#	New settings added "commercials_offset_time" which is used in the calculation of the remaining time to fill when determining how much time is needed to fill the video to the next half-hour or top-of-the-hour mark.
-#	New settings added "commercials_fill_time_multiplier" which sets the multiplier in the timeout logic that is used when generating commercials to fill remaining time.
+# version: 102.1
+# version date: 2025.09.16
 #
-#	New programming block setting added: "set-tag"
-#		This allows you to set a tag for the video that is being played. The tag can be used to trigger commercials programming based on the tag.
+#	Fixed bug in caching directory contents where the cache may not update to reflect changes.
+#	Fixed reporting errors. Previously blocked all web requests when "report_data" was set to 'false'. This caused the programming schedule to fail. Now only blocks messages when actually reported as an error.
+#	
+#	In the 'chance' setting, automatic percentage conversion has been added: 25% -> 0.25
+#	File cache is now temporarily stored in a variable to cut down on rapid disk access when the situation arises.
+#	When 'debug' is set to true, the web server will not be contacted to log current video/commercial playback, more verbose terminal messages will be present, and commercials will auto-skip after playing for 2 seconds.
 #
-#	Added fathers day and memorial day to special days list
+#	Added the ability to limit the logging of video playback to the web server to only the latest video played. Must be set for each show in the programming schedule.
+# 		* Note: If you schedule videos with the type of "ordered-show"/"ordered-video", this will help cut down on the amount of data being logged in the database since only the latest video is required to maintain ordered show behavior.
+#		* Note: logging is limited to the show being played, not the programming schedule block that might contain multiple shows.
+#		* Note: Using with "balanced" type can have unexpected consequences. Balanced types needs a full log of played content in order to function properly.
+#	Added the ability to auto play bumpers going in to and out of commercial breaks.
+#		* Bumpers can be defined in the settings file
+#		* Individual "shows" can have specific bumpers by creating a bumpers directory in the show's directory, with "in" and "out" subdirectories. These bumpers will override any bumpers defined in the settings file.
+#			* Example: "drive/shows/myshow/bumpers/in" and "drive/shows/myshow/bumpers/out"
+#		* Show specific bumpers can be set to mix with the bumpers defined in the settings file (both in and out)
+#			* Example: "bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "show-override": { "out": true, "in": false } } # mix bumpers going into commercials, but use only show specific bumpers coming back from commercials
+#		* A chance setting can be set for bumpers defined in the programming schedule to determine the likelihood of a bumper being played
+#			* Example: "bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "chance": { "out": "100%", "in": "50%" } } # always play bumpers going into commercials, but only play bumpers coming back from commercials 50% of the time
+#			* Note: if mixing is enabled for a specific direction (in or out), the chance setting applies to ALL bumpers defined in the programming schedule and in the show's directory.
+#			* Note: chance can be a mathematical equation that evaluates to a number between 0 and 1.0 (0% to 100%) and follows the sames rules as the "chance" setting for programming.
+#		* Note: bumpers defined in the settings file can be disabled for a specific show by placing a file named "skip" in the /bumpers sub-directory of the show's directory. Useful for shows that already have bumpers included in the video files so bumpers aren't double-upped.
 #
-# settings version: 0.993
+# settings version: 0.994
 #
-#	Base setting added: "cache_path"
-#		Use this setting to specify the path to the cache directory. Default is "cache" in the same directory as this script.
-#
-#	Base setting added: "commercials_offset_time" 
-#		Use this if your videos aren't starting exactly at the top of the hour or half hour. The preciseness of the calculated time may be too accurate
-# 		 and, due to real world execution, might delay the next video resulting in videos starting a minute too late. Use positive if your shows are starting too early and negative if starting too late.
-#		Example:
-#			"commercials_offset_time": -30
-#
-#	Base setting added: "commercials_fill_time_multiplier" 
-#		Use this if you find that not enough commercials are being generated to fill the time. Default is 20. The longer the duration of the video, the more commercials will need to be generated.
-# 		 The multiplier is used to determine the maximum time allowed to generate commercials. A shorter video will need less time to generate commercials, while a longer video will need more time.
-#		Example:
-#			"commercials_offset_time": 50
-#
-#	Programming block setting added: "set-tag"
-#		Use this setting to set the current tag. Commercials programming can be triggered based on the tag.
-#		Example:
-#
-#		"times": [{
-#			"name": ["%D[1]%/movies"],
-#			"between": { "times": [ ["12:00AM", "03:45AM"] ] },
-#			"type": "balanced-video",
-#			"set-tag": "movies"
-#		}]
-#------------------------------------------------------------------------------------------
-#		"commercial_times": [{
-#			"name": ["%D[1]%/commercials/movies"],
-#			"tag": "movies"
-#		}]
-#
-#	Programming setting expanded: "min-length" and "max-length"
-# 		These can now be set in commercials programming blocks as well as in video programming blocks. Programming blocks are limited those identified as "commercials", "video", or "video_show" type
-#
-#	Programming setting expanded: "chance"
-#		"chance" can now be set to a mathematical equation that will be evaluated and the result will be used to determine if the programming block should be triggered.
-#
-#		Example:
-# 		"chance": "clamp((4 - abs(hour - 8)) / 3.0 * (weekday in [5,6]) * .8)"
-#
-#	 	This example of chance starts ramping up at 5 AM, peaks around 8 AM, and fades by 12 PM on Saturday and Sundays only.
-#
+#   debug setting actually does something now. When set to true, the web server will not be contacted to log current video/commercial playback and more verbose debug messages will be printed to the console.
+#		"debug": true|false
+#	New setting added "bumpers" to be set in the programming schedule for 'times':
+#		"bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "show-override": { "out": true|false, "in": true|false }, "chance": { "out": "100%", "in": "50%" } }
+#	New setting added "log only latest" to be set in the programming schedule for 'times':
+#		"log only latest": true|false
 #
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
@@ -83,8 +61,11 @@ import traceback
 
 # Constants
 
+SETTINGS_VERSION = 0.994 # the version of the "settings" this script supports
+
 GET_VIDEOS_FROM_DIR_MIN_DURATION = 0 	 	# default minimum duration of a video in seconds when returning videos from a directory
 GET_VIDEOS_FROM_DIR_MAX_DURATION = 99999 	# default maximum duration of a video in seconds when returning videos from a directory
+VIDEO_EXTENSIONS = ('mp4', 'avi', 'webm', 'mpeg', 'm4v', 'mkv', 'mov', 'flv', 'wmv')	# video file extensions that are considered valid video files
 
 # /Constants
 
@@ -115,9 +96,44 @@ class ReferenceDecoder(json.JSONDecoder):
 
 				return obj
 
-last_played_video_source = None # the last video played
+def printd(*args):
+	"""
+	Debug print function that only outputs messages if debug mode is enabled in the settings.
 
-def play_video(source, commercials, max_commercials_per_break, start_pos):
+	:param args: The arguments to print.
+	:return: None
+	"""
+	if get_setting(['debug'], False) == False:
+		return
+	print(' '.join(str(arg) if not isinstance(arg, list) else str(arg) for arg in args))
+	print("")
+
+def report_video_playback(source, type="video", log_only_latest=-1):
+	"""
+	Reports the currently playing video or commercial to the local web server for logging purposes. 
+	Does nothing if debug mode is enabled.
+
+	:param source: The path to the video or commercial file being played.
+	:param type: A string indicating whether the source is a "video" or "commercial". Default is "video".
+	:param log_only_latest: a number representing the amount of latest entries to retain.
+	:return: None
+	"""
+	if get_setting(['debug'], False):
+		return
+
+	base_url = "http://127.0.0.1/"
+	param = ""
+	if type == "video":
+		param = "current_video=" + urllib.quote_plus(ensure_string(source))
+	elif type == "commercial":
+		param = "current_comm=" + urllib.quote_plus(ensure_string(source))
+
+	if param:
+		if log_only_latest>0:
+			param += "&log_only_latest=" + ensure_string(log_only_latest)
+		contents = open_url(base_url + "?" + param)
+
+def play_video(source, commercials, max_commercials_per_break, start_pos, bumpers=None, log_only_latest=-1):
 	"""
 	Play a video file using OMXPlayer on the Raspberry Pi.
 	
@@ -127,6 +143,8 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 	:param commercials: A list of commercial break times in seconds.
 	:param max_commercials_per_break: The maximum number of commercials to play during a break.
 	:param start_pos: The position in seconds to start the video from.
+	:param bumpers: A dictionary containing 'in' and 'out' bumper video file paths (optional).
+	:param log_only_latest: a number representing the amount of latest entries to retain on the web server.
 	:return: None
 	"""
 	# launches OMXPlayer on the PI to play a video
@@ -141,112 +159,126 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 		report_error("PLAY_LOOP", ["Error", "Commercial file supplied as video file. Something aint right...", "SOURCE", str(source)])
 		return
 
-	global settings # settings file
+	global last_played_video_source # the last video/commercial played, used for error reporting
+
 	if source==None: # if no video file was supplied, we're done here
 		return
+	
 	err_pos = 0.0
 	try:
-		global last_played_video_source
-		global error_count
 
-		current_position = 0
-		gend_commercials = None
+		current_position = 0 # the current position of the main video being played
+		gend_commercials = None # the list of commercials to play during this video, if any
 		
 		if type(max_commercials_per_break) == list: #if a list of commercials was passed instead of a number, set variables
 			gend_commercials = max_commercials_per_break
 			if len(gend_commercials)!=0 and len(commercials)!=0:
 				max_commercials_per_break = spread_division(len(gend_commercials), len(commercials))
-			print("MAXCOMM: " + ensure_string(max_commercials_per_break))
+			
+			printd("MAXCOMM: " + ensure_string(max_commercials_per_break))
 		else:
 			if max_commercials_per_break>0:
-				#if we're inserting commercials, let's make sure we can find some
+				# if we're inserting commercials, let's make sure we can find some
 				comm_source = get_random_commercial()
 				if comm_source == None: 
 					#couldn't find a commercial, so we won't even try to play any during the current video but we should report the error
-					max_commercials_per_break = [] #setting max commercials to 0, overrides the passed value and disables commercials during this video
-		comm_player = None
+					max_commercials_per_break = [] # setting max commercials to 0 and there are no commercials to play, overrides the passed value and disables commercials during this video
+					report_error("PLAY_COMM", ["could not get a random commercial"])
+
+		comm_player = None # the OMXPlayer instance for playing commercials
 		
 		print('Main video file:' + ensure_string(source))
-		contents = open_url("http://127.0.0.1/?current_video=" + urllib.quote_plus(ensure_string(source)))
-		sleep(0.5)
-		player = OMXPlayer(source, args=settings["player_settings"], dbus_name="omxplayer.player" + str(random.randint(0,999)))
-		sleep(0.5)
-		#player.set_aspect_mode('stretch')
-		player.pause()
-		player.play()
-		lt = 0
+		print("")
+
+		report_video_playback(source, "video", ensure_string(log_only_latest))	# tell web server video we're playing
+		player = OMXPlayer(source, args=get_setting(["player_settings"], ""), dbus_name="omxplayer.player" + str(random.randint(0,999))) # create the OMXPlayer instance for the main video
+		sleep(0.5) # give the player a moment to load the video
+
+		player.pause() # pause the video so we can set the position and other settings before playing
+		player.play() # play the video (it was paused when loaded)
 		
-		player.seek(start_pos)
+		player.seek(start_pos) # attempt to resume the video from the supplied position
 		
 		while (1):
 			err_pos = 0.0
-			last_played_video_source = source
-			try:
-				position = player.position()
-				current_position = position
-			except:
+			last_played_video_source = source # set the last played video source to the main video being played
+			try: # get the current position of the main video
+				current_position = player.position()
+			except: # if we can't get the position, the video has probably ended
 				break
 			
 			try:
 				#check to see if commercial times were passed and also check to see if the max commercials allowed is greater than 0
-				if len(commercials) > 0 and len(max_commercials_per_break)>0:
-					#found a commercial break, play some commercials
-					if float(position)>=float(commercials[0]) and position>0:
-						#remove the currently selected commercial time from list of positions
-						commercials.pop(0)
-						#pause and hide the main video player
+				if commercials and max_commercials_per_break:
+					# Found a commercial break, play some commercials
+					if current_position > 0 and float(current_position) >= float(commercials[0]):
+						commercials.pop(0)  # Remove the triggered commercial time
+
+						# pause the main video and hide the player from the screen
 						try:
 							player.hide_video()
 							player.pause()
-						except:
-							print("player hide/pause error")
-						
+						except Exception:
+							printd("player hide/pause error")
+
 						sleep(0.5)
-						#set local variable to the passed maximum amount of commercials per break allowed, so we can countdown to 0
-						#comm_i = max_commercials_per_break
-						comm_i = max_commercials_per_break[0]-1
-						max_commercials_per_break.pop(0)
-						#loop to play commercials until we've played them all
-						while(comm_i>=0):
+
+						commercials_per_break = [] # the list of commercials to play during this break
+						if bumpers and bumpers.get("out"): # if there are bumpers defined and there are 'OUT' bumpers to play
+							commercials_per_break.append(bumpers["out"].pop(0)) # add the 'OUT' bumpers to the front of the commercials list and remove it from the bumpers list
+
+						# determine how many commercials to play during this break
+						for i in range(0, max_commercials_per_break[0]):
+							# add a commercial to the list of commercials to play during this break
+							commercials_per_break.append(gend_commercials.pop(0) if gend_commercials else get_random_commercial())
+
+						max_commercials_per_break.pop(0) # remove the first item from the list since we've used it
+						
+						if bumpers and bumpers.get("in"): # if there are bumpers defined and there are 'IN' bumpers to play
+							commercials_per_break.append(bumpers["in"].pop(0)) # add the 'IN' bumpers to the end of the commercial list and remove it from the bumpers list
+
+						comm_i = len(commercials_per_break) - 1 # set the amount of commercials to play during this break
+						
+						while(comm_i>=0): # loop through and play each commercial in the list
 							try:
-							
-								#get a random commercial and report it to the webserver for stats
-								if gend_commercials == None:
-									#user has set a specific number of commercials per break
-									comm_source = get_random_commercial()
-									if comm_source==None:
+								if gend_commercials == None: # user has set a specific number of commercials per break
+									comm_source = get_random_commercial() # get a random commercial
+									if comm_source==None: # couldn't find a commercial, report the error and skip playing commercials
 										report_error("PLAY_COMM", ["could not get a random commercial"])
 										continue
-								else:
-									#user has chosen to automatically generate the amount of commercials
-									if len(gend_commercials) == 0:
+								else: # user has chosen to automatically generate the amount of commercials
+									if len(gend_commercials) == 0 and len(commercials_per_break) == 0: # we've run out of commercials to play, so we stop here
 										break
-									else:
-										comm_source = gend_commercials.pop(0)
-										print("Commercials remaining:", len(gend_commercials))
-								last_played_video_source = comm_source
-								print('Playing commercial #' + str(comm_i), comm_source)
-								contents = open_url("http://127.0.0.1/?current_comm=" + urllib.quote_plus(ensure_string(comm_source)))
-								#load commercial
+									else: # get the next commercial from the list of commercials to play during this break
+										comm_source = commercials_per_break.pop(0) # get the next commercial to play and remove it from the list
+										printd("Commercials remaining:", len(commercials_per_break))
+
+								last_played_video_source = comm_source # set the last played video source to the commercial being played
+								print('Playing commercial #' + str(comm_i), comm_source) 
+								print("")
+								# tell web server we're playing a commercial
+								report_video_playback(comm_source, "commercial")
+								# load commercial in the commercial OMXplayer instance
 								if comm_player == None:
-									comm_player = OMXPlayer(comm_source, args=settings["player_settings"], dbus_name="omxplayer.player1")
+									comm_player = OMXPlayer(comm_source, args=get_setting(["player_settings"], ""), dbus_name="omxplayer.player1")
 									comm_player.set_video_pos(0,0,680,480)
 									comm_player.set_aspect_mode('stretch')
-								else:
+								else: # we've already initialized the commercial player, so just load the new commercial
 									comm_player.load(comm_source)
-								#comm_player.pause()
 								
-								sleep(0.5)
+								sleep(0.5) # give the player a moment to load the commercial
 							
 								try:
-									comm_player.show_video()
+									comm_player.show_video() # make sure the commercial player is visible
 								except:
-									print("comm_player show error")
+									printd("comm_player show error")
 								
-								#play commercial
+								# play commercial
 								comm_player.play()
 
-								#we need to wait until the commercial has completed, so we'll check for the current position of the video until it triggers an error and we can move on
+								# we need to wait until the commercial has completed
+								# so we'll check for the current position of the video until it triggers an error and we can move on
+								# but just in case we'll also get the length of the commercial, calculate when it should have ended, and move on if that time has been reached
 								comm_length = get_length_from_file(comm_source) 	# get the length of commercial being played
 								comm_start_time = time.time()						# get current time stamp
 								comm_end_time = comm_start_time + comm_length + 1	# calculate at what time the commercial should have ended plus a little buffer (1 second)
@@ -254,36 +286,39 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 								while (1):
 									if time.time() > comm_end_time: # commercial should be over by now, so we move on
 										break
+
+									# if debug mode is enabled, we don't want to wait for the entire commercial to finish playing
+									if get_setting(['debug'], False) == True and time.time() - comm_start_time > 3:
+										report_debug("COMM_PLAY_LOOP", ["Commercial has been playing for more than 3 seconds, ending early"])
+										comm_player.stop()
+										break
 										
-									try:
-										#if we can't get the current position of the commercial, we should break out of the loop and move on
+									try: # if we can't get the current position of the commercial, we should break out of the loop and move on
 										comm_position = math.floor(comm_player.position())
 									except:
 										break
 									
-									#sometimes the main player doesn't hide/pause. we should make sure that it does
+									# sometimes the main player doesn't hide/pause. we should make sure that it does
 									try:
 										if player.is_playing() == True:
 											player.hide_video()
 											player.pause()
 									except:
-											print("player hide/pause error")
+											printd("player hide/pause error")
 							except Exception as exce:
-								#if there was an error playing commercials, report it and resume playing main video
-								error_count = error_count + 1
+								# if there was an error playing commercials, report it and resume playing main video
 								report_error("COMM_PLAY_LOOP", ["error", ensure_string(exce), "SOURCE", comm_source, traceback.format_exc()])
 							
-							#decrement the amount of remaining commercials
+							# decrement the amount of remaining commercials
 							comm_i = comm_i - 1
-							sleep(.5)
+							sleep(0.5) # give the player a moment to settle down before loading the next commercial
 							
-						#show and resume the currently playing main video after the commercial break
-						player.show_video()
-						player.play()
+						# commercial break is over, resume main video
+						player.show_video() # make sure the main video player is visible again
+						player.play() # resume playing the main video
 						
 			except Exception as ecce:
-				#if there was an error playing commercials, report it and resume playing main video
-				error_count = error_count + 1
+				# if there was an error playing commercials, report it and resume playing main video
 				report_error("COMM_PLAY", ["Error", ensure_string(ecce), "SOURCE", comm_source, traceback.format_exc()])
 				player.show_video()
 				player.play()
@@ -295,8 +330,8 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 		sleep(0.5)
 	except Exception as e:
 		if(err_pos!=7.0):
-			error_count = error_count + 1
 			report_error("PLAY_LOOP", ["Error", ensure_string(e), "SOURCE", ensure_string(source), traceback.format_exc()])
+			
 		
 		#kill all omxplayer instances since there was problem with the main video.
 		kill_omxplayer()
@@ -304,12 +339,12 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 			if comm_player != None:
 				comm_player.quit()
 		except Exception as ex:
-			print("error comm quit " + ensure_string(ex))
+			printd("error comm quit " + ensure_string(ex))
 		try:
 			if player != None:
 				player.quit()
 		except Exception as exx:
-			print("error player quit " + ensure_string(exx))
+			printd("error player quit " + ensure_string(exx))
 			
 		return (err_pos, source, current_position)
 
@@ -322,7 +357,7 @@ def play_video(source, commercials, max_commercials_per_break, start_pos):
 		if player != None:
 			player.quit()
 	except Exception as exx:
-		report_error("PLAY_quit",["Position", ensure_string(err_pos), "Error", ensure_string(ex)])
+		report_error("PLAY_quit",["Position", ensure_string(err_pos), "Error", ensure_string(exx)])
 	
 	return
 
@@ -344,6 +379,22 @@ def ensure_string(value):
 			report_error("ENSURE_STRING", ["Error converting value to string", str(e)])
 			return ""
 
+def convert_percentages(expr):
+    """
+    Converts percentage values in a mathematical expression to their decimal equivalents.
+    
+    :param expr: A string containing a mathematical expression with percentage values.
+    :return: A string with percentage values converted to decimal.
+    """
+
+    def repl(match):
+        num = float(match.group(1))
+        return str(num / 100.0)
+
+    # Match any number (int or float) followed by %
+    return re.sub(r'(\d+(?:\.\d+)?)%', repl, expr)
+
+
 def eval_equation(equation, now):
 	"""
 	Tries to evaluate a mathematical equation string and return the result.
@@ -358,7 +409,9 @@ def eval_equation(equation, now):
 	try:
 
 		if len(equation) > 200:
-			return -1
+			return -2 # if the equation is too long, return -2
+
+		equation = convert_percentages(equation)  # Convert percentage values to decimal equivalents
 
 		safe_globals = {
     		"__builtins__": {},
@@ -374,7 +427,7 @@ def eval_equation(equation, now):
             "exp": math.exp,
             "pi": math.pi,
             "e": math.e,
-            "scale": lambda x: float(x) / 100,
+            "scale": lambda x: float(x) / 100.0,
             "clamp": lambda x,y=1.0: max(0.0, min(y, float(x))),
     		"day": now.day,
             "maxdays": calendar.monthrange(now.year, now.month)[1],
@@ -386,7 +439,7 @@ def eval_equation(equation, now):
 			"year": now.year
 		}
 
-		return eval(equation.lower().replace('_',''), safe_globals, {})
+		return eval(equation, safe_globals, {})
 	except:
 		return -1  # if there was an error, return -1
 
@@ -452,6 +505,20 @@ def get_short_month_name(month_number):
 	else:
 		raise ValueError("Month number must be in the range 1-12")
 
+def readkey():
+	"""
+	Reads a single key press from the terminal without waiting for Enter to be pressed.
+	:return: The character of the key pressed.
+	"""
+	import sys, tty, termios
+	fd = sys.stdin.fileno()
+	old = termios.tcgetattr(fd)
+	try:
+		tty.setraw(fd)
+		return sys.stdin.read(1)
+	finally:
+		termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
 def replace_special_words(date_str):
 	"""
 	Replaces special words in the date string with their corresponding values.
@@ -475,6 +542,7 @@ def replace_special_words(date_str):
 		if key in date_str:
 			date_str = date_str.replace(key, value)
 
+	# Handle %MAXDAYS% separately because it requires additional logic to determine the total days in the current month which may vary by month and year
 	if "%MAXDAYS%" in date_str:
 		# Extract the month
 		month_str = date_str.split(" ")[0]
@@ -491,7 +559,6 @@ def replace_special_words(date_str):
 		date_str = date_str.replace("%MAXDAYS%", str(max_days))
 	return date_str
 
-# Function to check if the current date and time fall within the ranges
 def is_within_range(data):
 	"""
 	Checks if the current date and time fall within the specified ranges.
@@ -499,7 +566,7 @@ def is_within_range(data):
 	:param data: A dictionary containing date, time, and year ranges.
 	:return: True if the current date and time fall within the ranges, False otherwise.
 	"""
-	global now
+	global now # always use the global 'now' variable for date and time
 	current_datetime = now
 	current_date = current_datetime.strftime("%b %d")
 	current_time = current_datetime.strftime("%I:%M%p")
@@ -545,15 +612,15 @@ def is_within_range(data):
 			start_time_str = replace_special_words(time_range[0])
 			end_time_str = replace_special_words(time_range[1])
 
-			start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
+			check_start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
 			end_time = datetime.datetime.strptime(end_time_str, "%I:%M%p")
-			if start_time.time() <= current_datetime.time() <= end_time.time():
+			if check_start_time.time() <= current_datetime.time() <= end_time.time():
 				time_within_range = True
 				break
 		else:
 			start_time_str = replace_special_words(time_range)
-			start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
-			if start_time.time() == current_datetime.time():
+			check_start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
+			if check_start_time.time() == current_datetime.time():
 				time_within_range = True
 				break
 	
@@ -602,9 +669,9 @@ def check_video_times(obj, channel=None, allow_chance=True): # check to see if t
 	:return: A list containing the programming schedule if a match is found, otherwise None.
 	"""
 	try:
-		update_current_time()
-		global now
-		global current_video_tag
+		update_current_time() # make sure we have the latest time
+		global now # always use the global 'now' variable for date and time
+		global current_video_tag # current tag, if set
 
 		month = now.month
 		now_h = now.hour
@@ -724,7 +791,7 @@ def check_video_times(obj, channel=None, allow_chance=True): # check to see if t
 			
 				stime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['start'][0]) + ":" + str(timeItem['start'][1]) + ":00", "%d/%m/%Y %H:%M:%S")
 				etime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['end'][0]) + ":" + str(timeItem['end'][1]) + ":59", "%d/%m/%Y %H:%M:%S")
-				#print(timeItem['name'], str(stime), now, ntime, etime)
+				printd(timeItem['name'], str(stime), now, ntime, etime)
 				if ntime >= stime and ntime <= etime:
 					skip['time'] = False
 				else:
@@ -771,10 +838,11 @@ def generate_commercials_list(total_time_seconds, multiplier=50):
 	:return: A list of randomly selected commercials that (roughly) sum up to the total time.
 	"""
 	max_time_before_timeout = max(((float(total_time_seconds)/100) / 100) * multiplier, .1)
-	print("Max time:", max_time_before_timeout)
+	printd("Max time:", max_time_before_timeout)
 	remaining_time = total_time_seconds
 	selected_intervals = []
-	start_time = time.time()
+	gen_start_time = time.time()
+
 	while True:
 		c = get_random_commercial()
 		if c == None:
@@ -799,11 +867,11 @@ def generate_commercials_list(total_time_seconds, multiplier=50):
 			selected_intervals.append(c)
 			remaining_time -= cTime
 		
-		if time.time() - start_time > max_time_before_timeout:
-			print("taking too long to generate commercials, stopping", remaining_time)
+		if time.time() - gen_start_time > max_time_before_timeout:
+			printd("taking too long to generate commercials, stopping", remaining_time)
 			break
 		if remaining_time < 20:
-			print("Remaining time:", remaining_time)
+			printd("Remaining time:", remaining_time)
 			break
 	random.shuffle(selected_intervals) # shuffle the list of commercials to randomize the order
 	return selected_intervals
@@ -821,7 +889,7 @@ def get_args(index):
 
 def get_commercials(source):
 	"""
-	Returns a list of commercials from the specified source video file.
+	Returns a list of times as defined in the commercial file from the specified source video file.
 
 	:param source: The source video file path.
 	:return: A list of commercials in seconds or an empty list if not found.
@@ -869,6 +937,27 @@ def get_length_from_file(file):
 	except Exception as ValueError:
 		# if the file name doesn't contain the length, report the error and return None
 		report_error("GET_VIDEO_LENGTH", [str(ValueError), str(file)])
+		return None
+
+def get_random_video_from_dir(dir):
+	"""
+	Returns a random video from the specified directory that falls within the specified length range.
+
+	:param dir: The directory to search for videos.
+	:param min_len: The minimum length of the video in seconds. Default is 0.
+	:param max_len: The maximum length of the video in seconds. Default is 99999.
+	:return: A random video file path or None if no videos are found.
+	"""
+	try:
+
+		videos = get_videos_from_dir_cached(dir)
+		if len(videos) == 0:
+			return None
+		random.shuffle(videos) # shuffle the list of videos to randomize the order
+		return random.choice(videos)
+	except Exception as valerr:
+		#an unknown error occurred, report it and return nothing		
+		report_error("GET_RND_VIDEO", ["##unexpected error##", str(valerr), traceback.format_exc()])
 		return None
 
 def get_random_commercial():
@@ -938,11 +1027,11 @@ def get_random_commercial():
 					random.shuffle(folder) # shuffle the list of folders to randomize the order
 					rfolder = random.choice(folder) # if no weighted values are set, just select a random folder
 				
-				video = get_videos_from_dir(replace_all_special_words(rfolder), min_len, max_len) # get the videos from the selected folder
+				video = get_videos_from_dir_cached(replace_all_special_words(rfolder), min_len, max_len) # get the videos from the selected folder
 			else: # no folder preference set
-				video = get_videos_from_dir(replace_all_special_words(folder[0]), min_len, max_len) # get the videos from the first folder in the list
+				video = get_videos_from_dir_cached(replace_all_special_words(folder[0]), min_len, max_len) # get the videos from the first folder in the list
 				for itemX in range(1,len(folder)): # loop through the rest of the folders
-					video = video + get_videos_from_dir(replace_all_special_words(folder[itemX]), min_len, max_len) # add the videos from the folder to the list of videos
+					video = video + get_videos_from_dir_cached(replace_all_special_words(folder[itemX]), min_len, max_len) # add the videos from the folder to the list of videos
 			
 			random.shuffle(video) # shuffle the list of videos to randomize the order
 			return random.choice(video) #return a random video from the combined paths
@@ -1043,14 +1132,34 @@ def clean_up_cache_files(dir_name,dir):
 			if item.split()[0] == dir:
 				os.remove(os.path.join(dir_name, item))
 
-VIDEO_EXTENSIONS = ('mp4', 'avi', 'webm', 'mpeg', 'm4v', 'mkv', 'mov', 'flv', 'wmv')
 
-# Maybe one day we can use this to cache the results of get_videos_from_dir
-# but for now, we will just use the cache file to store the filenames
-#
-# 	_cached_get_videos_from_dir = {}
-#	_cached_get_videos_from_dir[dir_path] = filtered_results_full_paths
-#
+
+def is_cache_valid(cache_path, dir_path):
+	"""
+	Checks if the cache file is valid by comparing the cached filenames with the current filenames in the directory.
+
+	:param cache_path: The path to the cache file.
+	:param dir_path: The directory to check against the cached filenames.
+	
+	:return: True if the cache is valid, False otherwise.
+	"""
+	try:
+		# Read cached filenames
+		with open(cache_path, 'r') as f:
+			cached_filenames = set(json.load(f))
+
+		# Get current filenames in target directory (non-recursive)
+		current_filenames = set(os.listdir(dir_path))
+
+		# Compare sets
+		if cached_filenames == current_filenames:
+			return True
+		else:
+			return False
+
+	except Exception as e:
+		report_error("CACHE_VALIDATION", ["Error validating cache", ensure_string(e)])
+		return False
 
 def get_videos_from_dir(dir_path, min_length=GET_VIDEOS_FROM_DIR_MIN_DURATION, max_length=GET_VIDEOS_FROM_DIR_MAX_DURATION):
 	"""
@@ -1078,31 +1187,35 @@ def get_videos_from_dir(dir_path, min_length=GET_VIDEOS_FROM_DIR_MIN_DURATION, m
 
 	# Check if cache exists and is up-to-date
 	if os.path.exists(cache_fname):
-		cache_mtime = os.path.getmtime(cache_fname)
-		dir_mtime = os.path.getmtime(dir_path)
+		cache_mtime = os.path.getmtime(cache_fname) # Get the last modified time of the cache file
+		dir_mtime = os.path.getmtime(dir_path) # Get the last modified time of the directory
 
-		if cache_mtime >= dir_mtime:
+		update_cache = False # Flag to determine if we need to update the cache
+
+		if cache_mtime < dir_mtime: # If the cache file is older than the directory, we need to update it
+			update_cache = True 
+		elif not is_cache_valid(cache_fname, dir_path): # If the cache is not valid, we also need to update it
+			update_cache = True
+
+		if not update_cache: # Cache is valid and up-to-date
 			with open(cache_fname, 'r') as f:
 				all_filenames = json.load(f)
-		else:
-
-			# Cache is outdated, rescan and update cache
-			filenames_from_scan = []
-			for ext in VIDEO_EXTENSIONS:
-				for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))):
-					filenames_from_scan.append(os.path.basename(full_file_path))
+		else: # Cache is outdated, rescan and update cache
+			filenames_from_scan = [] 
+			for ext in VIDEO_EXTENSIONS: # Loop through each video extension
+				for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))): # Find all files with the current extension
+					filenames_from_scan.append(os.path.basename(full_file_path)) # Append the base name of the file to the list
 			
-			with open(cache_fname, 'w') as f:
-				json.dump(filenames_from_scan, f)
-			all_filenames = filenames_from_scan
-	else:
-		# Cache does not exist, rescan and create cache
+			with open(cache_fname, 'w') as f: # Write the newly scanned filenames to the cache file
+				json.dump(filenames_from_scan, f) 
+			all_filenames = filenames_from_scan 
+	else: # Cache does not exist, rescan and create cache
 		filenames_from_scan = []
 		for ext in VIDEO_EXTENSIONS:
 			for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))):
 				filenames_from_scan.append(os.path.basename(full_file_path))
 		
-		with open(cache_fname, 'w') as f:
+		with open(cache_fname, 'w') as f: # Write the scanned filenames to the cache file
 			json.dump(filenames_from_scan, f)
 		all_filenames = filenames_from_scan
 
@@ -1121,10 +1234,48 @@ def get_videos_from_dir(dir_path, min_length=GET_VIDEOS_FROM_DIR_MIN_DURATION, m
 
 	return filtered_results_full_paths
 
-def get_uptime():
-	"""	Returns the uptime of the script in seconds. """
-	global script_start_time
-	return (time.time() - script_start_time)
+_cached_get_videos_from_dir = {}
+
+def get_videos_from_dir_cached(dir_path, min_length=GET_VIDEOS_FROM_DIR_MIN_DURATION, max_length=GET_VIDEOS_FROM_DIR_MAX_DURATION):
+	"""
+	Retrieves video files from a directory while avoiding hitting the file system by storing the cache in a variable for immediate access in the near future.
+
+	:param dir_path: The directory to search for video files.
+	:param min_length: Minimum length (in seconds) for video files to be returned. Defaults to 0.
+	:param max_length: Maximum length (in seconds) for video files to be returned. Defaults to 99999.
+
+	:return: A list of full paths to video files found in the directory that meet the length criteria.
+	"""
+	if not os.path.isdir(dir_path):
+		return []
+
+	global _cached_get_videos_from_dir
+	now = time.time()
+
+	cache_key = (dir_path, min_length, max_length)
+	cache_entry = _cached_get_videos_from_dir.get(cache_key)
+
+	# Use cached data if it exists and is recent
+	if cache_entry and now - cache_entry['timestamp'] < 120:  # 2 min freshness window
+		return cache_entry['results']
+
+    # Otherwise, refresh from disk
+	results = get_videos_from_dir(dir_path, min_length, max_length)
+	_cached_get_videos_from_dir[cache_key] = {
+		'timestamp': now,
+		'results': results
+	}
+	return results
+
+
+def get_uptime(start_time):
+	"""
+	Returns the uptime of the script in seconds.
+
+	:param start_time: The time the script started.
+	:return: The uptime in seconds.
+	"""
+	return (time.time() - start_time)
 
 def is_date_within_range(date1, date2, range_days):
 	"""	
@@ -1306,13 +1457,9 @@ def open_url(url):
 	:return: The content of the response.
 	"""
 	try:
-		global settings
 		
-		print(url)
-		if settings["report_data"] == False:
-			#if the user chooses not to connect to the local HTTP server, don't attempt to report any information
-			return None
-		
+		if get_setting(['debug'], False) == True:
+			printd(url)
 		return urllib2.urlopen(url).read()
 	except:
 		return None
@@ -1359,7 +1506,7 @@ def PastThanksgiving(is_thanksgiving):
 	d = datetime.datetime.strptime(str("Nov 1 " + year), '%b %d %Y')
 	dw = d.weekday()
 	datme = datetime.datetime.strptime(str("Nov " + str(22 + (10 - dw) % 7) + " " + str(d.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
-	#print(now, datme)
+
 	if is_thanksgiving: #check if today is thanksgiving
 		if now==datme and now.month==now.month:
 			return True
@@ -1407,7 +1554,7 @@ def report_debug(type, input, local_only=False):
 	global settings
 	if 'debug' in settings:
 		if settings['debug'] == True:
-			report_error(type, input, local_only)
+			report_error("DEBUG[" + type + "]", input + ["Debug mode is Enabled, disable it in settings"], False) # debug reports are always reported
 
 def report_error(type, input, local_only=False):
 	"""
@@ -1420,6 +1567,7 @@ def report_error(type, input, local_only=False):
 	"""
 
 	try:
+		global settings
 		global last_played_video_source
 		global last_report_error
 		message = ""
@@ -1428,7 +1576,7 @@ def report_error(type, input, local_only=False):
 		if (time.time() - last_report_error[0]) < 3:
 			# over 100 errors reported		
 			if last_report_error[2] >= 100:
-				if local_only != True:
+				if local_only != True and settings.get("report_data", True):
 					contents = open_url("http://127.0.0.1/?error=ERROR_LOOP|STUCK IN ERROR LOOP.")
 				sleep(10)
 				exit()
@@ -1456,14 +1604,15 @@ def report_error(type, input, local_only=False):
 		addmsg=""
 		if last_played_video_source!=None:
 			addmsg = "|Source|" + last_played_video_source
-		print("#ERROR: " + type + " :: " + message + addmsg)
+		print("#####: " + type + " :: " + message + addmsg)
+		print("")
 
-		if local_only != True:
+		if local_only != True and settings.get("report_data", True):
 			contents = open_url("http://127.0.0.1/?error=" + urllib.quote_plus(ensure_string(type) + "|" + ensure_string(message)))
 		
 		last_report_error = [last_report_error[0], time.time(), last_report_error[2] + 1]
 	except Exception as e:
-		contents = open_url("http://127.0.0.1/?error=ERROR_REPORTING_ERROR")
+		contents = open_url("http://127.0.0.1/?error=ERROR_REPORTING_ERROR|" + ensure_string(e))
 
 def restart():
 	"""Restarts the system using sudo shutdown command."""
@@ -1538,10 +1687,12 @@ def update_current_time():
 	"""
 	Updates the global 'now' variable to the current date and time.
 	Also checks if a test date is set in the settings and updates 'now' accordingly.
+
+	:return: None
 	"""
 	global now
 	global settings
-	now = now_totheminute() # set the date time
+	now = now_totheminute() # set the date time to the minute so seconds do not come into play when comparing times
 	# check if the settings file has a test date 
 	if 'time_test' in settings:
 		if settings['time_test'] != None:
@@ -1550,7 +1701,11 @@ def update_current_time():
 			now = datetime.datetime.strptime(str(settings['time_test']), '%b %d %Y %I:%M%p')
 
 def update_settings():
-	"""	Updates the global settings variable by reading the settings file and validating its JSON format. """
+	"""
+	Updates the global settings variable by reading the settings file and validating its JSON format.
+
+	:return: None
+	"""
 	global settings
 	global settings_file
 	
@@ -1632,82 +1787,125 @@ def wildcard_array():
 	"""
 	return ['all', 'any', '*']
 
-############################ global variables
-now = datetime.datetime.now() # set the date time
-script_start_time = time.time()
-channel_name_static = None
-
-error_count = 0
-last_video_played = ""
-last_error = (7.0,'',0)
-
-base_directory = os.path.dirname(__file__)
-
-############################ /global variables
-
-############################ settings
-SETTINGS_VERSION = 0.993
-
-if base_directory != "":
-	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
-
-settings = None
-settings_file = base_directory + "settings.json"
-
-update_settings()
-
-############################ /settings
-
-allow_chance = True # We need to decided if we should allow a chance of a video to play as set by our programming in the settings file
-source = None
-folder = None
-curr_static = None
-start_time = time.time()
-err_extra = []
-error_channel_set = False
-current_video_tag = None
-########################## main loop
-
-# Alvin and the Valentine Chipmunks - I Love The Chipmunks%T(1418)%_NA_@AM@.avi
-
-report_error("STARTUP", ["Script is now running!"])
-
-while(1):
-	try:
+def generate_bumpers_list(bumpers_in, bumpers_out, total, in_chance=1.0, out_chance=1.0):
+	"""
+	Generates a list of in and out bumpers for each commercial break.
 	
-		if (time.time() - start_time) > 179:
+	:param bumpers_in[]: A list of paths for the in bumpers.
+	:param bumpers_out[]: A list of paths for the out bumpers.
+	:param total: The total number of commercial breaks.
+	:param in_chance: The chance of an in bumper being played (0.0 to 1.0). Defaults to 1.0 (always play).
+	:param out_chance: The chance of an out bumper being played (0.0 to 1.0). Defaults to 1.0 (always play).
+
+	:return: A list of paths that point to the bumbers to be played.
+	"""
+
+	if bumpers_in == None and bumpers_out == None:
+		return None
+
+	in_total = 0
+	out_total = 0
+
+	bin = []
+	bout = []
+	tin = []
+	tout = []
+
+	for item in bumpers_in:
+		if os.path.exists(item):
+			tin += get_videos_from_dir_cached(item)
+
+	for item in bumpers_out:
+		if os.path.exists(item):
+			tout += get_videos_from_dir_cached(item)
+
+	for i in range(1, total):
+		if len(tin) > 0:
+			if eval_equation(in_chance, now) >= random.random():
+				temp = random.choice(tin)
+				in_total += get_length_from_file(temp)
+				bin.append(temp)
+
+		if len(tout) > 0:
+			if eval_equation(out_chance, now) >= random.random():
+				temp = random.choice(tout)
+				out_total += get_length_from_file(temp)
+				bout.append(temp)
+
+	printd(["BUMPERS: IN: ", bin,"OUT: ", bout])
+	return { "in" : bin, "out": bout, "in_total": in_total, "out_total": out_total }
+
+
+# global variables
+
+channel_name_static = None							# the name of the current static programming block
+now = datetime.datetime.now() 						# set the date time (will be updated in the main loop using update_current_time())
+last_played_video_source = None 					# the last video played
+
+script_load_time = time.time()						# the time the script was loaded, for logging uptime
+
+curr_static = None 									# the current static programming block
+start_time = time.time()							# the time the last video was played, used to determine if we are in error channel mode amoung other things
+error_channel_set = False							# if we are in error channel mode, this will be set to True
+current_video_tag = None							# the current video tag, can be set in the settings file or by specific files to trigger commercial programming
+
+last_video_played = ""								# the last video played
+last_error = (7.0,'',0)								# the last error reported, used to determine if we are in a loop or not
+
+base_directory = os.path.dirname(__file__) 			# the base directory of the script
+if base_directory:									# if the base directory is not empty, we add a trailing slash to it
+    base_directory = base_directory.rstrip("/") + "/"
+
+# /global variables
+
+# settings
+
+settings = None 									# the global settings variable
+settings_file = base_directory + "settings.json"	# the settings file path
+
+update_settings() 									# load the settings file, validate it, and store it in the global "settings" variable
+
+# /settings
+
+allow_chance = True 								# We need to decided if we should allow a chance of a video to play as set by our programming in the settings file
+source = None 										# the source of the video to play, set by the programming schedule
+folder = None 										# the folder where the video is located, set by the programming schedule, where video files are located
+
+# main loop
+
+report_error("STARTUP", ["Script is now running!"]) # report that the script has started
+
+while(1): # main loop
+	try:
+
+		if (time.time() - start_time) > 59 and error_channel_set: # if we are in error channel mode and more than 59 seconds have passed
+			# if we are in error channel mode, we will not exit the script
+			report_error("MAIN_LOOP", ["Error channel was set but no video is playing.|Check settings.json file for proper error channel.|Make sure the directory at which error channel points exists and has at least one video file.|Since there is no video to play, the script will now exit."])
+			exit()
+	
+		if (time.time() - start_time) > 59: # if the script has been running for more than 1 minute
 			report_error("MAIN_LOOP", ["No Video Available to Play", "Check things like TV Schedule names misspelled or erroneously added.", "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now."])
-			#print(get_setting(['channels', 'error'}))
-			if get_setting(['channels', 'error']):
+			if get_setting(['channels', 'error']): # if the error channel is set in the settings file, attempt to play videos from that programming block
 				channel_name_static = settings['channels']['error']
 				error_channel_set = True
-			else:
+				start_time = time.time()
+			else: # if no videos have been played in the last 3 minutes, it likely means there is an error in the Error programming block, exit the script
+				report_error("MAIN_LOOP", ["No videos are playing and no error channel is set in the settings file.", "The script will now exit."])
 				exit()
 				
 	
 		last_played_video_source = None
-		err_extra = []
 		if os.path.getmtime(settings_file) != settings['load_time']:
-			# the settings file has been modified, let's reload it
-			f = open(settings_file, "r")
-			# we have to verify properly formatted JSON
-			settings = validate_json(f.read())
-			if settings == None:
-				# report and exit if not
-				report_error("SETTINGS", ["settings file isn't valid JSON"])
-				sleep(10)
-				exit()
-			f.close()
-			settings['load_time'] = os.path.getmtime(settings_file)
+			update_settings()
 			report_error("SETTINGS", ["Settings Updated"])
 
 		# set a minimum of 5 commercial breaks if is not set in the settings file
 		if 'commercials_per_break' not in settings: settings['commercials_per_break'] = 5
 
-		update_current_time()
+		update_current_time() # update the current time to the current date and time, or test date if set in the settings file
 
-		if 'time_test' in settings:
-			if settings['time_test'] != None:	
+		if 'time_test' in settings: # check if a test date is set in the settings file
+			if settings['time_test'] != None: # if it is set, we will use the test date instead of the current date and time
 				report_error("TEST_TIME", ["Using Test Date Time " + ensure_string(now)])
 
 		# break down the date and time for ease of use
@@ -1718,11 +1916,7 @@ while(1):
 		ddm = now.day
 
 		folder = None					# the main folder(s) the current video will be pulled from
-
-		if get_current_channel() == None:
-			print("Current channel: None")
-		else:
-			print("Current channel: " + get_current_channel())
+			
 		# check if a static programming block has been set
 		if curr_static == None: # there is no static block
 			# checks the current date/time against the programming schedule in the settings file
@@ -1755,13 +1949,13 @@ while(1):
 			# set current programming block to the static one
 			# if the static channel has ended, programming schedule will be empty and the loop will skip it
 			programming_schedule = curr_static
-			print('its static time')
+			printd('its static time')
 		
 		# sets an array if paths where video should be
-		print(programming_schedule)
+		printd(programming_schedule)
 		folder = programming_schedule[0]
 
-		#print('Selected Folder: ', str(programming_schedule[2]) + " - " + replace_all_special_words(folder[0]))
+		printd('Selected Folder: ', str(programming_schedule[2]) + " - " + replace_all_special_words(folder[0]))
 		if folder != None: # folders have been set, load and play video
 			
 			# going to loop through all returned directories, replacing special keywords and validating that the directory does exist
@@ -1775,22 +1969,20 @@ while(1):
 
 			folder = new_folder # replace old folders with the newly verified folders
 			
-			video = None
+			video = None # the list of videos that can be selected from
+
 			if programming_schedule[2] == "video" or programming_schedule[2] == "video-show" or programming_schedule[2] == "commercial": # just select a random video out of the path
 				# settings wants the random video to be selected from multiple folders but prefers the random video come from the folders supplied rather than the combine contents of each folder
 				# this can help balance the show played when supplying different shows where a show with more videos would be more randomly favored
 
-				min_len=0
-				if 'min-length' in programming_schedule[4]:
-					min_len = programming_schedule[4]['min-length']
-					if not is_number(min_len): # check to see if the min-length is a number
-						report_error("PROGRAMMING", ["min-length is set but it is not a number", "check settings.json file", programming_schedule[4]])
+				# check if min-length or max-length are set, if not, set them to 0 and 99999 respectively
+				min_len = programming_schedule[4].get('min-length', 0)
+				max_len = programming_schedule[4].get('max-length', 99999)
 
-				max_len=99999 # 2 days worth of seconds
-				if 'max-length' in programming_schedule[4]:
-					max_len = programming_schedule[4]['max-length']
-					if not is_number(max_len): # check to see if the max-length is a number
-						report_error("PROGRAMMING", ["max-length is set but it is not a number", "check settings.json file", programming_schedule[4]])
+				for key, val in [('min-length', min_len), ('max-length', max_len)]:
+					# check to make sure min-length and max-length are numbers
+					if not is_number(val): # if they are not numbers, report an error
+						report_error("PROGRAMMING", [ key + " is set but it is not a number", "check settings.json file", programming_schedule[4] ])
 
 				folder_chance = None 
 				if 'prefer-folder' in programming_schedule[4]:
@@ -1808,14 +2000,15 @@ while(1):
 								report_error("GET_RND_COMM", ["Weighted folder selection failed", "check settings.json file", programming_schedule[4]]) # report error if the weighted values are invalid
 					else:
 						rfolder = random.choice(folder) # if no weighted values are set, just select a random folder
-					video = get_videos_from_dir(rfolder, min_len, max_len) # get the videos from the selected folder
+					video = get_videos_from_dir_cached(rfolder, min_len, max_len) # get the videos from the selected folder
 					print("Selecting video from: " + rfolder) # print the selected folder
+					print("")
 				else:
 					print("Selecting video from: ", folder) # print the selected folder
-					video = get_videos_from_dir(folder[0], min_len, max_len) # get the videos from the first folder in the list
+					print("")
+					video = get_videos_from_dir_cached(folder[0], min_len, max_len) # get the videos from the first folder in the list
 					for itemX in range(1,len(folder)):
-						#print('Selected Folder:', replace_all_special_words(folder[0]))
-						video = video + get_videos_from_dir(folder[itemX], min_len, max_len) # add the videos from the folder to the list of videos
+						video = video + get_videos_from_dir_cached(folder[itemX], min_len, max_len) # add the videos from the folder to the list of videos
 
 				if len(video) == 0:
 					report_error("PROGRAMMING", ["video folder contains no videos after checking min-length and max-length"])
@@ -1826,14 +2019,13 @@ while(1):
 				for itemX in range(0,len(folder)):
 					url = url + "&f" + ensure_string(itemX+1) + "=" + urllib.quote_plus(ensure_string(folder[itemX]))
 				urlcontents = open_url("http://127.0.0.1/?get_next_rnd_episode_from_dir=1" + url)
-				#rfolder = random.choice(folder)
-				#urlcontents = open_url("http://127.0.0.1/?get_next_rnd_episode=" + urllib.quote_plus(rfolder))
-				print("BV-Response: ", urlcontents, "BV-Sent", "http://127.0.0.1/?get_next_rnd_episode_from_dir=1" + url)
+
+				printd("BV-Response: ", urlcontents, "BV-Sent", "http://127.0.0.1/?get_next_rnd_episode_from_dir=1" + url)
 				acontents = urlcontents.split("|") #split the response, the next episode will be the first result
 				try:
 					if(acontents[1]=="0" or "|" not in urlcontents):
 						#could not find the next episode, so we should just report the error and let a random video be selected below
-						video = [ random.choice(get_videos_from_dir(rfolder)) ]
+						video = [ random.choice(get_videos_from_dir_cached(rfolder)) ]
 						report_error("SHOW BALANCED VIDEO", acontents)
 					else:	
 						# add the returned video as an array, if the file exists, so it can be selected randomly (but it's the only video that can be selected) during the next step
@@ -1846,14 +2038,13 @@ while(1):
 					report_error("SHOW BALANCED VIDEO", [ urlcontents ])
 				
 			elif programming_schedule[2] == "ordered-video": # select a random video but
-				video = get_videos_from_dir(folder[0])
+				video = get_videos_from_dir_cached(folder[0])
 				for itemX in range(1,len(folder)):
-					#print('Selected Folder:', replace_all_special_words(folder[0]))
-					video = video + get_videos_from_dir(folder[itemX])
+					video = video + get_videos_from_dir_cached(folder[itemX])
 
 				selvideo = random.choice(video) # choose a random video from the directory to use as a reference (needs to be random in case there are multiple different directories)
 				urlcontents = open_url("http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(ensure_string(selvideo)))
-				print("OV-Response: ", urlcontents, "OV-Sent", selvideo)
+				printd("OV-Response: ", urlcontents, "OV-Sent", selvideo)
 				acontents = urlcontents.split("|") #split the response, the next episode will be the first result
 				
 				try:
@@ -1873,15 +2064,25 @@ while(1):
 			
 			elif programming_schedule[2] == "ordered-show": # select random directory from path for reference and then play the episodes in ascending order
 				# get a list of folders from the local server
-				# http://tv.station/?getavailable=win_Tuesday&dir=/media/pi/ssd_b/primetime/win_tuesday
+				# http://127.0.0.1/?getavailable=win_Tuesday&dir=/media/pi/ssd_b/primetime/win_tuesday
 				folders = None
-				folders = get_folders_from_server(get_videos_from_dir(get_folders_from_dir(replace_all_special_words(folder[0]))[0])[0], replace_all_special_words(folder[0]))
+				#folders = get_folders_from_server(get_videos_from_dir_cached(get_folders_from_dir(replace_all_special_words(folder[0]))[0])[0], replace_all_special_words(folder[0]))
+
+				# prepare the folder name
+				cleaned_folder = replace_all_special_words(folder[0])
+				# get the first folder from the directory
+				first_local_folder = get_folders_from_dir(cleaned_folder)[0]
+				# get cached videos from that folder
+				first_video_folder = get_videos_from_dir_cached(first_local_folder)[0]
+				# get_folders_from_server() requires a video file and the directory name to determine which shows should be used to select the next video from
+				folders = get_folders_from_server(first_video_folder, cleaned_folder)
+
 				# if the server returns no folders, default to all directories in path
 				if folders == None:
 					folders = get_folders_from_dir(replace_all_special_words(folder[0])) # returns all subfolders of a directory
 				
-				selfolder = random.choice(folders) # choose a random one
-				episodes_in_folder = get_videos_from_dir(selfolder) # preload all the files in that directory
+				selfolder = random.choice(folders) # choose a random folder from the list returned by the server
+				episodes_in_folder = get_videos_from_dir_cached(selfolder) # preload all the files in that directory
 				if len(episodes_in_folder) <= 0:
 					report_error("FOLDERS", [ "Issue selecting video from folder.", "Is the folder empty?", selfolder, "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now." ])
 					if get_setting(['channels', 'error']):
@@ -1892,7 +2093,7 @@ while(1):
 						exit()
 				# to get the next video from the PHP front end we need to pass one of the episode's file names so it can determine the "short name"
 				urlcontents = open_url("http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(ensure_string(episodes_in_folder[0])))
-				print("OS-Response: ", urlcontents, "OS-Sent", episodes_in_folder[0])
+				printd("OS-Response: ", urlcontents, "OS-Sent", episodes_in_folder[0])
 				acontents = urlcontents.split("|") #split the response, the next episode will be the first result
 					
 				try:
@@ -1906,15 +2107,22 @@ while(1):
 							video = [ acontents[0] ]
 						else:
 							# if the file doesn't exist for whatever reason, play a random episode from that folder.
+							report_error("ORDERED-SHOW", [ "File does not exist ", acontents[0], "Playing a random episode from the folder instead.", "Check for things like renamed files." ])
 							video = episodes_in_folder
 				except:
-					report_error("SHOW EPISODES IN ORDER", [ urlcontents ])
+					report_error("ORDERED-SHOW", [ urlcontents ])
 			elif programming_schedule[2] == "show": # select random directory from path and then play a random video
 				folders = get_folders_from_dir(replace_all_special_words(folder[0])) # returns all subfolders of a directory
 				selfolder = random.choice(folders) # choose a random one
-				video = get_videos_from_dir(selfolder) # preload all the files in that directory
+				video = get_videos_from_dir_cached(selfolder) # preload all the files in that directory
 			else:
-				report_error("Programming Schedule", [ "unknown type set for video", programming_schedule[2] ])
+				report_error("Programming Schedule", [ "unknown type set for video", programming_schedule[2], "check settings.json file", "Entering Error Channel mode (if set, check settings.json), otherwise the script will end now." ])
+				if get_setting(['channels', 'error']):
+					channel_name_static = settings['channels']['error']
+					error_channel_set = True
+					continue
+				else:
+					exit()
 
 			if video != None:
 				if len(video) == 0:
@@ -1927,88 +2135,148 @@ while(1):
 				# we can now select our random video from the folder(s)
 				source = random.choice(video)
 
-				# get the tag from the video file name
-				current_video_tag = get_video_tag(source)
-
-				if 'set-tag' in programming_schedule[4] and current_video_tag == None: # file name tags override the programming schedule tag
-					# if the video file name does not have a tag, we use the programming schedule tag
-					current_video_tag = programming_schedule[4]['set-tag']
-
-				# load commercial break time stamps for this video (if any)
-				commercials = get_commercials(source)
-				
 				# log it if there's no source file
 				if source==None:
 					report_error("PLAY", ["no source video", programming_schedule[0], programming_schedule[1], programming_schedule[2]])
 					continue
-				
 
+				if 'set-tag' in programming_schedule[4]:
+					# if a tag is set in the programming schedule, we use that
+					current_video_tag = programming_schedule[4]['set-tag']
 
-				# check if the video is within the length range
-				#source_length = get_length_from_file(source)				
-				#if source_length<min_len or source_length>max_len:
-				#	#report_error("MIN_MAX LENGTH", ["min:", str(min_len), "max:", str(max_len), "source", str(source_length)])
-				#	continue
+				# get the tag from the video file name.
+				source_tag = get_video_tag(source)
+				if source_tag: # if a tag is found in the file name, it overrides any tag set in the programming schedule
+					current_video_tag = source_tag # set the current video tag to the tag found in the file name
+
+				# load commercial break time stamps for this video (if any)
+				commercials = get_commercials(source)
 		
 				acontents = ["default","0","values"]
+				bumpers = None
 
 				# skip this video if it has been played recently and try again
 				if acontents[1]!="0":
 					print("Just played this show, skipping")
+					print("")
 					allow_chance = False # we were not successful in selecting a video (because this last one was recently played), so we won't take a chance on a different video. we'll try again on playing a non-chanced video
 				else:
-					allow_chance = True # now that we've found a video to play, we can allow random content again
-					# if we're filling time with commercials, then we need to log them
-					
+					# now that we have a video to play, we can generate the bumpers and commercials
+
+					allow_chance = True # allow random content again
+
+					# if commercials are not set to be inserted, we set the commercials per break to 1 so that no commercials are inserted
 					if not settings['insert_commercials']: settings['commercials_per_break'] = 1 
 
-					pregenerated_commercials_list = None
-					commercials_per_break = settings['commercials_per_break']
-					tTime = get_length_from_file(source) # get video duration from file name
+					pregenerated_commercials_list = None # the pregenerated commercials list variable
+					commercials_per_break = settings['commercials_per_break'] # the number of commercials to play per break
+					source_total_length = get_length_from_file(source) # get video duration from file name 
+					# if commercials per break is set to "auto", we need to calculate how many commercials to play based on the length of the video and the current time
 					if settings['commercials_per_break'] == "auto" and programming_schedule[2] != "commercial" and len(commercials)>0:
-						if tTime == None: # video length was not found, so we revert to random commercials without checking for time
+						source_dir = os.path.dirname(source) # get the directory of the source video
+
+						# define variables for bumpers
+						bumpers_in = []
+						bumpers_out = []
+						bumpers = None
+
+						# check if there are bumpers in the source directory
+						if os.path.isdir(source_dir + "/bumpers/in"): # if there is a bumpers/in directory, we use that
+							bumpers_in.append(source_dir + "/bumpers/in")
+						if os.path.isdir(source_dir + "/bumpers/out"): # if there is a bumpers/out directory, we use that
+							bumpers_out.append(source_dir + "/bumpers/out")
+
+						if 'bumpers' in programming_schedule[4] and not os.path.isfile(source_dir + "/bumpers/skip"): # check if bumpers are set in the programming schedule (can be overridden by a 'skip' file in the source directory)
+							bumpers_in_mix = programming_schedule[4]['bumpers'].get('show-override', {}).get('in') is True # check if bumpers IN should be mixed with the source directory bumpers
+							bumpers_in_chance = programming_schedule[4]['bumpers'].get('chance', {}).get('in', "1.0") # get the chance of bumpers IN being used, default to 100%
+							# if bumpers IN are set in the programming schedule, we use those
+							# unless bumpers are set in the source directory or the settings allow mixing is set
+							if 'in' in programming_schedule[4]['bumpers'] and (not os.path.isdir(source_dir + "/bumpers/in") or bumpers_in_mix):
+								for item in programming_schedule[4]['bumpers']['in']:
+									temp = replace_all_special_words(item)
+									if os.path.isdir(temp): # if it's a directory, we add the directory
+										bumpers_in.append(temp)
+									else: # if it's not a directory, we report an error
+										report_error("BUMPERS", ["bumpers 'IN' directory is set in settings file but it does not exist", "SOURCE", ensure_string(source), "BUMPERS IN", ensure_string(temp)])
+
+							bumpers_out_mix = programming_schedule[4]['bumpers'].get('show-override', {}).get('out') is True
+							bumpers_out_chance = programming_schedule[4]['bumpers'].get('chance', {}).get('out', "1.0")
+
+
+							printd("out? ", 'out' in programming_schedule[4]['bumpers'], "bump dir? ", not os.path.isdir(source_dir + "/bumpers/out"), "bump mix? ", bumpers_out_mix, "chance? ",bumpers_out_chance, "chance eval: ", eval_equation(bumpers_out_chance, now))
+							# if bumpers OUT are set in the programming schedule, we use those unless bumpers are set in the source directory or the settings allow mixing is set
+							if 'out' in programming_schedule[4]['bumpers'] and (not os.path.isdir(source_dir + "/bumpers/out") or bumpers_out_mix):
+								for item in programming_schedule[4]['bumpers']['out']:
+									temp = replace_all_special_words(item)
+									if os.path.isdir(temp): # if it's a directory, we add the directory
+										bumpers_out.append(temp)
+									else: # if it's not a directory, we report an error
+										report_error("BUMPERS", ["bumpers 'OUT' directory is set in settings file but it does not exist", "SOURCE", ensure_string(source), "BUMPERS OUT", ensure_string(temp)])
+						
+						bumpers = generate_bumpers_list(bumpers_in, bumpers_out, len(commercials) + 1, bumpers_in_chance, bumpers_out_chance) # preload the bumpers
+						printd("BUMPERS:", bumpers)
+						#readkey()
+
+						if source_total_length == None: # video length was not found, so we revert to random commercials without checking for time
 							commercials_per_break = 0
 							report_error("COMM_BREAK", ["length of video could not be found", "SOURCE", ensure_string(source)])
 						else:
-							tDiff = calculate_fill_time(tTime, now, get_setting([ "commercials_offset_time" ], 0)) # calculate the time difference between the video length and the current time
-							print("length:", tTime,  "diff to make up:", tDiff, "current time:", month, h, m, d, ddm)
-							pregenerated_commercials_list = generate_commercials_list(tDiff, get_setting([ "commercials_fill_time_multiplier" ], 50)) # generate a list of commercials to play based on the length of the video and the current time
+							# calculate the time difference between the video length and the time until the next hour/half hour
+							source_length_diff = calculate_fill_time(source_total_length, now, get_setting([ "commercials_offset_time" ], 0)) # calculate the time difference between the video length and the current time
+							printd("length:", source_total_length,  "diff to make up:", source_length_diff, "current time:", month, h, m, d, ddm)
+
+							if(bumpers != None):
+								# if bumpers are set, we need to calculate the total length of the bumpers and subtract it from the total time to fill
+								source_length_diff = source_length_diff - (bumpers['in_total'] + bumpers['out_total'])
+								printd("Total time to fill:", source_length_diff, "bumpers in total:", bumpers['in_total'], "bumpers out total:", bumpers['out_total'])
+								#readkey()
+
+							# generate a list of commercials to play based on the length of the video and difference in time
+							pregenerated_commercials_list = generate_commercials_list(source_length_diff, get_setting([ "commercials_fill_time_multiplier" ], 50))
 
 							commercials_per_break = 0
-					elif programming_schedule[2] == "commercial":
-						commercials_per_break = 0
-						urlcontents = open_url("http://127.0.0.1/?current_comm=" + urllib.quote_plus(ensure_string(source)))
+					elif programming_schedule[2] == "commercial": # programming schedule is set to "commercial"
+						commercials_per_break = 0 # we don't want to play commercials during a commercial ;-)
+						report_video_playback(source, "commercial") # let the server know that commercial is played (usually handled by the main play_video function but this is a special case)
 					else:
 						if is_number(settings['commercials_per_break']) == False:
 							# if commercials_per_break should be set to 'auto' or a NUMBER. If it's not a number, we assume it should be set to auto but there might not be a commercials file available for this video, so we schedule no commercials for this video.
-							commercials_per_break = 0
+							commercials_per_break = 0 # set to 0 because a number is expected but something is amiss
 							if len(commercials)>0:
 								# if the commercials file exists, then something else went wrong and we report it
 								report_error("COMM_BREAK", ["commercials per break is not a number", "If set to 'auto', make sure the video's filename contains the video's length %T(0000)%", "Check that a .commercials file exists with commercial time stamps", "FILE", ensure_string(source)])
 						else:
-							commercials_per_break = settings['commercials_per_break'] - 1
+							commercials_per_break = settings['commercials_per_break'] - 1 # subtract 1 because humans are dumb and count from 1, computers are smart so count from 0
 
-					if is_number(commercials_per_break) == False:
-						commercials_per_break = 0
-						report_error("COMM_BREAK", ["commercials per break was not a number, it should be!"])
+					if is_number(commercials_per_break) == False: # check to see if commercials_per_break is a number (it should be at this point)
+						# something is really borked if we are here
+						commercials_per_break = 0 # set to 0 because a number is expected but something is amiss
+						report_error("COMM_BREAK", ["commercials per break was not a number, it should be!"]) # report error if it's not a number
 
-					print('Attempting to play: ', source)
-					#if 'debug' in settings:
-					#	if settings['debug'] != None:
-					#		report_error("PLAY INFO", [str(now), json.dumps(programming_schedule)])
-					play_video(source, commercials, commercials_per_break if pregenerated_commercials_list == None else pregenerated_commercials_list, 0)
-					start_time = time.time()
-					if error_channel_set == True:
+					print('Attempting to play: ', source) # Announce the video to be played to the console
+					print("")
+					printd("PLAY INFO", [str(now), programming_schedule]) # print the programming schedule for this video to the console for debugging purposes
+					
+					log_only_latest = programming_schedule[4].get('log only latest', -1) # check if we should only log the latest video played in the programming schedule
+					if not is_number(log_only_latest):
+						log_only_latest=-1
+
+					play_video(source, commercials, commercials_per_break if pregenerated_commercials_list == None else pregenerated_commercials_list, 0, bumpers, log_only_latest)
+
+					start_time = time.time() # reset the start time to now since we successfully played a video
+
+					if error_channel_set == True: # if we were in error channel mode and successfully played a video, we exit error channel mode
+						report_error("MAIN_LOOP", ["Exited Error Channel mode, video played successfully"])
 						error_channel_set = False
 						channel_name_static = None
 
 				print("-------------------------------------------------------------------------------")
 				# send an uptime (time since last restart) tick to the web server
-				report_error("UPTIME", [str(get_uptime())])
+				report_error("UPTIME", [str(get_uptime(script_load_time))])
 				# reboot the pi after playing a video in the early AM.
 				try:
-					now = datetime.datetime.now()
-					if (now.hour >= 2 and now.hour <= 5 and get_uptime() > 36000):
+					curr_dt_now = datetime.datetime.now()
+					if (curr_dt_now.hour >= 2 and curr_dt_now.hour <= 5 and get_uptime(script_load_time) > 36000):
 						report_error("RESTART", ["success"])
 						sleep(0.5)
 						restart()
@@ -2016,6 +2284,6 @@ while(1):
 					report_error("RESTART", ["failed"])
 
 		else:
-			print('no folder')
+			printd('no folder')
 	except Exception as valerr:
-		report_error("MAIN_LOOP", [valerr, source, folder, "-".join(err_extra),traceback.format_exc()])
+		report_error("MAIN_LOOP", [valerr, source, folder, traceback.format_exc()])
