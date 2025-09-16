@@ -22,7 +22,7 @@ class DBMANAGEEXT {
             for($i=0;$i<count($lines);$i++)
             {
                 $l = $lines[$i];
-                $return.='  <li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_data'.$i.'" style="color:red;" onclick="return confirm(\'This will permanently delete all entries with /'.$l.'/ in the path. Are you sure?\')">Delete '.$l.' videos</a> >> <a href="/?db_manage_ext=1&amp;action=trim_last'.$i.'" style="color:red;" title="permanently delete all entries with '.$l.' in the path, except for the most recent entry" onclick="return confirm(\'This will permanently delete all entries with '.$l.' in the path, except for the most recent entry. Are you sure?\')">[ * ]</a></li>
+                $return.='  <li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_data'.$i.'" style="color:red;" onclick="return confirm(\'This will permanently delete all entries with /'.$l.'/ in the path. Are you sure?\')">Delete '.$l.' videos</a> >> <a href="/?db_manage_ext=1&amp;action=trim_last'.$i.'" style="color:red;" title="permanently delete all entries with '.$l.' in the path, except for the most recent entry" onclick="return confirm(\'This will permanently delete all entries with '.$l.' in the path, except for the most recent entry. Are you sure?\')">[ * ]</a> >> <a href="/?db_manage_ext=1&amp;action=trim_all_'.$i.'" style="color:red;" title="permanently delete all entries BELOW this sub-directory with '.$l.' in the path, except for the most recent entry" onclick="return confirm(\'This will permanently delete all entries BELOW this sub-directory with '.$l.' in the path, except for the most recent entry. Are you sure?\')">[ # ]</a></li>
 ';
             }
             $return.='</ul>
@@ -108,6 +108,69 @@ class DBMANAGEEXT {
 
                         $res = $this->mysqlix->query("DELETE FROM played WHERE INSTR(name, '/".$lines[substr($args["action"], 9)*1]."/') AND id NOT IN (SELECT id FROM (SELECT id FROM played WHERE INSTR(name, '/".$lines[substr($args["action"], 9)*1]."/') ORDER BY played DESC LIMIT 1) AS subquery);") or die($this->mysqlix->error);
 
+                        header('location: /?db='.$lines[substr($args["action"], 9)*1]."\n\n");
+				        return;
+                    } else {
+                        return 'The db_manage.txt file does not exist. You must create it using <a href="db_management_build.php">db_management_build.php</a>.';
+                    }
+				} else if (substr($args["action"], 0, 9) == "trim_all_") {
+                    if(!is_numeric(substr($args["action"], 9))) return "Must be a number";
+                    if (file_exists($this->db_management_file)) { // Check if the file exists
+                        $lines = file($this->db_management_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES); // Optional flags to trim newlines and skip empty lines
+                        if(substr($args["action"], 9)*1>=count($lines) || substr($args["action"], 9)*1<0) return "Number is too high or too low";
+
+                        //$res = $this->mysqlix->query("DELETE FROM played WHERE INSTR(name, '/".$lines[substr($args["action"], 9)*1]."/') AND id NOT IN (SELECT id FROM (SELECT id FROM played WHERE INSTR(name, '/".$lines[substr($args["action"], 9)*1]."/') ORDER BY played DESC LIMIT 1) AS subquery);") or die($this->mysqlix->error);
+						// Find the most recent entry in the folder
+						$folder = $lines[substr($args["action"], 9)*1];
+						$subdirsSql = "SELECT DISTINCT SUBSTRING_INDEX(name, '/', -2) AS subdir FROM played WHERE name LIKE ?";
+						$stmt = $this->mysqlix->prepare($subdirsSql);
+						$searchTerm = "%$folder%";
+						$stmt->bind_param("s", $searchTerm);
+						$stmt->execute();
+						$result = $stmt->get_result();
+						
+						$subdirs = [];
+						while ($row = $result->fetch_assoc()) {
+							if(!in_array("/" . pathinfo($row['subdir'], PATHINFO_DIRNAME) . "/", $subdirs)) {
+								// Add the subdirectory to the list if it is not already present
+								$subdirs[] =  "/" . pathinfo($row['subdir'], PATHINFO_DIRNAME) . "/";
+								echo "Found subdirectory: " . "/" . pathinfo($row['subdir'], PATHINFO_DIRNAME) . "/" . "\n";
+							}
+							
+						}
+						$stmt->close();
+
+						foreach ($subdirs as $subdir) {
+							// Step 2: Find the most recent entry for each subdirectory
+							$latestSql = "SELECT id FROM played WHERE name LIKE ? AND name LIKE ? ORDER BY played DESC LIMIT 1";
+							echo "Processing subdirectory: $subdir\n";
+							
+							$stmt = $this->mysqlix->prepare($latestSql);
+							$subdirPattern = "%$subdir%";
+							$stmt->bind_param("ss", $searchTerm, $subdirPattern);
+							$stmt->execute();
+							$result = $stmt->get_result();
+							$row = $result->fetch_assoc();
+							$latestId = $row['id'] ?? null;
+							$stmt->close();
+							
+							if ($latestId) {
+								// Step 3: Delete all other entries in that subdirectory
+								echo "Keeping latest entry with ID: $latestId for subdirectory: $subdir\n";
+								$deleteSql = "DELETE FROM played WHERE name LIKE ? AND name LIKE ? AND id <> ?";
+								$deleteStmt = $this->mysqlix->prepare($deleteSql);
+								$deleteStmt->bind_param("ssi", $searchTerm, $subdirPattern, $latestId);
+								$deleteStmt->execute();
+								$deleteStmt->close();
+						
+								echo "Deleted previous entries for '$subdir', keeping only the most recent.\n";
+							} else {
+								echo "No matching entries found for '$subdir'.\n";
+							}
+						}
+
+
+						die();
                         header('location: /?db='.$lines[substr($args["action"], 9)*1]."\n\n");
 				        return;
                     } else {

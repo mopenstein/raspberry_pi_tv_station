@@ -85,7 +85,7 @@ if(!$json_valid[0]) {
 ?>
 <form method="POST">
 Editing: <?php echo $settings_file; ?><br />
-<input type="submit" name="save" value="Save" /><?php if(isset($_GET["saved"])) { echo '<span style="color:green;" id="saved-span">Saved!</span><script type="text/javascript">function hide_saved_msg() { document.getElementById("saved-span").style.display="none"; } setTimeout(hide_saved_msg, 2000);</script>'; } ?><br />
+<input type="submit" name="save" value="Save" /><?php if(isset($_GET["saved"])) { echo '<span style="color:green;" id="saved-span">Saved!</span><script type="text/javascript">function hide_saved_msg() { document.getElementById("saved-span").style.display="none"; } setTimeout(hide_saved_msg, 2000);</script>'; } ?><input type="button" onclick="if(!confirm('this will exit this page')) {return;} location.href='index.php?test_settings=1&t=' + Date.now()" value="Test Settings"><br />
 <textarea id="editor" name="settings" style="width:95%;height:75%;" wrap="off" spellcheck="false" nowrap>
 <?php echo $json_data; ?>
 </textarea>
@@ -238,6 +238,35 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>&lt;string&gt;</i> when set video from only this 'channel' will be played</li>
 	</ul>
+	<h3>bumpers</h3>
+	<ul>
+		<li><i>[ &lt;strings&gt; ]</i> a dictionary with lists containing paths to bumpers to be played before and after commercials</li>
+		<li>Example:</li>
+			<ul>
+				<pre>"bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ] }</pre>
+			</ul>
+		<li>Show specific bumpers can be set to mix with the bumpers defined in the settings file (both in and out)
+			<ul>
+				<li>Example
+					<pre>"bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "show-override": { "out": true, "in": false } }, # mix bumpers going into commercials, but use only show specific bumpers coming back from commercials</pre>
+				</li>
+			</ul>
+		<li>A chance setting can be set for bumpers defined in the programming schedule to determine the likelihood of a bumper being played
+			<ul>
+				<li>Example:</li>
+					<ul>
+						<pre>"bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "chance": { "out": "100%", "in": "50%" } }, # always play bumpers going into commercials, but only play bumpers coming back from commercials 50% of the time</pre>
+					</ul>				
+				<li>Note: if mixing is enabled for a specific direction (in or out), the chance setting applies to the bumpers defined in the programming schedule only. Bumpers defined in the show's directory will always be played.</li>
+				<li>Note: chance can be a mathematical equation that evaluates to a number between 0 and 1.0 (0% to 100%) and follows the sames rules as the "chance" setting for programming.</li>
+			</ul>
+		<li>Note: bumpers defined in the settings file can be disabled for a specific show by placing a file named "skip" in the /bumpers sub-directory of the show's directory. Useful for shows that already have bumpers included in the video files so bumpers aren't double-upped.
+		<li>Note: Both 'out' or 'in' can be set. If only 'out' is set, bumpers will only be played when going into a commercial break and the same with 'in'.</li>
+		<li>Note: If no bumpers are found in the specified directory, no bumpers will be played.</li>
+		<li>Note: If multiple directories are specified, the contents of all directories will be pooled together.</li>
+		<li>Note: Individual "show" directories can contain a sepecific set of sub-directories ("bumpers/in" and "bumpers/out"). If these sub-directories exist, the contents of those will override the settings file.</li>
+		<li>Note: "out" bumpers are played before going into a commercial break and "in" bumpers are played after coming out of a commercial break.</li>
+	</ul>
 	<h3>min-length</h3>
 	<ul>
 		<li><i>&lt;integer&gt;</i> minimum length of video in seconds</li>
@@ -259,10 +288,6 @@ var myInput = document.getElementById("editor");
 	<ul>
 		<li><i>&lt;string&gt;</i> sets the current tag used for commercials block programming</li>
 	</ul>
-	<h3>minimum time between repeats</h3>
-	<ul>
-		<li><i>&lt;integer&gt;</i> minimum time in seconds before the same video can be played again</li>
-	</ul>
 	<h3>weighted</h3>
 	<ul>
 		<li><i>&lt;list of integers&gt;</i> the weight of the video. The higher the number the more likely it will be played <i>(must be used in conjuction with "prefer-folder" setting and works only with video types set to 'commercial')</i></li>
@@ -279,7 +304,7 @@ var myInput = document.getElementById("editor");
 	<h3>tag</h3>
 	<ul>
 		<li><i>&lt;string&gt;</i> allow commercials to be played specifically for a video with a certain tag</li>
-		<li>Example: "tag": "cartoons" // if a video is tagged in its filename as @cartoons@, this setting will be trigger</li>
+		<li>Example: "tag": "cartoons" // if a video is tagged in its filename as @cartoons@ <em>or</em> the cartoons tag is set by a programming block, this setting will be trigger</li>
 	</ul>
 	<h3>special</h3>
 	<ul>
