@@ -1,39 +1,12 @@
 #!/usr/bin/python
 
-# version: 102.1
-# version date: 2025.09.16
+# version: 102.1.1
+# version date: 2025.xx.xx
 #
-#	Fixed bug in caching directory contents where the cache may not update to reflect changes.
-#	Fixed reporting errors. Previously blocked all web requests when "report_data" was set to 'false'. This caused the programming schedule to fail. Now only blocks messages when actually reported as an error.
-#	
-#	In the 'chance' setting, automatic percentage conversion has been added: 25% -> 0.25
-#	File cache is now temporarily stored in a variable to cut down on rapid disk access when the situation arises.
-#	When 'debug' is set to true, the web server will not be contacted to log current video/commercial playback, more verbose terminal messages will be present, and commercials will auto-skip after playing for 2 seconds.
-#
-#	Added the ability to limit the logging of video playback to the web server to only the latest video played. Must be set for each show in the programming schedule.
-# 		* Note: If you schedule videos with the type of "ordered-show"/"ordered-video", this will help cut down on the amount of data being logged in the database since only the latest video is required to maintain ordered show behavior.
-#		* Note: logging is limited to the show being played, not the programming schedule block that might contain multiple shows.
-#		* Note: Using with "balanced" type can have unexpected consequences. Balanced types needs a full log of played content in order to function properly.
-#	Added the ability to auto play bumpers going in to and out of commercial breaks.
-#		* Bumpers can be defined in the settings file
-#		* Individual "shows" can have specific bumpers by creating a bumpers directory in the show's directory, with "in" and "out" subdirectories. These bumpers will override any bumpers defined in the settings file.
-#			* Example: "drive/shows/myshow/bumpers/in" and "drive/shows/myshow/bumpers/out"
-#		* Show specific bumpers can be set to mix with the bumpers defined in the settings file (both in and out)
-#			* Example: "bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "show-override": { "out": true, "in": false } } # mix bumpers going into commercials, but use only show specific bumpers coming back from commercials
-#		* A chance setting can be set for bumpers defined in the programming schedule to determine the likelihood of a bumper being played
-#			* Example: "bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "chance": { "out": "100%", "in": "50%" } } # always play bumpers going into commercials, but only play bumpers coming back from commercials 50% of the time
-#			* Note: if mixing is enabled for a specific direction (in or out), the chance setting applies to ALL bumpers defined in the programming schedule and in the show's directory.
-#			* Note: chance can be a mathematical equation that evaluates to a number between 0 and 1.0 (0% to 100%) and follows the sames rules as the "chance" setting for programming.
-#		* Note: bumpers defined in the settings file can be disabled for a specific show by placing a file named "skip" in the /bumpers sub-directory of the show's directory. Useful for shows that already have bumpers included in the video files so bumpers aren't double-upped.
+#	Fixed error bumper generation error
 #
 # settings version: 0.994
 #
-#   debug setting actually does something now. When set to true, the web server will not be contacted to log current video/commercial playback and more verbose debug messages will be printed to the console.
-#		"debug": true|false
-#	New setting added "bumpers" to be set in the programming schedule for 'times':
-#		"bumpers": { "out": [ "%D[1]%/bumpers/out" ], "in": [ "%D[1]%/bumpers/in" ], "show-override": { "out": true|false, "in": true|false }, "chance": { "out": "100%", "in": "50%" } }
-#	New setting added "log only latest" to be set in the programming schedule for 'times':
-#		"log only latest": true|false
 #
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
@@ -2178,6 +2151,8 @@ while(1): # main loop
 						# define variables for bumpers
 						bumpers_in = []
 						bumpers_out = []
+						bumpers_in_chance = 1.0
+						bumpers_out_chance = 1.0
 						bumpers = None
 
 						# check if there are bumpers in the source directory
@@ -2213,9 +2188,10 @@ while(1): # main loop
 									else: # if it's not a directory, we report an error
 										report_error("BUMPERS", ["bumpers 'OUT' directory is set in settings file but it does not exist", "SOURCE", ensure_string(source), "BUMPERS OUT", ensure_string(temp)])
 						
-						bumpers = generate_bumpers_list(bumpers_in, bumpers_out, len(commercials) + 1, bumpers_in_chance, bumpers_out_chance) # preload the bumpers
-						printd("BUMPERS:", bumpers)
-						#readkey()
+						if bumpers_in or bumpers_out:
+							bumpers = generate_bumpers_list(bumpers_in, bumpers_out, len(commercials) + 1, bumpers_in_chance, bumpers_out_chance) # preload the bumpers
+							printd("BUMPERS:", bumpers)
+							#readkey()
 
 						if source_total_length == None: # video length was not found, so we revert to random commercials without checking for time
 							commercials_per_break = 0
