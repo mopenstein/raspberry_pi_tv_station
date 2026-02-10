@@ -124,7 +124,7 @@ class DBMANAGEEXT {
 						$folder = $lines[substr($args["action"], 9)*1];
 						$subdirsSql = "SELECT DISTINCT SUBSTRING_INDEX(name, '/', -2) AS subdir FROM played WHERE name LIKE ?";
 						$stmt = $this->mysqlix->prepare($subdirsSql);
-						$searchTerm = "%$folder%";
+						$searchTerm = "%/$folder/%";
 						$stmt->bind_param("s", $searchTerm);
 						$stmt->execute();
 						$result = $stmt->get_result();

@@ -65,16 +65,40 @@ function validate_json(json_str) {
 <body style="white-space:nowrap;">
 <?php
 
-if(isset($_POST["settings"]) && isset($_POST["save"])) {
+if (isset($_POST["settings"]) && isset($_POST["save"])) {
 	$json_valid = json_validator($_POST["settings"]);
-	if(!$json_valid[0]) {
+	if (!$json_valid[0]) {
 		die('<div style="background:red;color:white;margin:10px;padding:10px;">JSON VALIDATION ERROR :: THE SUBMITTED SETTINGS ARE NOT VALID! <br /><br />Error: '.$json_valid[1].' - <a href="https://duckduckgo.com/?q=json+validator&ia=answer">Validate</a></div>');
 	} else {
+		// Create a timestamped backup
+		if (file_exists($settings_file)) {
+			$backup_dir = dirname($settings_file);
+			$base_name = basename($settings_file);
+			$timestamp = date('Ymd_His');
+			$backup_file = $backup_dir . '/' . $base_name . '.bak_' . $timestamp;
+			copy($settings_file, $backup_file);
+
+			// Purge older backups, keep only the 10 most recent
+			$pattern = $backup_dir . '/' . $base_name . '.bak_*';
+			$backups = glob($pattern);
+			usort($backups, function($a, $b) {
+				return filemtime($b) - filemtime($a); // Newest first
+			});
+			if (count($backups) > 10) {
+				$to_delete = array_slice($backups, 10);
+				foreach ($to_delete as $old_backup) {
+					unlink($old_backup);
+				}
+			}
+		}
+
+		// Save the new settings
 		file_put_contents($settings_file, $_POST["settings"]);
 		header("Location: settings.php?saved=yes\n\n");
 		die();
 	}
 }
+
 
 $json_data = file_get_contents($settings_file);
 $json_valid = json_validator($json_data);
@@ -199,6 +223,11 @@ var myInput = document.getElementById("editor");
 			<li>"%MONTH%": current month of the year in 3 letter format</li>
 			<li>"%DAY%": current day of the month</li>
 			<li>"%YEAR%": current year</li>
+			<li>"%TENSHOUR%": current tens digit of the current hour in 12-hour format (0 or 1)</li>
+			<li>"%UNITSHOUR%": current units digit of the current hour in 12-hour format (0-9)</li>
+			<li>"%TENSMIN%": current tens digit of the current minute (0-5)</li>
+			<li>"%UNITSMIN%": current units digit of the current minute (0-9)</li>
+			<li>"%TOPTENSMIN%": current tens digit of the current minute if it is 0 or 3, otherwise returns an empty string (used for top of the hour (0) or top-half-hour (3) minute triggers)</li>
 		</ul>
 	</ul>
 	<h3>dayOfWeek:</h3>
