@@ -14,10 +14,6 @@ I also wrote a companion program in C# for Windows that utilizes FFMPEG to find 
 
 As well as a C# for Windows program that is a FFMPEG frontend for simple video editing that allows for precise video splitting and combining: https://github.com/mopenstein/Simple-Video-Editor
 
-# Premade disk image
-
-See the README in this project's "disk image install files" https://github.com/mopenstein/raspberry_pi_tv_station/tree/main/disk%20image%20install%20files
-
 # Fully automated functioning TV Station
 
 This project reproduces a near perfect functioning tv station.
@@ -27,3 +23,18 @@ This project reproduces a near perfect functioning tv station.
 ![](https://i.imgur.com/Ifjcfi7.png)
 ![](https://i.imgur.com/gV8SHgJ.png)
 
+## Getting Started: The Easy Way vs. The Manual Way
+
+Because this software relies on `omxplayer` (which was deprecated in recent Raspberry Pi OS updates), setting up the environment manually can be difficult.
+
+### Option 1: The Pre-Configured System Image (Fastest) - https://github.com/mopenstein/raspberry_pi_tv_station/tree/main/disk%20image%20install%20files
+I have provided a verified system image of a working SD card. 
+* Everything is pre-installed (omxplayer, dependencies, Python environment); guaranteed to work on a Pi 3b+.
+* This image is a clean install from my workign system withthe necessary project dependencies added. However, if you are uncomfortable using a pre-made image, please use Option 2.
+
+### Option 2: Manual Installation (much harder)
+If you prefer to build the system yourself:
+1. Flash **Raspberry Pi OS (Legacy) Buster** using the Raspberry Pi Imager.
+2. Enable the Legacy GL Driver (FKMS) in `raspi-config`.
+3. Install dependencies manually:
+   `sudo apt update && sudo apt install omxplayer libdbus-1-3 libdbus-1-dev`
