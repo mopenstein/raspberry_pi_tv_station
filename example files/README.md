@@ -6,7 +6,7 @@ All videos should be tagged in their filename's with the length of the video in 
 
 These functions can be automated using the C# program called VideoSplit https://github.com/mopenstein/VideoSplit
 
-#Media Examples & Public Domain Status
+# Media Examples & Public Domain Status
 
 The files in this directory illustrate the required directory structure and naming conventions for injecting commercials into a TV Station broadcast.
 
