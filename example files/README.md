@@ -1,10 +1,20 @@
-# file name structure
+# File Naming & Preparation
+To ensure the TV Station accurately injects commercials, all video files must follow these preparation steps:
 
-All video files to be played should have their audio levels normalized. The video files above have been marked with \_NA\_ to show they have been volume corrected.
+1. Audio Normalization
+All video files should have their audio levels normalized for a consistent broadcast experience.
 
-All videos should be tagged in their filename's with the length of the video in seconds rounded up to the second. The Popeye file has been marked with %T(365)% showing it is 365 seconds long. The video commercial's filename has been marked with %T(30)% because it is 30 seconds long.
+Files in this directory are marked with _NA_ to indicate they have been volume-corrected.
 
-These functions can be automated using the C# program called VideoSplit https://github.com/mopenstein/VideoSplit
+2. Duration Tagging
+Videos must be tagged in the filename with their total length in seconds (rounded up).
+
+Format: %T(seconds)%
+Example (Cartoon): Popeye_AHaulInOne_%T(365)%_NA_.mp4 (365 seconds)
+Example (Ad): Gillette_1955_%T(30)%_NA_.mp4 (30 seconds)
+
+3. Automation
+These preparation steps (normalization and tagging) can be automated using the C# utility VideoSplit. https://github.com/mopenstein/VideoSplit
 
 # Media Examples & Public Domain Status
 
