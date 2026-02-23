@@ -8,7 +8,7 @@ These functions can be automated using the C# program called VideoSplit https://
 
 # Media Examples & Public Domain Status
 
-The files in this directory illustrate the required directory structure and naming conventions for injecting commercials into a TV Station broadcast.
+The video files in this directory are provided as examples. They also illustrate the naming conventions for injecting commercials into a TV Station broadcast.
 
 Popeye: A Haul in One (1956): This work is in the public domain in the United States due to a failure to renew copyright (originally registered by Paramount/Famous Studios).
 
