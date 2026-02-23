@@ -18,10 +18,12 @@ As well as a C# for Windows program that is a FFMPEG frontend for simple video e
 
 This project reproduces a near perfect functioning tv station.
 
-![](https://i.imgur.com/9gi059T.png)
-![](https://i.imgur.com/oiWn0el.png)
-![](https://i.imgur.com/Ifjcfi7.png)
-![](https://i.imgur.com/gV8SHgJ.png)
+<p align="center">
+  <img src="https://i.imgur.com/9gi059T.png" width="200" title="Preview 1">
+  <img src="https://i.imgur.com/oiWn0el.png" width="200" title="Preview 2">
+  <img src="https://i.imgur.com/Ifjcfi7.png" width="200" title="Preview 3">
+  <img src="https://i.imgur.com/gV8SHgJ.png" width="200" title="Preview 4">
+</p>
 
 ## Getting Started: The Easy Way vs. The Manual Way
 
