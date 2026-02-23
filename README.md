@@ -1,18 +1,26 @@
-# Raspberry Pi TV Station
+# Retro TV Station: Automated Broadcast Emulator
 
-Python2 and PHP scripts to emulate and automate a fully functional broadcast TV station
+This project consists of a suite of Python 2 and PHP scripts designed to emulate and automate a fully functional broadcast TV station. It is optimized for the Raspberry Pi 3B+, utilizing the 3.5mm A/V output to provide an authentic analog signal for CRT televisions.
 
-Designed and runs on the Rasperry PI 3b+ using A/V out. 
+This system reproduces the experience of vintage television by injecting period-accurate commercials and bumpers into programming at precise, pre-defined intervals.
 
-This script is for use with the Raspberry Pi utilizing OMXPlayer and DBus to play tv shows with commercial interruptions at set points in time.
+## Core Functionality
+The engine runs on the Raspberry Pi, utilizing OMXPlayer and D-Bus to manage video hardware acceleration and seamless transitions between primary content and commercial breaks.
 
-I use this to play old 80's tv shows along with 80's tv commercials for that authentic 80's vibe.
+* **Hardware Playback:** Leverages [python-omxplayer-wrapper](https://github.com/willprice/python-omxplayer-wrapper) for high-performance video delivery on legacy Pi hardware.
+* **Scheduled Injection:** Automates the insertion of advertisements and station IDs to mimic a professional broadcast schedule.
+* **Analog Optimization:** Specifically tuned for 4:3 aspect ratios and composite output to maintain a genuine retro aesthetic.
 
-It relies on https://github.com/willprice/python-omxplayer-wrapper to play videos
+## Component Ecosystem
+To maintain a high-quality broadcast, media must be properly mastered. Two companion Windows utilities are provided to handle file preparation:
 
-I also wrote a companion program in C# for Windows that utilizes FFMPEG to find commercial breaks by splitting video at black frames and also normalizing audio: https://github.com/mopenstein/VideoSplit
+1. **[VideoSplit](https://github.com/mopenstein/VideoSplit):** An FFMPEG-based automation tool that identifies commercial breaks by detecting black frames and normalizes audio levels across all clips for consistent broadcast volume (amoungst other useful things for this project).
+2. **[Simple Video Editor](https://github.com/mopenstein/Simple-Video-Editor):** A streamlined FFMPEG frontend designed for precise manual video splitting and combining.
 
-As well as a C# for Windows program that is a FFMPEG frontend for simple video editing that allows for precise video splitting and combining: https://github.com/mopenstein/Simple-Video-Editor
+## Technical Requirements & Compatibility
+* **Hardware:** Raspberry Pi 3B+ (utilized for stable A/V composite output).
+* **Operating System:** Raspberry Pi OS (Legacy/Buster) is required to support the deprecated OMXPlayer binary and OpenMAX hardware abstraction layer.
+* **Environment:** Python 2.7
 
 # Fully automated functioning TV Station
 
