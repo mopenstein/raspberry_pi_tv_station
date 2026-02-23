@@ -2,19 +2,19 @@
 To ensure the TV Station accurately injects commercials, all video files must follow these preparation steps:
 
 1. Audio Normalization
-All video files should have their audio levels normalized for a consistent broadcast experience.
+  All video files should have their audio levels normalized for a consistent broadcast experience.
 
-Files in this directory are marked with _NA_ to indicate they have been volume-corrected.
+  Files in this directory are marked with _NA_ to indicate they have been volume-corrected.
 
 2. Duration Tagging
-Videos must be tagged in the filename with their total length in seconds (rounded up).
+  Videos must be tagged in the filename with their total length in seconds (rounded up).
 
-Format: %T(seconds)%
-Example (Cartoon): Popeye_AHaulInOne_%T(365)%_NA_.mp4 (365 seconds)
-Example (Ad): Gillette_1955_%T(30)%_NA_.mp4 (30 seconds)
+  Format: %T(seconds)%
+    Example (Cartoon): Popeye_AHaulInOne_%T(365)%_NA_.mp4 (365 seconds)
+    Example (Ad): Gillette_1955_%T(30)%_NA_.mp4 (30 seconds)
 
 3. Automation
-These preparation steps (normalization and tagging) can be automated using the C# utility VideoSplit. https://github.com/mopenstein/VideoSplit
+  These preparation steps (normalization and tagging) can be automated using the C# utility VideoSplit. https://github.com/mopenstein/VideoSplit
 
 # Media Examples & Public Domain Status
 
