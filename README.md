@@ -40,7 +40,7 @@ Because this software relies on `omxplayer` (which was deprecated in recent Rasp
 ### Option 1: The Pre-Configured System Image (Fastest) - https://github.com/mopenstein/raspberry_pi_tv_station/tree/main/disk%20image%20install%20files
 I have provided a verified system image of a working SD card. 
 * Everything is pre-installed (omxplayer, dependencies, Python environment); guaranteed to work on a Pi 3b+.
-* This image is a clean install from my workign system withthe necessary project dependencies added. However, if you are uncomfortable using a pre-made image, please use Option 2.
+* This image is a clean install from my working system withthe necessary project dependencies added. However, if you are uncomfortable using a pre-made image, please use Option 2.
 
 ### Option 2: Manual Installation (much harder)
 If you prefer to build the system yourself:
