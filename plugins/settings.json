@@ -1,0 +1,293 @@
+{
+	"version": "0.994",
+	"drive": ["/home/pi/Desktop", "/media/pi/ssd"],
+	"name": "Radio",
+	"time_test": null,
+	"time_test_example": "Jan 20 2024 04:58PM",
+	"debug": false,
+	"debug positon": 9999999,
+	"daily reboot": true,
+	"report_data": true,
+	"player_settings": ["--no-osd", "--blank"],
+	"plugins directory": "/home/pi/Desktop/plugins",
+	"cache_path": "/home/pi/Desktop/cache",
+
+	"channels":	{
+				"error": "Error",
+				"names": [null, "Error", "test"],
+				"file": "/home/pi/Desktop/.channel"
+			},
+
+	"web-ui": {
+			"show_type_colors": { "Shows": "FFAA22","Rock": "FFAA22", "Rap": "C8CF72", "Movies": "72CFC8", "Banter": "CEF5FA", "Bed": "DAA520", "Jingle": "A288EF", "Pop": "FFA2A2","News": "88AAFF","Movies": "A2FFAC", "Christmas": "A2B9FF","sum_Monday": "D5A2FF","sum_Tuesday": "F5A2DF","sum_Wednesday": "A5F2DF","sum_Thursday": "D5F2AF","sum_Friday": "F5F2FF","sum_Saturday": "F5D2AF","sum_Sunday": "75A2CF","win_Monday": "A572BF","win_Tuesday": "C572CF","win_Wednesday": "95C2AF","win_Thursday": "A5C28E","win_Friday": "C5C2CF","win_Saturday": "C5A27F","win_Sunday": "75A2CF","90s shows": "FFFF00","90s cartoons": "00FF00", "70s shows": "FF0000", "70s cartoons": "CCCCFF", "Halloween": "FE9A0A", "halloween": "FE9A0A", "xmas": "DD0000", "Station": "faa", "Saturday_Night": "cc00cc", "Classics": "eeffee", "none": "FFFFFF" },
+			"commmercial_type_colors": { "commercials": "aaa" },
+			"tv_schedule_link": "https://docs.google.com/spreadsheets/d/1s5jgKdGw8KmUcMlvUUBFWS3tkbEpG6WnHd9D5dlUJmQ/",
+			"database_info": { "host": "localhost", "username": "pi", "password": "raspberry", "database_name": "shows" },
+"time": { "format": { "path": ["time"], "type": "time" } }
+		  },
+
+	"vars": {
+			"shifts": { 
+				"crystal clear":	[ ["12:00AM", "12:59AM"],["06:00AM", "06:59AM"],["12:00PM", "12:59PM"],["06:00PM", "06:59PM"] ],
+				"fast eddie":		[ ["01:00AM", "01:59AM"],["07:00AM", "07:59AM"],["01:00PM", "01:59PM"],["07:00PM", "07:59PM"] ],
+				"chip": 		[ ["02:00AM", "02:59AM"],["08:00AM", "08:59AM"],["02:00PM", "02:59PM"],["08:00PM", "08:59PM"] ],
+				"blaze":		[ ["03:00AM", "03:59AM"],["09:00AM", "09:59AM"],["03:00PM", "03:59PM"],["09:00PM", "09:59PM"] ],
+				"riff":			[ ["04:00AM", "04:59AM"],["10:00AM", "10:59AM"],["04:00PM", "04:59PM"],["10:00PM", "10:59PM"] ],
+				"specks":		[ ["05:00AM", "05:59AM"],["11:00AM", "11:59AM"],["05:00PM", "05:59PM"],["11:00PM", "11:59PM"] ]
+			},
+			"shift monday": {
+				"crystal clear": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]],
+				"fast eddie": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]],
+				"chip": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]],
+				"blaze": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]],
+				"riff": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]],
+				"specks": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]]
+			},
+			"shift tuesday": {
+				"crystal clear": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]],
+				"fast eddie": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]],
+				"chip": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]],
+				"blaze": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]],
+				"riff": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]],
+				"specks": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]]
+			},
+			"shift wednesday": {
+				"crystal clear": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]],
+				"fast eddie": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]],
+				"chip": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]],
+				"blaze": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]],
+				"riff": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]],
+				"specks": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]]
+			},
+			"shift thursday": {
+				"crystal clear": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]],
+				"fast eddie": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]],
+				"chip": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]],
+				"blaze": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]],
+				"riff": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]],
+				"specks": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]]
+			},
+			"shift friday": {
+				"crystal clear": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]],
+				"fast eddie": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]],
+				"chip": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]],
+				"blaze": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]],
+				"riff": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]],
+				"specks": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]]
+			},
+			"shift saturday": {
+				"crystal clear": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]],
+				"fast eddie": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]],
+				"chip": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]],
+				"blaze": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]],
+				"riff": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]],
+				"specks": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]]
+			},
+			"shift sunday": {
+				"crystal clear": [["12:00AM","12:59AM"],["06:00AM","06:59AM"],["12:00PM","12:59PM"],["06:00PM","06:59PM"]],
+				"fast eddie": [["01:00AM","01:59AM"],["07:00AM","07:59AM"],["01:00PM","01:59PM"],["07:00PM","07:59PM"]],
+				"chip": [["02:00AM","02:59AM"],["08:00AM","08:59AM"],["02:00PM","02:59PM"],["08:00PM","08:59PM"]],
+				"blaze": [["03:00AM","03:59AM"],["09:00AM","09:59AM"],["03:00PM","03:59PM"],["09:00PM","09:59PM"]],
+				"riff": [["04:00AM","04:59AM"],["10:00AM","10:59AM"],["04:00PM","04:59PM"],["10:00PM","10:59PM"]],
+				"specks": [["05:00AM","05:59AM"],["11:00AM","11:59AM"],["05:00PM","05:59PM"],["11:00PM","11:59PM"]]
+			},
+			"loop count": 4,
+			"repeat range": 900,
+			"commercial loop count": 1
+		},
+
+	"times": [{
+			"name": ["%D[1]%/station"],
+			"type": "audio",
+			"channel": "Error",
+			"note": "If there's an error, the script will play this channel"
+		},
+		{
+			"name": ["%D[1]%/station"],
+			"type": "audio",
+			"note": "if no other time has been triggered, play the 'technical difficulties' video because something went wrong somewhere"
+		},
+		{
+			"name": ["%D[2]%/music/movies", "%D[2]%/music/pop", "%D[2]%/music/movies", "%D[2]%/music/rap" ],
+			"type": "audio"
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/crystal clear" },
+			"type": "radio",
+			"format": [ { "path": ["music/movies", "music/pop", "music/rock", "music/rap"], "type": "balanced", "weight": [25, 50, 20, 5] } ]
+		},
+		{
+			"DJ": "Crystal Clear",
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/crystal clear" },
+			"type": "radio",
+			"format": [ { "path": ["commercials"], "type": "commercial", "cut": 0, "loop": "$ref/commercial loop count" }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" }, { "path": ["banter/crystal clear"], "type": "balanced", "bed": [{ "name": "xmas/beds", "special": "xmas"}, { "name": "beds" }] }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" } ],
+			"minimum-before-repeat": "$ref/repeat range"
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/fast eddie" },
+			"type": "radio",
+			"format": [ { "path": ["music/movies", "music/pop", "music/rock", "music/rap"], "type": "balanced", "weight": [35, 30, 30, 5] } ]
+		},
+		{
+			"DJ": "Fast Eddie",
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/fast eddie" },
+			"type": "radio",
+			"format": [ { "path": ["commercials"], "type": "commercial", "cut": 0, "loop": "$ref/commercial loop count" }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" }, { "path": ["banter/fast eddie"], "type": "balanced", "bed": [{ "name": "xmas/beds", "special": "xmas"}, { "name": "beds" }] }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" } ],
+			"minimum-before-repeat": "$ref/repeat range"
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/chip" },
+			"type": "radio",
+			"format": [ { "path": ["music/movies", "music/pop", "music/rock", "music/rap"], "type": "balanced", "weight": [30, 35, 30, 5] } ]
+		},
+		{
+			"DJ": "Chip",
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/chip" },
+			"type": "radio",
+			"format": [ { "path": ["commercials"], "type": "commercial", "cut": 0, "loop": "$ref/commercial loop count" }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" }, { "path": ["banter/chip"], "type": "balanced", "bed": [{ "name": "xmas/beds", "special": "xmas"}, { "name": "beds" }] }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" } ],
+			"minimum-before-repeat": "$ref/repeat range"
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/blaze" },
+			"type": "radio",
+			"format": [ { "path": ["music/movies", "music/pop", "music/rock", "music/rap"], "type": "balanced", "weight": [32, 32, 31, 5]} ]
+		},
+		{
+			"DJ": "Blaze",
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/blaze" },
+			"type": "radio",
+			"format": [ { "path": ["commercials"], "type": "commercial", "cut": 0, "loop": "$ref/commercial loop count" }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" }, { "path": ["banter/blaze"], "type": "balanced", "bed": [{ "name": "xmas/beds", "special": "xmas"}, { "name": "beds" }] }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" } ],
+			"minimum-before-repeat": "$ref/repeat range"
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/riff" },
+			"type": "radio",
+			"format": [ { "path": ["music/movies", "music/pop", "music/rock", "music/rap"], "type": "balanced", "weight": [25, 30, 40, 5] } ]
+		},
+		{
+			"DJ": "Riff",
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/riff" },
+			"type": "radio",
+			"format": [ { "path": ["commercials"], "type": "commercial", "cut": 0, "loop": "$ref/commercial loop count" }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" }, { "path": ["banter/riff"], "type": "balanced", "bed": [{ "name": "xmas/beds", "special": "xmas"}, { "name": "beds" }] }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" } ],
+			"minimum-before-repeat": "$ref/repeat range"
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/specks" },
+			"type": "radio",
+			"format": [ { "path": ["music/movies", "music/pop", "music/rock", "music/rap"], "type": "balanced", "weight": [30, 30, 30, 10] } ]
+		},
+		{
+			"DJ": "Specks",
+			"name": ["%D[2]%"],
+			"between": { "times": "$ref/shift %day_of_week%/specks" },
+			"type": "radio",
+			"format": [ { "path": ["commercials"], "type": "commercial", "cut": 0, "loop": "$ref/commercial loop count" }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" }, { "path": ["banter/specks"], "type": "balanced", "bed": [{ "name": "xmas/beds", "special": "xmas"}, { "name": "beds" }] }, { "path": [{ "name": "xmas/jingles", "special": "xmas"}, { "name": "jingles" }], "type": "random" } ],
+			"minimum-before-repeat": "$ref/repeat range"
+		},
+		{
+			"name": ["%D[2]%/shows"],
+			"between": { "times": [ ["10:00PM", "10:45PM"] ] },
+			"note": "between 00 and 40 minutes because the format block could play 4x10 minute songs.",
+ 			"type": "radio",
+			"format":[ { "path": ["rick dees", "casey kasem"], "type": "ordered-show" } ]
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": [ ["01:00AM", "04:29AM"] ] },
+			"note": "between 00 and 40 minutes because the format block could play 4x10 minute songs.",
+ 			"type": "radio",
+			"format":[ { "path": ["jingles"], "type": "random" }, { "path": ["music/albums"], "type": "ordered", "loop": 2 } ]
+		},
+		{
+			"name": ["%D[2]%/news"],
+			"between": { "times": [ ["06:00AM", "09:59PM"] ] },
+			"type": "radio",
+			"format": [ { "path": ["jingles"], "type": "random" }, { "path": ["clips"], "type": "ordered", "bed": "beds" }, { "path": ["jingles"], "type": "random" } ],
+			"minimum-before-repeat": [3600, 7200],
+			"chance": "1%"
+		},
+		{
+			"name": ["%D[2]%/halloween"],
+			"month": [ 10 ],
+			"type": "balanced-radio",
+			"format": [ ["banter", "songs"] ],
+			"chance": "5%"
+		},
+		{
+			"name": ["%D[2]%/thanksgiving/news"],
+			"between": { "times": [ ["09:00AM", "11:59AM"] ] },
+ 			"type": "radio",
+			"special": "thanksgiving",
+			"format": [ { "path": ["parade"], "type": "ordered", "bed": "beds", "cut": 0 } ],
+			"minimum-before-repeat": 900
+		},
+		{
+			"name": ["%D[2]%/thanksgiving"],
+			"between": { "times": [ ["11:50AM", "11:58AM"], ["03:20PM", "03:28PM"]  ] },
+			"note": "a buffer to start Alice's restuarant",
+ 			"type": "radio",
+			"special": "thanksgiving",
+			"format":[ { "path": ["songs"], "type": "balanced" } ]
+		},
+		{
+			"name": ["%D[2]%/thanksgiving"],
+			"between": { "times": [ ["12:00PM", "12:12PM"], ["03:30PM", "03:42PM"]  ] },
+ 			"type": "radio",
+			"special": "thanksgiving",
+			"format":[ { "path": ["@/media/pi/ssd/jingles"] }, { "path": ["banter/01"], "bed": "beds", "cut": 27 }, { "path": ["alice"] }, { "path": ["banter/02"], "cut": 0, "bed": "beds" }, { "path": ["@/media/pi/ssd/jingles"] } ]
+		},
+		{
+			"name": ["%D[2]%"],
+			"between": { "times": [ ["%HOUR%:59%AMPM%", "%HOUR%:59%AMPM%"] ] },
+ 			"type": "radio",
+			"format":[ { "path": ["commercials"], "type": "commercial", "cut": 0, "min-length": 10, "max-length": 30 } ]
+		},
+		{
+			"name": ["%D[2]%/xmas"],
+			"between": { "times": [ ["05:00AM", "11:59PM"] ] },
+ 			"type": "radio",
+			"special": "xmas",
+			"format": [ { "path": ["songs", "classics"], "type": "balanced" } ],
+			"chance": "bound(0.05 + bound((month==11)*(day-23.0)+(month==12)*(day+7.0), 0.0, 30.0) * ((0.0 - 0.05)/30.0), 0.0, 0.50)",
+			"chance note": "0.2500 is the target. Change that number if you wish to increase or decrease the chance"
+		},
+		{
+			"name": ["%D[2]%/xmas"],
+			"between": { "dates": [ ["Dec 24", "Dec 25"] ], "times": [ ["05:00AM", "11:59PM"] ] },
+ 			"type": "radio",
+			"format": [ { "path": ["songs", "classics"], "type": "balanced" } ]
+		},
+		{
+			"name": ["%D[2]%/xmas"],
+			"between": { "dates": [ ["Nov 23", "Nov 30"] ], "times": [ ["05:00AM", "09:59PM"] ] },
+ 			"type": "radio",
+			"format": [ { "path": ["songs", "classics"], "type": "balanced" } ],
+			"minimum-before-repeat": 1800,
+			"chance": "25%"
+		},
+		{
+			"name": ["%D[2]%/xmas"],
+			"between": { "dates": [ ["Nov 15", "Nov 22"] ], "times": [ ["05:00AM", "09:59PM"] ] },
+ 			"type": "radio",
+			"format": [ { "path": ["songs", "classics"], "type": "balanced" } ],
+			"minimum-before-repeat": 3600,
+			"chance": "25%"
+		}
+	],
+
+
+	"commercial_times": [
+		
+	]
+}
