@@ -220,7 +220,7 @@
 		{
 			"name": ["%D[2]%/halloween"],
 			"month": [ 10 ],
-			"type": "balanced-radio",
+			"type": "radio",
 			"format": [ ["banter", "songs"] ],
 			"chance": "5%"
 		},
