@@ -7,15 +7,12 @@ import glob						# how we quickly get all files in a directory
 import random					# choosing random stuff
 import time						# time functions
 import datetime					# date and time, used for testing purposes
-import urllib2					# web stuff
-import urllib					# web stuff
 import re						# regular expressions
 import calendar					# used in special date calculating
 import sys						# for accepting arguments from command line
 import json						# settings file is in json format
-import subprocess				# for rebooting the machine
 import traceback
-import pprint
+import hashlib					# for generating hash IDs
 
 output_print = []
 
@@ -52,6 +49,13 @@ def get_current_channel():
 	return line if line else None
 
 def is_number(s):
+	""" 
+	Checks if the string is a number by testing if it can be converted to a float.
+
+	:param s: The string to check.
+	:return: True if it can be converted, False otherwise.
+	"""
+
 	try:
 		float(s)
 		return True
@@ -169,6 +173,14 @@ def PastThanksgiving(is_thanksgiving):
 
 
 def is_date_within_range(date1, date2, range_days):
+	"""
+	Checks if date1 is within range_days of date2.
+	
+	:param date1: The first date to check (datetime.date).
+	:param date2: The second date to check (datetime.date).
+	:param range_days: The range in days (int). Positive for future range, negative for past range.
+	:return: True if date1 is within range_days of date2, False otherwise.
+	"""
 	delta = (date1 - date2).days
 	if (range_days >= 0 and 0 <= delta <= range_days) or (range_days < 0 and range_days <= delta <= 0):
 		return True
@@ -207,19 +219,27 @@ def IsMothersDay(daysFromMothersDay):
 	#target_date = mothers_day_date + datetime.timedelta(days=daysFromMothersDay)
 	return is_date_within_range(datetime.date(now.year, now.month, now.day), mothers_day_date, daysFromMothersDay)
 
-def is_number(s):
-	try:
-		float(s)
-		return True
-	except ValueError:
-		return False
-
 def is_special_time(check):
+	"""
+	Checks if the current date matches a special holiday condition.
+	
+	:param check: A string representing the special holiday condition.
+	:return: True if the current date matches the condition, False otherwise.
+	"""
+
+
 	if check[:4].lower() == 'xmas':
 		if is_number(check[4:].strip()):
 			num = int(check[4:])
 		else:
-			return True if IsThanksgiving(8) and IsXmas(-25) else False
+			return True if IsThanksgiving(8) or IsXmas(-25) else False
+		return True if IsXmas(num) else False
+
+	if check[:9].lower() == 'christmas':
+		if is_number(check[9:].strip()):
+			num = int(check[9:])
+		else:
+			return True if IsThanksgiving(8) or IsXmas(-25) else False
 		return True if IsXmas(num) else False
 
 	if check[:12].lower() == 'thanksgiving':
@@ -341,8 +361,7 @@ def eval_equation(equation, now):
 	# uses EVAL() but santizes by removing anything not a number, math symbol, period, or parentheses
 	# replaces certain KEYWORDS to the corresponding value
 	try:
-
-		if len(equation) > 200:
+		if len(equation) > 300:
 			return -2 # if the equation is too long, return -2
 
 		# Check for percentage format (e.g., "25%") and convert to decimal (e.g., "0.25")
@@ -357,6 +376,7 @@ def eval_equation(equation, now):
 			"__builtins__": {},
 			"sin": math.sin,
 			"cos": math.cos,
+			"tan": math.tan,
 			"abs": abs,
 			"min": min,
 			"max": max,
@@ -369,19 +389,21 @@ def eval_equation(equation, now):
 			"e": math.e,
 			"scale": lambda x: float(x) / 100,
 			"clamp": lambda x,y=1.0: max(0.0, min(y, float(x))),
-			"day": now.day,
-			"maxdays": calendar.monthrange(now.year, now.month)[1],
-			"weekday": now.weekday(),
-			"month": now.month,
-			"hour": now.hour,
-			"minute": now.minute,
-			"second": now.second,
-			"year": now.year
+			"bound": lambda x, low, high: max(low, min(high, float(x))),
+			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
+			"day": float(now.day),
+			"maxdays": float(calendar.monthrange(now.year, now.month)[1]),
+			"weekday": float(now.weekday()),
+			"month": float(now.month),
+			"hour": float(now.hour),
+			"minute": float(now.minute),
+			"second": float(now.second),
+			"year": float(now.year)
 		}
-
+		
 		return eval(equation, safe_globals, {})
 	except:
-		return -1  # if there was an error, return -1
+		return str(traceback.format_exc()) + " equation length: [" + str(len(equation)) + "] equation: [" + equation + "]"
 
 def get_short_month_name(month_number):
 	month_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -390,14 +412,49 @@ def get_short_month_name(month_number):
 	else:
 		raise ValueError("Month number must be in the range 1-12")
 
+def replace_all_special_words(s):
+	"""
+	Replaces special keywords in a string with their actual values.
+	Handles keywords like %D[index]%, %day%, %day_of_week%, %month%, etc.
+
+	:param s: The string to process.
+	:return: The processed string with special keywords replaced.
+	"""
+	global settings
+	global now
+	d = now.weekday()
+	month = now.month
+	# drive(s) location is set via an array in the settings.
+	# iterate each drive replacing the special keyword with the actual drive location
+	# 		%D[index]%
+	for i in range(len(settings['drive'])):
+		s = s.replace("%D[" + str((i+1)) + "]%", settings['drive'][i])
+	# the day of the week and month special keywords can be replaced with the current day or week or month
+	for r in [["%day%", str(d)], ["%day_of_week%", getDayOfWeek(d)], ["%month%", getMonth(month)], ["%prev-month%", getMonth(month-1)], ["%next-month%", getMonth(month+1)]]:
+		s = s.replace(*r)
+	return s
+
 # Function to replace %MAXDAYS% with the correct number of days in the month
 def replace_special_words(date_str):
 	global now
+
+    # --- Custom Logic for %TOPTENSMIN% (00-05 or 30-35 minute triggers) ---
+	minute_tens = now.strftime("%M")[0]
+	top_tens_min_replacement = ""
+    # Only allow substitution if the current minute starts with a '0' or '3'
+	if minute_tens == '0' or minute_tens == '3':
+		top_tens_min_replacement = minute_tens
+
 	# Create a dictionary for placeholders and their replacement values
 	replacements = {
 		"%HOUR%": now.strftime("%I"),
+		"%TENSHOUR%": now.strftime("%I")[0],
+		"%UNITSHOUR%": now.strftime("%I")[1],
 		"%AMPM%": now.strftime("%p"),
 		"%MIN%": now.strftime("%M"),
+		"%TENSMIN%": now.strftime("%M")[0],
+		"%UNITSMIN%": now.strftime("%M")[1],
+		"%TOPTENSMIN%": top_tens_min_replacement,
 		"%MONTH%": get_short_month_name(now.month),
 		"%DAY%": "{:02d}".format(now.day),
 		"%YEAR%": str(now.year)
@@ -406,6 +463,7 @@ def replace_special_words(date_str):
 	# Replace each placeholder with its corresponding value
 	for key, value in replacements.items():
 		if key in date_str:
+			date_str = date_str.replace(key, value)
 			date_str = date_str.replace(key, value)
 
 	if "%MAXDAYS%" in date_str:
@@ -424,67 +482,117 @@ def replace_special_words(date_str):
 		date_str = date_str.replace("%MAXDAYS%", str(max_days))
 	return date_str
 
-# Function to check if the current date and time fall within the ranges
+def check_time_match(time_range_list, current_datetime):
+    """
+    Checks if current_datetime is within a single time range.
+    
+    :param time_range_list: A list containing [start_time_str, end_time_str].
+    :param current_datetime: The datetime object to check against.
+    :return: True if the current time is within the range, False otherwise.
+    """
+    # Defensive check: ensure we have a list of two strings/items
+    if not isinstance(time_range_list, list) or len(time_range_list) < 2:
+        return False
+
+    # 1. Apply placeholders (like %HOUR%)
+    start_time_str = replace_special_words(time_range_list[0])
+    end_time_str = replace_special_words(time_range_list[1])
+    current_time = current_datetime.time()
+
+    try:
+        # 2. Convert to time objects
+        check_start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p").time()
+        end_time = datetime.datetime.strptime(end_time_str, "%I:%M%p").time()
+
+        # 3. Perform comparison
+        return check_start_time <= current_time <= end_time
+    except ValueError:
+        # Fails silently if a resulting time string is invalid
+        return False
+
+
 def is_within_range(data):
-	global now
-	current_datetime = now
-	current_date = current_datetime.strftime("%b %d")
-	current_time = current_datetime.strftime("%I:%M%p")
-	current_year = now.year
+    """
+    Checks if the current date and time fall within the specified ranges, 
+    using AND/OR logic for time based on nested lists.
 
-	date_ranges = data.get("dates", [])
-	time_ranges = data.get("times", [])
-	year_ranges = data.get("years", [])
+    :param data: A dictionary containing date, time, and year ranges.
+    :return: True if the current date and time fall within the ranges, False otherwise.
+    """
+    global now # always use the global 'now' variable for date and time
+    current_datetime = now
+    
+    # We will keep the original (OR) logic for dates and years as you intended.
+    
+    date_ranges = data.get("dates", [])
+    time_ranges = data.get("times", [])
+    year_ranges = data.get("years", [])
 
-	# Check if the current year is within any of the year ranges
-	year_within_range = True
-	for year_range in year_ranges:
-		year_within_range = False
-		if replace_special_words(str(year_range)) == str(current_year):
-			year_within_range = True
-			break
+    # --- Check Year Ranges (Original OR Logic) ---
+    year_within_range = True
+    for year_range in year_ranges:
+        year_within_range = False
+        if replace_special_words(str(year_range)) == str(current_datetime.year):
+            year_within_range = True
+            break
 
-	# Check if the current date is within any of the date ranges
-	date_within_range = True
-	for date_range in date_ranges:
-		date_within_range = False
-		if isinstance(date_range, list): # a list of dates
-			start_date_str = replace_special_words(date_range[0])
-			end_date_str = replace_special_words(date_range[1])
-		
-			start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
-			end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
-			if start_date.date() <= current_datetime.date() <= end_date.date():
-				date_within_range = True
-				break
-		else: # a single date
-			start_date_str = replace_special_words(date_range)
-			start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
-			if start_date.date() == current_datetime.date():
-				date_within_range = True
-				break
-	
-	# Check if the current time is within any of the time ranges
-	time_within_range = True
-	for time_range in time_ranges:
-		time_within_range = False
-		if isinstance(time_range, list): # a list of dates
-			start_time_str = replace_special_words(time_range[0])
-			end_time_str = replace_special_words(time_range[1])
+    # --- Check Date Ranges (Original OR Logic) ---
+    date_within_range = True
+    for date_range in date_ranges:
+        date_within_range = False
+        if isinstance(date_range, list): # a list of dates [start, end]
+            start_date_str = replace_special_words(date_range[0])
+            end_date_str = replace_special_words(date_range[1])
+            
+            start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+            end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
+            
+            if start_date.date() <= current_datetime.date() <= end_date.date():
+                date_within_range = True
+                break
+        else: # a single date
+            start_date_str = replace_special_words(date_range)
+            start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+            if start_date.date() == current_datetime.date():
+                date_within_range = True
+                break
+    
+    # --- Check Time Ranges (NEW Nested AND/OR Logic) ---
+    if not time_ranges:
+        time_within_range = True
+    else:
+        time_within_range = False
+        
+        # Outer Loop: OR Logic (Must match ANY top-level item)
+        for top_level_item in time_ranges:
+            
+            current_item_matches = False
+            
+            # Case A: Nested AND Check (e.g., [ ['start', 'end'], ['start2', 'end2'] ] )
+            if isinstance(top_level_item[0], list): 
+                
+                is_and_match = True
+                for inner_range in top_level_item:
+                    # Use the helper to check the inner condition
+                    if not check_time_match(inner_range, current_datetime):
+                        is_and_match = False
+                        break # Failed the AND requirement
+                
+                if is_and_match:
+                    current_item_matches = True
 
-			start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
-			end_time = datetime.datetime.strptime(end_time_str, "%I:%M%p")
-			if start_time.time() <= current_datetime.time() <= end_time.time():
-				time_within_range = True
-				break
-		else:
-			start_time_str = replace_special_words(time_range)
-			start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p")
-			if start_time.time() == current_datetime.time():
-				time_within_range = True
-				break
-
-	return date_within_range and time_within_range and year_within_range
+            # Case B: Simple OR Check (e.g., ['start', 'end'])
+            else:
+                if check_time_match(top_level_item, current_datetime):
+                    current_item_matches = True
+                    
+            # Overall OR Break: If a match was found for this top-level item
+            if current_item_matches:
+                time_within_range = True
+                break
+    
+    # Final Result: All conditions must be met
+    return date_within_range and time_within_range and year_within_range
 
 def is_dict(var):
 	"""
@@ -495,7 +603,93 @@ def is_dict(var):
 	"""
 	return isinstance(var, dict)
 
-def check_video_times(obj, channel=None, allow_chance=True): # check to see if the current time falls within the programming schedule
+def printd(*args):
+	"""
+	Debug print function that only outputs messages if debug mode is enabled in the settings.
+
+	:param args: The arguments to print.
+	:return: None
+	"""
+	if get_setting(['debug'], False) == False:
+		return
+	print(' '.join(str(arg) if not isinstance(arg, list) else str(arg) for arg in args))
+	print("")
+
+repeatedly_tracked_plays = {}
+
+def repeatedly_generate_id_from_dict(data):
+	"""
+	Part of "repeatedly" feature set by minimum-before-repeat.
+	Generate a deterministic hash ID from dictionary contents.
+
+	:param data: A dictionary representing the item.
+	:return: A string representing the generated ID.
+	"""
+	serialized = json.dumps(data, sort_keys=True)
+	return hashlib.md5(serialized.encode('utf-8')).hexdigest()
+
+
+def repeatedly_register_playable(entry, override=False, offset=0):
+	"""
+	Part of "repeatedly" feature set by minimum-before-repeat.
+	Initialize tracking for a new item using its content-derived ID.
+
+	:param entry: A dictionary representing the item to register.
+	:param override: A boolean indicating whether to override existing tracking data (default is False).
+	:param offset: A time offset in seconds to adjust the last played time (default is 0).
+	:return: The generated ID for the item.
+	"""
+	global repeatedly_tracked_plays
+	raw_min = entry.get("minimum-before-repeat")
+
+	if is_number(raw_min):
+		minimum = raw_min
+	elif isinstance(raw_min, list) and len(raw_min) == 2:
+		start, end = raw_min
+		if is_number(start) and is_number(end):
+			minimum = random.randint(start, end)
+		else:
+			printd("Skipping registration: invalid range values")
+			return
+	else:
+		printd("Skipping registration: minimum-before-repeat must be number or list of two numbers")
+		return
+
+	id = repeatedly_generate_id_from_dict(entry)
+	if id not in repeatedly_tracked_plays or override:
+		repeatedly_tracked_plays[id] = {
+			"last_played": time.time() - offset,
+			"minimum": float(minimum)
+		}
+	return id  # Optional: return for external use
+
+def repeatedly_can_play(entry):
+	"""
+	Part of "repeatedly" feature set by minimum-before-repeat.
+	Check if the item can be played again using its content-derived ID.
+
+	:param entry: A dictionary representing the item to check.
+	:return: True if the item can be played, False otherwise.
+	"""
+	global repeatedly_tracked_plays
+	current_time = time.time()
+	id = repeatedly_generate_id_from_dict(entry)
+	entry_data = repeatedly_tracked_plays.get(id)
+	if not entry_data:
+		return True
+	return (current_time - entry_data["last_played"]) >= entry_data["minimum"]
+
+def repeatedly_reset():
+	"""
+	Part of "repeatedly" feature set by minimum-before-repeat.
+	Resets the tracking data for all items.
+
+	:return: None
+	"""
+	global repeatedly_tracked_plays
+	repeatedly_tracked_plays = {}
+
+def check_video_times(obj, channel=None, allow_chance=True):
 	"""
 	Checks the current time against a list of programming times and returns the first matching schedule.
 
@@ -509,146 +703,116 @@ def check_video_times(obj, channel=None, allow_chance=True): # check to see if t
 		global now
 		global current_video_tag
 
-		month = now.month
-		now_h = now.hour
-		now_m = now.minute
-		now_d = now.weekday()
-		ddm = now.day
-		now_y = now.year
-		
-		dayOfWeek = getDayOfWeek(now_d)
-		
+		month, now_h, now_m = now.month, now.hour, now.minute
+		now_d, ddm, now_y = now.weekday(), now.day, now.year
+		day_of_week = getDayOfWeek(now_d)
 
-		skip = dict (
-			month = None,
-			date = None,
-			dayOfWeek = None,
-			time = None,
-			special = None,
-			chance = None,
-			between = None,
-			channel = None
-		)
-
-		for timeItem in reversed(obj):
+		for time_item in reversed(obj):
 			is_static = [False, 0, ""]
-			skip = dict (
-				month = False,
-				date = False,
-				dayOfWeek = False,
-				time = False,
-				special = False,
-				chance = False,
-				between = False,
-				channel = False
-			)
-			
-			video_type = "video"
+			skip = dict.fromkeys([
+				'month', 'date', 'dayOfWeek', 'time', 'special',
+				'chance', 'between', 'channel', 'minimum'
+			], False)
 
-			if 'type' in timeItem: # check if it's a show or commercial
-				if timeItem['type'] != None:
-					video_type = timeItem['type']
+			video_type = time_item.get('type') or "video"
 
-			if 'channel' in timeItem: # check if we should be using special channels
-				if timeItem['channel'] == None and channel == None:
-					skip['channel'] = False
-				elif timeItem['channel'] in wildcard_array():
-					skip['channel'] = False
+		 # Channel check
+			if 'channel' in time_item:
+				if time_item['channel'] is None and channel is None:
+					pass
+				elif time_item['channel'] in wildcard_array():
+					pass
+				elif time_item['channel'] != channel:
+					continue
+
+			# Minimum repeat check
+			if time_item.get('minimum-before-repeat') is not None:
+				min_repeat = time_item.get("minimum-before-repeat")
+				if (
+					(is_number(min_repeat)) or
+					(isinstance(min_repeat, list) and len(min_repeat) == 2 and is_number(min_repeat[0]) and is_number(min_repeat[1]))
+				) and not repeatedly_can_play(time_item):
+					continue
+
+			# Special time check
+			if time_item.get('special') is not None:
+				if not is_special_time(time_item['special']):
+					continue
+
+			# Chance check
+			if 'chance' in time_item:
+				chance_eval = eval_equation(time_item['chance'])
+				chance_rnd = random.random()
+				printd("Chance Eval", chance_eval, "rnd", chance_rnd, "allow_chance", allow_chance, "uneval", time_item['chance'])
+				if chance_rnd > float(chance_eval) or not allow_chance:
+					continue
+
+			# Between check
+			if time_item.get('between') is not None:
+				if is_dict(time_item['between']):
+					if not is_within_range(time_item['between']):
+						continue
 				else:
-					if timeItem['channel'] != channel:
-						continue
+					report_error("CHECK_TIMES", ["between is not a dictionary", str(time_item['between'])])
 
-			if 'special' in timeItem:
-				if timeItem['special'] != None:
-					if is_special_time(timeItem['special']) == False:
-						continue
-
-			if 'chance' in timeItem:
-				chance_eval = timeItem['chance'] # store chance string
-				if type(chance_eval) != float:
-					chance_eval = eval_equation(chance_eval, now)
-				if random.random() > float(chance_eval) or allow_chance == False:
+			# Month check
+			if time_item.get('month') is not None:
+				if not any(m == month or m in wildcard_array() for m in time_item['month']):
 					continue
 
-			if 'between' in timeItem:
-				if timeItem['between'] != None:
-					if is_dict(timeItem['between']):
-						if is_within_range(timeItem['between'])==False:
-							continue
-					else:
-						report_error("CHECK_TIMES", ["between is not a dictionary and it should be", str(timeItem['between'])])
-						
-			if 'month' in timeItem:
-				if timeItem['month'] != None:
-					test = False
-					for itemX in timeItem['month']:
-						if itemX == month or itemX in wildcard_array(): # if it's the proper month, we proceed
-							test = True
-							break
-					if test==False:
-						continue
-
-			if 'date' in timeItem:
-				if timeItem['date'] != None:
-					test = False
-					for itemX in timeItem['date']:
-						if itemX == ddm or itemX in wildcard_array(): # if it's on the proper day, we proceed
-							test = True
-							break
-					if test==False:
-						continue
-
-			if 'dayOfWeek' in timeItem:
-				if timeItem['dayOfWeek'] != None:
-					test = False
-					for itemX in timeItem['dayOfWeek']:
-						if itemX.lower() == dayOfWeek or itemX in wildcard_array(): # if it's the proper day of the week, we proceed
-							test = True
-							break
-					if test==False:
-						continue
-
-			if 'tag' in timeItem: #  if current video is tagged, we need to check if any programming matches it
-				if current_video_tag == None:
-					continue
-				if timeItem['tag'].lower() != current_video_tag.lower():
+			# Date check
+			if time_item.get('date') is not None:
+				if not any(d == ddm or d in wildcard_array() for d in time_item['date']):
 					continue
 
-			if 'start' in timeItem and 'end' in timeItem:
+			# Day of week check
+			if time_item.get('dayOfWeek') is not None:
+				if not any(d.lower() == day_of_week or d in wildcard_array() for d in time_item['dayOfWeek']):
+					continue
+
+			# Tag check
+			if 'tag' in time_item:
+				if current_video_tag is None or time_item['tag'].lower() != current_video_tag.lower():
+					continue
+
+			# Time range check
+			if 'start' in time_item and 'end' in time_item:
 				ntime = now
-				if timeItem['start'][0] in wildcard_array():
-					timeItem['start'][0] = now_h
-				if timeItem['start'][1] in wildcard_array():
-					timeItem['start'][1] = now_m
-				if timeItem['end'][0] in wildcard_array():
-					timeItem['end'][0] = now_h
-				if timeItem['end'][1] in wildcard_array():
-					timeItem['end'][1] = now_m
-			
-				stime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['start'][0]) + ":" + str(timeItem['start'][1]) + ":00", "%d/%m/%Y %H:%M:%S")
-				etime = datetime.datetime.strptime(str(now.day).zfill(2) + "/" + str(now.month).zfill(2) + "/" + str(now.year).zfill(4) + " " + str(timeItem['end'][0]) + ":" + str(timeItem['end'][1]) + ":59", "%d/%m/%Y %H:%M:%S")
-				#print(timeItem['name'], str(stime), now, ntime, etime)
-				if ntime >= stime and ntime <= etime:
-					skip['time'] = False
-				else:
+				start_h, start_m = time_item['start']
+				end_h, end_m = time_item['end']
+
+				if start_h in wildcard_array(): start_h = now_h
+				if start_m in wildcard_array(): start_m = now_m
+				if end_h in wildcard_array(): end_h = now_h
+				if end_m in wildcard_array(): end_m = now_m
+
+				stime_str = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:00".format(ddm, month, now_y, start_h, start_m)
+				etime_str = "{:02d}/{:02d}/{:04d} {:02d}:{:02d}:59".format(ddm, month, now_y, end_h, end_m)
+
+				stime = datetime.datetime.strptime(stime_str, "%d/%m/%Y %H:%M:%S")
+				etime = datetime.datetime.strptime(etime_str, "%d/%m/%Y %H:%M:%S")
+
+				printd(time_item['name'], str(stime), now, ntime, etime)
+
+				if not (stime <= ntime <= etime):
 					continue
 
-			if 'static' in timeItem: # this flag establishes that this schedule should stay triggered until the set time runs out
-				if timeItem['static'] != None:
-					if is_number(timeItem['static'][1]) == True:
-						is_static = timeItem['static']
-		
-		
-			#useThisOne = True
-			#for itemX in skip:
-			#	if skip[itemX] == True:
-			#		useThisOne = False
-			#		break
-			
-			#returns: name, true if chance triggers, type of video, whether static is set, the entire programming block, and the current time
-			return [timeItem['name'], True if skip['chance']==False else False, video_type, is_static, timeItem, now]
+			# Static flag
+			if time_item.get('static') is not None:
+				if is_number(time_item['static'][1]):
+					is_static = time_item['static']
+
+			return [
+				time_item['name'],
+				not skip['chance'],
+				video_type,
+				is_static,
+				time_item,
+				now
+			]
+
 	except Exception as valerr:
-		report_error("CHECK_TIMES", [str(valerr),traceback.format_exc()])
+		report_error("CHECK_TIMES", [str(valerr), traceback.format_exc(), "item failed:", time_item])
 
 	return None
 
@@ -659,13 +823,98 @@ def get_video_tag(video_file):
         return matches[-1].split()[-1]
     return None
 
+def resolve_directory_placeholders(path_string, drives):
+	"""
+	Replaces %D[#]% placeholders in a path string with the corresponding drive path.
+	"""
+	def replacer(match):
+		index_str = match.group(1)
+		try:
+			# Convert to integer and subtract 1 for 0-based list access
+			index = int(index_str) - 1
+			if 0 <= index < len(drives):
+				return drives[index]
+			else:
+				print("WARNING: Drive index {} out of bounds in path: {}".format(index_str, path_string))
+				return match.group(0)
+		except ValueError:
+			return match.group(0)
+
+	# 1. Resolve %D[#]% placeholders
+	resolved_path = re.sub(r'\%D\[(\d+)\]\%', replacer, path_string)
+	
+	# 2. Resolve %MONTH%, %DAY%, etc. placeholders
+	final_path = replace_all_special_words(resolved_path)
+	
+	return final_path
+
+
+def get_parent_dir(path):
+	"""
+	Given a path, returns the parent directory to check.
+	Returns None if no directory component is found.
+	"""
+	if path.endswith('/') or path.endswith('\\'):
+		# It's an explicit directory path
+		return path
+	else:
+		# It might be a file; check its containing directory
+		parent_dir = os.path.dirname(path)
+		# If path is just a file name (no directory component), dirname returns ''
+		return parent_dir if parent_dir else None
+
+
+def verify_directories(config_data):
+	"""
+	Verifies that all specified directories exist on the filesystem.
+	"""
+	return_value = []
+	dirs_to_check = set()
+	drives = config_data.get('drive', [])
+	
+	# 1. Check 'drive' directories
+	for d in drives:
+		dirs_to_check.add(d)
+	
+	# 2. Check 'cache_path'
+	cache_path = config_data.get('cache_path')
+	if cache_path:
+		dirs_to_check.add(cache_path)
+	
+	# 3. Check paths in 'times' (name and bumpers)
+	times_config = config_data.get('times', [])
+	for entry in times_config:
+		# Check 'name' paths
+		names = entry.get('name', [])
+		for name_path in names:
+				dirs_to_check.add(name_path)
+
+		# Check 'bumpers' paths
+		bumpers = entry.get('bumpers', {})
+		for bumper_type in ['out', 'in']:
+			paths = bumpers.get(bumper_type, [])
+			for path in paths:
+				dirs_to_check.add(path)
+
+	# Perform the checks
+	for dir_path in sorted(list(dirs_to_check)):
+		if dir_path in ('', '.', '/'):
+			continue
+			
+		normalized_path = resolve_directory_placeholders(os.path.normpath(dir_path), drives)
+		
+		if not os.path.isdir(normalized_path):
+			return_value.append(["Resolved", normalized_path, "Unresolved", dir_path])
+	
+	return return_value
+
 now = datetime.datetime.now()
 channel_name_static = None
 base_directory = os.path.dirname(__file__)
 current_video_tag = None
 
 ############################ settings
-SETTINGS_VERSION = 0.994
+SETTINGS_VERSION = 0.995
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
@@ -674,12 +923,8 @@ settings = None
 settings_file = base_directory + "settings.json"
 
 update_settings()
-
 ############################ /settings
-#	if len(sys.argv)>1: # the first argument is the time to test
-#	settings['time_test'] = sys.argv[1]
-#	if len(sys.argv)>2: # the second argument is the test file which may contain a video tag
-#	settings['test_file'] = sys.argv[2]
+
 
 parser = argparse.ArgumentParser(description='Process video scheduling inputs.')
 
@@ -696,13 +941,12 @@ settings.update({
     'test_file': args.test_file,
     'video_tag': args.video_tag,
 	'chance_test': args.chance_test,
-	'channel': args.channel
+	'channel': args.channel,
 })
 update_current_time()
 
 if settings.get('chance_test', None) != None:
-	print(eval_equation(settings['chance_test'], now))
-	exit()
+	report_error("Chance", [ eval_equation(settings['chance_test'], now) ])
 
 #		print("Using Test Date Time " + str(settings['time_test']))
 current_video_tag = None
@@ -724,11 +968,12 @@ if settings.get('channel', None) != None:
 
 output = {}
 
+report_error("DIRECTORY_CHECK", ["The following directories do not exist:", str(verify_directories(settings))])
 programming_schedule = check_video_times(settings['times'], get_current_channel(), True)
 
 output['programming'] = {}
 
-if programming_schedule[4]:
+if programming_schedule and programming_schedule[4]:
 	for k in programming_schedule[4]:
 		output['programming'][k]= str(programming_schedule[4][k])
 
@@ -742,7 +987,7 @@ else:
 programming_schedule = check_video_times(settings['commercial_times'], get_current_channel(), True)
 output['commercials'] = {}
 
-if programming_schedule[4]:
+if programming_schedule and programming_schedule[4]:
 	for k in programming_schedule[4]:
 		output['commercials'][k] = str(programming_schedule[4][k])
 else:
