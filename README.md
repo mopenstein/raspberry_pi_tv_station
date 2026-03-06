@@ -20,7 +20,7 @@ To maintain a high-quality broadcast, media must be properly mastered. Two compa
 ## Technical Requirements & Compatibility
 * **Hardware:** Raspberry Pi 3B+ (utilized for stable A/V composite output).
 * **Operating System:** Raspberry Pi OS (Legacy/Buster) is required to support the deprecated OMXPlayer binary and OpenMAX hardware abstraction layer.
-* **Environment:** Python 2.7
+* **Environment:** Python 2.7, PHP 7
 
 # Fully automated functioning TV Station
 
