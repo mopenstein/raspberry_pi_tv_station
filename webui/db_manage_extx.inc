@@ -5,49 +5,6 @@ class DBMANAGEEXT {
 	private $mysqlix;
 	
     private $db_management_file = "db_manage.txt";
-
-	public function announce() {
-        $return = '<!-- database manage eXtension -->
-<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_shows" style="color:red;" onclick="return confirm(\'This will permanently delete all show data older than 10 days. Are you sure?\')">Trim Shows Played Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_shows_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all shows data. Are you sure?\')">[EMPTY]</a></li>		
-<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_commercials" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data older than 10 days. Are you sure?\')">Trim Commercials Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_commercials_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all commercials data. Are you sure?\')">[EMPTY]</a></li>
-<li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_errors" style="color:red;" onclick="return confirm(\'This will permanently delete all error data older than 10 days. Are you sure?\')">Trim Messages Log</a> | <a href="/?db_manage_ext=1&amp;action=trim_errors_empty" style="color:red;" onclick="return confirm(\'This will permanently delete all messages. Are you sure?\')">[EMPTY]</a></li>
-<button onclick="document.getElementById(\'db_manage_expand\').style.display = \'block\';">Show More</button><div id="db_manage_expand" style="display:none;">
-';
-
-        // Read the file lines into an array
-        if (file_exists($this->db_management_file)) { // Check if the file exists
-            $lines = file($this->db_management_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES); // Optional flags to trim newlines and skip empty lines
-            $return.='<ul>
-';
-            for($i=0;$i<count($lines);$i++)
-            {
-                $l = $lines[$i];
-                $return.='  <li style="padding:4px;"><a href="/?db_manage_ext=1&amp;action=trim_data'.$i.'" style="color:red;" onclick="return confirm(\'This will permanently delete all entries with /'.$l.'/ in the path. Are you sure?\')">Delete '.$l.' videos</a> >> <a href="/?db_manage_ext=1&amp;action=trim_last'.$i.'" style="color:red;" title="permanently delete all entries with '.$l.' in the path, except for the most recent entry" onclick="return confirm(\'This will permanently delete all entries with '.$l.' in the path, except for the most recent entry. Are you sure?\')">[ * ]</a> >> <a href="/?db_manage_ext=1&amp;action=trim_all_'.$i.'" style="color:red;" title="permanently delete all entries BELOW this sub-directory with '.$l.' in the path, except for the most recent entry" onclick="return confirm(\'This will permanently delete all entries BELOW this sub-directory with '.$l.' in the path, except for the most recent entry. Are you sure?\')">[ # ]</a></li>
-';
-            }
-            $return.='</ul>
-';
-        } else {
-            $return.='<ul><li>The db_manage.txt file does not exist. For more control you must create it using <a href="db_management_build.php">db_management_build.php</a>.</li></ul>';
-        }
-
-		return $return.'</div>
-            <br>
-			<br>
-			<div>
-			Insert show into database:<br>
-			<form method="GET">
-			<ul>
-			Short Name: <input type="text" name="insert" /><br>
-			File Name: <input type="text" name="file" /> <small>*must be full path to file</small><br>
-			How many times? <input type="number" name="times" value="10" /><br>
-			<input type="submit" />
-			</ul><br>
-            <i>Want to <a href="db_management_build.php">rebuild db_management?</a></i><br>
-			</div>
-		<!-- end database manage eXtension -->
-		';
-	}
 	
 	public function load($database_info_host, $database_info_username, $database_info_password, $database_info_database_name) {
 		$this->mysqlix = new mysqli($database_info_host, $database_info_username, $database_info_password, $database_info_database_name);

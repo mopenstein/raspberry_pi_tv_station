@@ -1,8 +1,7 @@
 <?php
 
 /*
-	Updated: 2026-03
-	Refactored with interactive error navigation and atomic writes.
+	Updated: 2026-05
 	Name: settings.php
 */
 
@@ -36,36 +35,41 @@ function validateJsonReferences(string $jsonString): array {
         ];
     };
 
-    $checkRefs = function($item, $path) use (&$checkRefs, &$errors, $vars, $jsonString, $getPositionData) {
-        if (is_array($item)) {
-            foreach ($item as $key => $value) {
-                $checkRefs($value, $path . " > " . $key);
-            }
-        } elseif (is_string($item) && strpos($item, '$ref/') === 0) {
-            $refPath = str_replace('$ref/', '', $item);
-            $parts = explode('/', $refPath);
-            $current = $vars;
-            $missing = false;
-            $traversed = "vars";
+    $checkRefs = function($item) use (&$checkRefs, &$errors, $vars, $jsonString, $getPositionData) {
+		if (is_array($item)) {
+			foreach ($item as $value) {
+				$checkRefs($value);
+			}
+		} elseif (is_string($item) && strpos($item, '$ref/') === 0) {
+			
+			// 1. Skip if reference contains a %KEYWORD%
+			if (preg_match('/%[^%]+%/', $item)) {
+				return; 
+			}
 
-            foreach ($parts as $part) {
-                if (!isset($current[$part])) {
-                    $missing = true;
-                    break;
-                }
-                $current = $current[$part];
-                $traversed .= " > " . $part;
-            }
+			$refPath = substr($item, 5);
+			$parts = explode('/', $refPath);
+			$current = $vars;
+			$missing = false;
+			$traversed = "vars";
 
-            if ($missing) {
-                $pos = $getPositionData($item, $jsonString);
-                $errors[] = [
-                    'label' => "Reference '{$item}' not found in [{$traversed}]",
-                    'pos' => $pos
-                ];
-            }
-        }
-    };
+			foreach ($parts as $part) {
+				if (!isset($current[$part])) {
+					$missing = true;
+					break;
+				}
+				$current = $current[$part];
+				$traversed .= " > " . $part;
+			}
+
+			if ($missing) {
+				$errors[] = [
+					'label' => "Reference '{$item}' not found in [{$traversed}]",
+					'pos' => $getPositionData($item, $jsonString)
+				];
+			}
+		}
+	};
 
     if (isset($data['times'])) $checkRefs($data['times'], 'times');
     if (isset($data['commercial_times'])) $checkRefs($data['commercial_times'], 'commercial_times');
@@ -200,11 +204,11 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
             echo '<div class="error-box"><strong>Reference Validation Failed:</strong><ul>';
             foreach ($ref['errors'] as $err) {
                 $pos = $err['pos'];
-                if ($pos) {
-                    echo "<li><span class='error-link' onclick='goToPos({$pos['offset']}, {$pos['length']})'>[Line {$pos['line']}, Col {$pos['col']}]</span> {$err['label']}</li>";
-                } else {
-                    echo "<li>{$err['label']}</li>";
-                }
+				if ($pos) {
+					echo "<li><span class='error-link' onclick='goToPos({$pos['offset']}, {$pos['length']})'>[Line {$pos['line']}, Col {$pos['col']}]</span> {$err['label']}</li>";
+				} else {
+					echo "<li>{$err['label']}</li>";
+				}
             }
             echo '</ul></div>';
         }
@@ -216,7 +220,7 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
             <button type="submit" name="save" class="btn btn-save" <?php echo !$is_writable ? 'disabled' : ''; ?>>Save Changes</button>
             
             <?php if(isset($_GET["saved"])): ?>
-                <span id="saved-span">Changes applied to station player.</span>
+                <span id="saved-span">Changes saved. Settings will update on next video played or restart.</span>
             <?php endif; ?>
             
             <div style="flex-grow: 1;"></div>
