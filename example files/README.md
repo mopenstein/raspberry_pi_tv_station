@@ -5,6 +5,7 @@ To ensure the TV Station accurately injects commercials, all video files must fo
 ### Audio Normalization
 * All video files should have their audio levels normalized for a consistent broadcast experience.
 * Files in this directory are marked with `_NA_` to indicate they have been volume-corrected.
+* The python script does not care whether the audio has been normalized or not. For quality and consistancy, normalization is highly recommended.
 
 ### Duration Tagging
 Videos must be tagged in the filename with their total length in seconds (rounded up).
