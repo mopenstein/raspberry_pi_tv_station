@@ -48,3 +48,20 @@ If you prefer to build the system yourself:
 2. Enable the Legacy GL Driver (FKMS) in `raspi-config`.
 3. Install dependencies manually:
    `sudo apt update && sudo apt install omxplayer libdbus-1-3 libdbus-1-dev`
+
+# Raspberry Pi Broadcast TV Station Setup Guide
+
+The Appliance Initializer guides you through four quick configuration steps to get your broadcast station online.
+
+## Setup Steps
+
+1. **Station Identity**: Choose a unique local hostname for the broadcast unit (e.g., `raspi-tv-station`). Changing this triggers a quick ~30-second restart and updates your local access URL.
+<img src="./assets/tv-station-setup-step.png" width="200" title="Setup Preview 1">
+3. **Clock & Timezone**: Select your local region so scheduled broadcasts and bumpers air at the correct time. The wizard detects browser and Pi timezones, allowing you to sync clocks or skip if already matched.
+<img src="./assets/tv-station-setup-step-hostname.png" width="200" title="Setup Preview 1">
+5. **Media Storage**: Select and mount an attached USB storage drive (e.g., an exFAT drive) to persist your media under `/media/pi/drive_*`. Registers persistent mounts in `/etc/fstab`.
+<img src="./assets/tv-station-setup-step-mount.png" width="200" title="Setup Preview 1">
+7. **Wi-Fi Connection**: Join a local wireless network or continue using wired Ethernet to finalize your setup and bind services.
+<img src="./assets/tv-station-setup-step-wi-fi.png" width="200" title="Setup Preview 1">
+Once complete, the dashboard confirms your appliance is ready for air, displaying your final hostname, IP address, timezone, and storage target so you can launch the station interface.
+<img src="./assets/tv-station-setup-step-complete.png" width="200" title="Setup Preview 1">
