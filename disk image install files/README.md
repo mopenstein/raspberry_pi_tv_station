@@ -37,16 +37,3 @@ The settings.json file in this folder is a bare bones example to getting video p
 You'll have to edit the location of the "drive" to match your local machine.
 
 You'll also need to make a copy of the google spreadsheet that contains the tv station programming and edit the URL in the "web-ui"->"tv_schedule_link" setting. Your version of the spreadsheet needs to be shared publicly but it doesn't have to be editable (except for your personal edits). Example that I use is here: https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/copy
-
-# Raspberry Pi Broadcast TV Station Setup Guide
-
-The Appliance Initializer guides you through four quick configuration steps to get your broadcast station online.
-
-## Setup Steps
-
-1. **Station Identity**: Choose a unique local hostname for the broadcast unit (e.g., `raspi-tv-station`). Changing this triggers a quick ~30-second restart and updates your local access URL.
-2. **Clock & Timezone**: Select your local region so scheduled broadcasts and bumpers air at the correct time. The wizard detects browser and Pi timezones, allowing you to sync clocks or skip if already matched.
-3. **Media Storage**: Select and mount an attached USB storage drive (e.g., an exFAT drive) to persist your media under `/media/pi/drive_*`. Registers persistent mounts in `/etc/fstab`.
-4. **Wi-Fi Connection**: Join a local wireless network or continue using wired Ethernet to finalize your setup and bind services.
-
-Once complete, the dashboard confirms your appliance is ready for air, displaying your final hostname, IP address, timezone, and storage target so you can launch the station interface.
