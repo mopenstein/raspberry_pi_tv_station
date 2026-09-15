@@ -1,10 +1,10 @@
 # Premade Disk Image
 
-Download a disk image of my running raspberry pi tv station: [@ archive.org](https://archive.org/download/RaspberryPi_tv_station_v102.1_sv0.993_image) (~2gb)
+Download a disk image of my running raspberry pi tv station: [@ archive.org]([https://archive.org/download/RaspberryPi_tv_station_v102.1_sv0.993_image](https://archive.org/download/tv_station_2026_09_15_v102.3_sv_0.996_plus)) (~2.1gb)
 
-Requires at least a 32GB micro SD card, though bigger is better since the MYSQL database is stored on the SD card.
+Requires at least a 8GB micro SD card, though bigger is better since the MYSQL database is stored on the SD card.
 
-Designed and tested on a Raspberry Pi 3b+ (runs absolutely perfectly). Also tested on a Raspberry Pi B+ v1.2 (runs slowly but does function)
+Designed and tested on a Raspberry Pi 3B and 3b+ (runs absolutely perfectly). Also tested on a Raspberry Pi 2B v1.2 (runs slowly but does function)
 
 You'll need to supply your own video files and you'll have to edit the settings.json file to reflect the location of those video files.
 
