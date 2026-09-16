@@ -1,60 +1,43 @@
 #!/usr/bin/python
-# version: 102.2
-# version date: 2026.02.09
+# version: 102.3
+# version date: 2026.09.15
 #
-#	Added plugin system (see radio.py for example)
-#		Plugins are stored in a user-defined directory set in settings.json
-#		Plugins are python files that register keywords and handle those keywords when triggered in channel definitions
-#	Fixed bumper generation error
-#	Began expanding Channels - more will come later
-#		This will require changes to the MYSQL database. A 'channel' field must be added to the 'played' table:
-#			Name	Type	Collation	Attributes	Null	Default	Comments	Extra	Action
-#			6	channel	varchar(100)	utf8mb4_general_ci		Yes	NULL	
+#	Script is now compatible with HDMI output as well as composite video.
+#
+#	Sound stuttering when going into commercials has been fixed.
 # 
-#	Added ability to have AND/OR logic in "between" time ranges
-#	New digit-level time tokens added to "time" ranges in "between" Settings:
-#	New settings added "minimum-before-repeat" to programming blocks to allow tracking of minimum time before a programming schedule block can be triggered *note: not persistent between restarts yet*"
-#	Main loop has been broken into smaller functions for easier maintenance and future expansion
-#	Added new functions and constants to "chance" evaluations: 
-#		bound(x, low, high) - restricts x to stay within the range [low, high], returning the nearest in-range float
-#		tan() - returns the tangent of a float input (in radians), completing the trigonometric set alongside sin() and cos()
-#		stamp - current timestamp as a float (seconds since epoch), useful for time-based ramps and decay logic
+#	Screen flickering during the transition from main video to commercials has been reduced.
 #
+#	System Image is now compatible with Raspberry Pi 2,3b, and 3b+ models.
 #
+#	Error checking in 'ordered-show' video type is a bit more robust. Will report an error if a Show is in the schedule but the directory is empty or doesn't exist. This helps prevent issues where a show is scheduled but cannot be played due to missing files.
 #
-# 	Server side changes:
+#	Added 'auto' as a choice in the 'weighted' chance setting
+#		When 'auto' is selected, the script will automatically calculate weights for directories based on the amount of files in each directory, giving directories with more files higher chances of being selected. This allows for a more dynamic and balanced selection process without requiring users to manually assign weights.
 #
-#	"balanced-video" setting has been greatly improved to better handle missing files, remove ghost entries, balance more accurately, and when a new file is added, it is given priority to be played next and its play count is balanced with other files
+#	Added "date", "time", and "datetime" functions to the equation evaluator
+# 		This allows users to easily incorporate specific dates and times into their equations for more dynamic scheduling and behavior.
 #
-# settings version: 0.995
+#	Streamlined holidays and added additional holidays to the holiday checking functionality
+#		Including: Halloween, MLK Day, Presidents Day, St. Patrick's Day, April Fools' Day, Independence Day, Labor Day, Columbus Day, Veterans Day, Christmas Eve, and New Year's Eve.
 #
-#	Tokens added to "between" Settings:
-#		"%TENSHOUR%": Returns the current tens digit of the current hour in 12-hour format (0 or 1)
-#		"%UNITSHOUR%": Returns the current units digit of the current hour in 12-hour format (0-9)
-#		"%TENSMIN%": Returns the current tens digit of the current minute (0-5)
-#		"%UNITSMIN%": Returns the current units digit of the current minute (0-9)
-#		"%TOPTENSMIN%": Returns the current tens digit of the current minute if it is 0 or 3, otherwise returns an empty string (used for top of the hour (0) or top-half-hour (3) minute triggers)
+#	External Google Spreadsheet is no longer required for schedule references. The webui has a built into tool to manage schedule references.
 #
-#	"minimum-before-repeat" functionality added to programming blocks to allow setting a minimum time before a video can be repeated
-#		- "minimum-before-repeat": minimum time in seconds or list of a range of numbers before a programming schedule can be triggered
-#		Examples:
-#			"minimum-before-repeat": 120 // this entry cannot repeat for at least 120 seconds
-#			"minimum-before-repeat": [60, 120] // a random number between 60 and 120 seconds will be selected and this entry cannot repeat for at least that time
+#	Added functionality to help automate jobs via the webui
+#		On startup, the script will ping the local web server to trigger any PHP jobs that need to be run on a schedule.
 #
-#	"plugin_directory" setting added to settings.json to specify the directory where plugins are stored
+#	Web UI is now themable, allowing users to choose between different visual styles for the web interface. 
+#		The theme is set by altering the "theme" setting in the settings file.
+#		Manage cards have been added and are dynamically loaded. See manage/ in the html directory for examples.
 #
-#	"between", specifically and only the, "times" setting now supports AND/OR logic in the "times" section (dates and years remain OR only).
-#		- if a top-level item in the "times" array is a list of lists, each inner list must match (AND)
-#		- if a top-level item in the "times" array is a single list, it is treated as an OR condition
-#		- if any top-level item matches, the entire "times" condition is considered a match (OR)
-#		Example:
-#			"between": { "dates": [ ["Sep 01", "Nov 30"] ], "times": [ [ ["03:00PM", "04:45PM"], ["%HOUR%:"%TOPTENSMIN%0%AMPM%", "%HOUR%:"%TOPTENSMIN%5%AMPM%"] ] ] },
-#				* This means the date must be between Sep 1 and Nov 30 AND the time must be between 3:00PM and 4:45PM AND also between [HH:00AM/PM and HH:05AM/PM OR HH:30AM/PM and HH:35AM/PM] (where HH is the current hour in 12-hour format)
+# settings version: 0.996
 #
-#	***REMOVED***
-# 
-# 		"log_only_latest" setting. Broken from get go. Will be later handled by a php script on the web server side.
-#
+#	Added new setting: "workers"
+#		This setting is an array that points to PHP worker files. Useful for automating database maintenance tasks and other scheduled jobs without needing to set up separate cron jobs on the server. Each worker file will be pinged on startup to trigger the corresponding PHP job.
+#	Added new setting: "equalize playcount"
+#		This setting is a boolean that, when enabled, will attempt to equalize the playcount of videos in the database by adding dummy play records for videos that have been played less than the most played video. This helps ensure a more balanced rotation of videos.
+#	Added new setting to webui: "theme"
+#		This setting allows the user to choose between different frontend skins. The default theme is "modern", but additional themes can be added by creating new template files in the "templates" directory and altering this setting.
 
 
 
@@ -66,6 +49,8 @@
 
 
 
+import ast
+
 from omxplayer import OMXPlayer # the video player
 from time import sleep			# used to give time for the player to load the video file
 import math						# math functions
@@ -74,7 +59,6 @@ import glob						# how we quickly get all files in a directory
 import random					# choosing random stuff
 import time						# time functions
 import datetime					# date and time, used for testing purposes
-import urllib2					# web stuff
 import urllib					# web stuff
 import re						# regular expressions
 import calendar					# used in special date calculating
@@ -82,28 +66,67 @@ import sys						# for accepting arguments from command line
 import json						# settings file is in json format
 import subprocess				# for rebooting the machine
 import traceback				# for error reporting
-import imp						# for reloading modules
 import hashlib					# for generating hash IDs
+import ast						# for safely evaluating mathematical expressions
+
+from datetime import date, timedelta
+
+# begin python 2/3 compatibility
+try:
+    # Python 3
+    import urllib.request as urllib2
+    import urllib.parse as urllib
+    from urllib.parse import quote_plus, urlencode
+except ImportError:
+    # Python 2
+    import urllib2
+    import urllib
+    from urllib import quote_plus, urlencode
+
+# Compatibility shims for string types
+if sys.version_info[0] >= 3:
+    unicode = str
+    basestring = str
+    long = int
+
 # Constants
 
-SETTINGS_VERSION = 0.995 # the version of the "settings" this script supports
+SCRIPT_VERSION		= 102.3 # current version of the script
+SETTINGS_VERSION	= 0.996 # the version of the "settings" this script supports
 
 GET_VIDEOS_FROM_DIR_MIN_DURATION = 0 	 	# default minimum duration of a video in seconds when returning videos from a directory
 GET_VIDEOS_FROM_DIR_MAX_DURATION = 99999 	# default maximum duration of a video in seconds when returning videos from a directory
 VIDEO_EXTENSIONS = ('mp4', 'avi', 'webm', 'mpeg', 'm4v', 'mkv', 'mov', 'flv', 'wmv')	# video file extensions that are considered valid video files
 
+# Allowed AST nodes for safe evaluation of mathematical expressions
+ALLOWED_AST_NODES = (
+    ast.Expression,
+    ast.BinOp,        # +, -, *, /, %
+    ast.UnaryOp,      # -x, +x
+    ast.operator,     # Add, Sub, Mult, Div, etc.
+    ast.unaryop,      # USub, UAdd
+    ast.Num,          # Python 2 numbers (int, float)
+    ast.Name,         # variable lookups like 'hour', 'day'
+    ast.Call,         # function calls like sin(), clamp()
+    ast.Compare,      # ==, !=, <, >, <=, >=
+    ast.cmpop,        # comparison operators
+    ast.IfExp,        # ternary 'x if cond else y'
+)
+
+
 PLUGINS = {} # dictionary of loaded plugins
 
 # plugins will be standardized as such:
-#   plugins will be in a user defined plugin directory set in settings.json
+#   plugins will be in a user defined plugin directory defined in settings.json
 #	plugins will be python files with a .py extension
 #   they will register keywords of a "type"
 #   the will handle the keywords with a handle() function
 
 # /Constants
 
-# json.loads class that allows references to itself
-import json
+# below is the ReferenceDecoder class used to decode the settings file and resolve $ref references within the settings file,
+# allowing for more dynamic and reusable settings structures. It also keeps track of all objects it has decoded in a list 
+# called "references" so that it can search through them when resolving $ref references.
 
 class ReferenceDecoder(json.JSONDecoder):
 	def __init__(self, *args, **kwargs):
@@ -148,10 +171,29 @@ def refresh_plugins():
 		if hasattr(module, "refresh") and callable(module.refresh):
 			module.refresh(settings)
 
+def import_module_from_path(name, path):
+	"""
+	Python 2/3 helper to import a source file as a module.
+	:param name: The name to assign to the imported module.
+	:param path: The file path to the module source file.
+	:return: The imported module object.
+	"""
+	if sys.version_info[0] >= 3:
+		# Python 3 way (importlib)
+		import importlib.util
+		spec = importlib.util.spec_from_file_location(name, path)
+		module = importlib.util.module_from_spec(spec)
+		spec.loader.exec_module(module)
+		return module
+	else:
+		# Python 2 way (imp)
+		import imp
+		return imp.load_source(name, path)
+
 def load_plugins(plugin_dir):
 	"""
 	Loads plugins from the specified directory.
-	:param plugin_dir: The directory to load plugins from.
+	:param plugin_dir: The directory from which to load plugins.
 	:return: None
 	"""
 	global PLUGINS
@@ -164,13 +206,14 @@ def load_plugins(plugin_dir):
 			path = os.path.join(plugin_dir, filename)
 
 			try:
-				module = imp.load_source(name, path)
+
+				module = import_module_from_path(name, path)
 
 				if not hasattr(module, "handle") or not callable(module.handle):
-					print("Plugin", name, "missing required 'handle' function. Skipping.")
+					report_error("PLUGIN_LOAD", [name, "missing required 'handle' function. Skipping."])
 					continue
 				if not hasattr(module, "keywords") or not isinstance(module.keywords, list):
-					print("Plugin", name, "missing required 'keywords' list. Skipping.")
+					report_error("PLUGIN_LOAD", [name, "missing required 'keywords' list. Skipping."])
 					continue
 
 				PLUGINS[name] = module
@@ -189,9 +232,17 @@ def load_plugins(plugin_dir):
 
 			except Exception as e:
 				print("Failed to load", name, "-", str(e))
+				report_error("PLUGIN_LOAD", [name, str(e), traceback.format_exc()])
 
 
 def wait_for_plugins(plugin_dir, timeout=30):
+	"""
+	Waits for plugins to be loaded from the specified directory, checking periodically until plugins are found or a timeout is reached.
+
+	:param plugin_dir: The directory to check for plugins.
+	:param timeout: The maximum time to wait for plugins to load, in seconds. Default is 30 seconds.
+	:return: True if plugins were loaded successfully, False if the timeout was reached without loading any plugins.
+	"""
 	start_time = time.time()
 	while time.time() - start_time < timeout:
 		py_files = [f for f in os.listdir(plugin_dir) if f.endswith(".py")]
@@ -229,6 +280,7 @@ def report_file_not_found(source):
 	"""
 	url = "http://127.0.0.1/?" + urllib.urlencode({ 'returned_file_does_not_exists': source })
 	urlcontents = open_url(url)
+	
 
 def report_video_playback(source, vtype="video"):
 	"""
@@ -280,7 +332,7 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 	# launches OMXPlayer on the PI to play a video
 	# If commercials are set, 2 instances of the players are loaded: one for the main video and the other for commercials (the main player is hidden during commercial breaks and then made visible again)
 	# 	source: video file to be played
-	# 	commercials: array of times in seconds at which the source video will be interrupt to play commercials
+	# 	commercials: array of times in seconds az~!@E#At which the source video will be interrupt to play commercials
 	#	max_commercials_per_break:
 	#		If set to a number, a random commercial will be continually selected up until the supplied number has been reached
 	#		if an array of commercials video file locations is provided, each commercial will be played until there are none left
@@ -314,6 +366,9 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 					#couldn't find a commercial, so we won't even try to play any during the current video but we should report the error
 					max_commercials_per_break = [] # setting max commercials to 0 and there are no commercials to play, overrides the passed value and disables commercials during this video
 					report_error("PLAY_COMM", ["could not get a random commercial"])
+				else:
+					tmp = max_commercials_per_break
+					max_commercials_per_break = [tmp] * 100
 
 		comm_player = None # the OMXPlayer instance for playing commercials
 		
@@ -321,7 +376,8 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 		print("")
 
 		report_video_playback(source, vtype)	# tell web server video we're playing
-		player = OMXPlayer(source, args=get_setting(["player_settings"], ""), dbus_name="omxplayer.player" + str(random.randint(0,999))) # create the OMXPlayer instance for the main video
+		player_args = get_setting(["player_settings"], []) + ["--layer", "1"] # get the player settings from the settings file and add the layer setting for the main video
+		player = OMXPlayer(source, args=player_args, dbus_name="omxplayer.player" + str(random.randint(0,999))) # create the OMXPlayer instance for the main video
 		sleep(0.5) # give the player a moment to load the video
 
 		#player.pause() # pause the video so we can set the position and other settings before playing
@@ -346,6 +402,7 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 
 						# pause the main video and hide the player from the screen
 						try:
+							player.mute()
 							player.hide_video()
 							player.pause()
 						except Exception:
@@ -390,21 +447,20 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 								report_video_playback(comm_source, "commercial")
 								# load commercial in the commercial OMXplayer instance
 								if comm_player == None:
-									comm_player = OMXPlayer(comm_source, args=get_setting(["player_settings"], ""), dbus_name="omxplayer.player1")
-									comm_player.set_video_pos(0,0,680,480)
-									comm_player.set_aspect_mode('stretch')
-								else: # we've already initialized the commercial player, so just load the new commercial
+									comm_args = ["--no-osd", "--layer", "2"]
+									comm_player = OMXPlayer(comm_source, args=comm_args, dbus_name="omxplayer.comm_player1")
+									sleep(0.25) # give the player a moment to load the commercial
+								else:
 									comm_player.load(comm_source)
 								
-								sleep(0.5) # give the player a moment to load the commercial
-							
+
 								try:
 									comm_player.show_video() # make sure the commercial player is visible
 								except:
 									printd("comm_player show error")
 								
 								# play commercial
-								comm_player.play()
+								#comm_player.play()
 
 								# we need to wait until the commercial has completed
 								# so we'll check for the current position of the video until it triggers an error and we can move on
@@ -414,13 +470,13 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 								comm_end_time = comm_start_time + comm_length + 1	# calculate at what time the commercial should have ended plus a little buffer (1 second)
 								
 								while (1):
-									err_pos = err_pos + 0.1
 									if time.time() > comm_end_time: # commercial should be over by now, so we move on
+										print("Commercial should be over by now, moving on...")
 										break
 
-									# if debug mode is enabled, we don't want to wait for the entire commercial to finish playing
+									# if debug mode is enabled, we don't have to wait for the entire commercial to finish playing
 									if get_setting(['debug'], False) == True and time.time() - comm_start_time > int(get_setting(["debug positon"], 999999, int)):
-										report_debug("COMM_PLAY_LOOP", ["Commercial has been playing for more than 3 seconds, ending early"])
+										report_debug("COMM_PLAY_LOOP", ["Commercial has been playing for more than " + get_setting(["debug positon"],"-1") + " seconds, ending early"])
 										comm_player.stop()
 										break
 										
@@ -445,6 +501,7 @@ def play_video(source, commercials, max_commercials_per_break, start_pos, bumper
 							sleep(0.5) # give the player a moment to settle down before loading the next commercial
 							
 						# commercial break is over, resume main video
+						player.unmute()
 						player.show_video() # make sure the main video player is visible again
 						player.play() # resume playing the main video
 						
@@ -526,113 +583,75 @@ def convert_percentages(expr):
     # Match any number (int or float) followed by %
     return re.sub(r'(\d+(?:\.\d+)?)%', repl, expr)
 
+def is_safe_equation(expr_str):
+    try:
+        tree = ast.parse(expr_str, mode='eval')
+        for node in ast.walk(tree):
+            if not isinstance(node, ALLOWED_AST_NODES):
+                return False
+            # Block calling unapproved attributes/methods
+            if isinstance(node, ast.Attribute):
+                return False
+        return True
+    except Exception:
+        return False
 
 def eval_equation(equation):
-	"""
-	Tries to evaluate a mathematical equation string and return the result.
+    """
+    Tries to evaluate a mathematical equation string and return the result.
+    """
+    global now
 
-	:param chance: A string representing a mathematical equation.
-	:param now: A datetime object representing the current date and time.
-	:return: The result of the evaluated equation or 0 if an error occurs.
-	"""
-	global now # use global now variable for current date and time
+    try:
+        if len(equation) > 300:
+            return -2
 
-	# tries to take a string that should be a mathematical equation and calculate and return an answer
-	# uses EVAL() but santizes by removing anything not a number, math symbol, period, or parentheses
-	# replaces certain KEYWORDS to the corresponding value
-	try:
-		if len(equation) > 300:
-			return -2 # if the equation is too long, return -2
+        # 1. Evaluate direct percentages first before passing to AST
+        match = re.match(r'(\d+(?:\.\d+)?)%', equation.strip())
+        if match and match.end() == len(equation.strip()):
+            num = float(match.group(1))
+            if 0.0 <= num <= 100.0:
+                return float(num / 100.0)
 
-		# Check for percentage format (e.g., "25%") and convert to decimal (e.g., "0.25")
-		match = re.match(r'(\d+(?:\.\d+)?)%', equation.strip())
-		if match and match.end() == len(equation.strip()):
-			num = float(match.group(1))
-			if 0.0 <= num <= 100.0:
-				return str(num / 100.0)
-		
+        # 2. Validate syntax tree against sandbox escapes
+        if not is_safe_equation(equation):
+            return -3
 
-		safe_globals = {
-			"__builtins__": {},
-			"sin": math.sin,
-			"cos": math.cos,
-			"tan": math.tan,
-			"abs": abs,
-			"min": min,
-			"max": max,
-			"round": round,
-			"floor": math.floor,
-			"ceil": math.ceil,
-			"log": math.log,
-			"exp": math.exp,
-			"pi": math.pi,
-			"e": math.e,
-			"scale": lambda x: float(x) / 100,
-			"clamp": lambda x,y=1.0: max(0.0, min(y, float(x))),
-			"bound": lambda x, low, high: max(low, min(high, float(x))),
-			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
-			"day": float(now.day),
-			"maxdays": float(calendar.monthrange(now.year, now.month)[1]),
-			"weekday": float(now.weekday()),
-			"month": float(now.month),
-			"hour": float(now.hour),
-			"minute": float(now.minute),
-			"second": float(now.second),
-			"year": float(now.year)
-		}
-		
-		return eval(equation, safe_globals, {})
-	except:
-		return -1 #str(traceback.format_exc()) + " equation length: [" + str(len(equation)) + "] equation: [" + equation + "]"
-
-def get_setting_old(find, default=None):
-	"""
-	Searches the settings global variable for the specified setting and returns it.
-
-	:param find: A dictionary to search for in the settings dictionary.
-	:param default: The default value to return if the setting is not found. Set to None by default.
-	:return: The value of the setting if found, otherwise the default value.
-
-    Example usage:
-
-    >>> settings = {
-    ...     "version": "0.992",
-    ...     "drive": ["/media/pi/ssd", "/media/pi/ssd_b"],
-    ...     "channels": {
-    ...         "error": "Error",
-    ...         "nested": {
-    ...             "deep": {
-    ...                 "value": 123
-    ...             }
-    ...         }
-    ...     }
-    ... }
-    >>> get_setting(['version'])
-    '0.992'
-    >>> get_setting(['drive', 0])
-    '/media/pi/ssd'
-    >>> get_setting(['channels', 'error'])
-    'Error'
-    >>> get_setting(['channels', 'nested', 'deep', 'value'])
-    123
-    >>> get_setting(['channels', 'missing'], 'not found')
-    'not found'
-    >>> get_setting(['drive', 10], 'fallback')
-    'fallback'
-	"""
-
-	global settings
-	try:
-		temp = settings
-		for k in find:
-			if k in temp:
-				temp = temp[k]
-			else:
-				return default
-		return temp
-	except Exception as e:
-		report_error("GET_SETTING", ["Error accessing settings", str(e), traceback.format_exc()])
-		return default
+        safe_globals = {
+            "__builtins__": {},
+            "sin": math.sin,
+            "cos": math.cos,
+            "tan": math.tan,
+            "abs": abs,
+            "min": min,
+            "max": max,
+            "round": round,
+            "floor": math.floor,
+            "ceil": math.ceil,
+            "log": math.log,
+            "exp": math.exp,
+            "pi": math.pi,
+            "e": math.e,
+            "scale": lambda x: float(x) / 100,
+            "clamp": lambda x, y=1.0: max(0.0, min(y, float(x))),
+            "bound": lambda x, low, high: max(low, min(high, float(x))),
+            "stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
+            "date": lambda y, m, d: (datetime.datetime(int(y), int(m), int(d)) - datetime.datetime(1970, 1, 1)).total_seconds(),
+            "time": lambda h, m=0, s=0: int(h) * 3600 + int(m) * 60 + int(s),
+            "datetime": lambda y, mo, d, h=0, mi=0, s=0: (datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(s)) - datetime.datetime(1970, 1, 1)).total_seconds(),
+            "day": float(now.day),
+            "maxdays": float(calendar.monthrange(now.year, now.month)[1]),
+            "weekday": float(now.weekday()),
+            "month": float(now.month),
+            "hour": float(now.hour),
+            "minute": float(now.minute),
+            "second": float(now.second),
+            "year": float(now.year)
+        }
+        
+        return eval(equation, safe_globals, {})
+    except:
+        return -1
 
 def get_setting(find, default=None, force_type=None):
 	"""
@@ -714,6 +733,7 @@ def get_short_month_name(month_number):
 def readkey():
 	"""
 	Reads a single key press from the terminal without waiting for Enter to be pressed.
+
 	:return: The character of the key pressed.
 	"""
 	import sys, tty, termios
@@ -727,6 +747,12 @@ def readkey():
 
 # Function to replace %MAXDAYS% with the correct number of days in the month
 def replace_special_words(date_str):
+	"""
+	Replaces special placeholders in the input string with their corresponding values based on the current date and time.
+
+	:param date_str: The input string containing placeholders to be replaced.
+	:return: The input string with placeholders replaced by their corresponding values.
+	"""
 	global now
 
     # --- Custom Logic for %TOPTENSMIN% (00-05 or 30-35 minute triggers) ---
@@ -1358,7 +1384,7 @@ def get_random_commercial():
 			if folder_chance != None: # check to see if the user has set a folder preference
 				if 'weighted' in programming_schedule[4]: # check to see if the user has set a weighted folder selection
 					if len(programming_schedule[4]['weighted']) != len(folder): # check to see if the weighted folder count matches the folder count
-						report_error("GET_RND_COMM", ["Weighted folder count supplied do not match folder count", "check settings.json file", programming_schedule[4]]) # report error if they don't match
+						report_error("GET_RND_COMM", ["Weighted folder count supplied does not match folder count", "check settings.json file", programming_schedule[4]]) # report error if they don't match
 						random.shuffle(folder) # shuffle the list of folders to randomize the order
 						rfolder = random.choice(folder) # also if they don't match, just select a random folder
 					else:
@@ -1434,7 +1460,9 @@ def get_folders_from_server(showType, showDir):
 	:return: A list of available shows.
 	"""
 	contents = open_url("http://127.0.0.1/?getavailable=" + urllib.quote_plus(ensure_string(showType)) + "&dir=" + urllib.quote_plus(ensure_string(showDir)))
+	printd("get_folders_from_server: ", "Contents from server:", contents)
 	if contents == '0':
+		report_error("GET_FOLDERS_FROM_SERVER", ["No shows found on server!", "Show type: " + ensure_string(showType), "Show dir: " + ensure_string(showDir)	])
 		return None
 	return contents.split("\n")
 
@@ -1632,82 +1660,146 @@ def is_dict(var):
 	"""
 	return isinstance(var, dict)
 
-def IsEaster(daysFromEaster):
-	"""
-	Checks if the current date is Easter or within a specified range of days from Easter.
+holidays = [ "thanksgiving", "xmas", "halloween", "mothers day", "fathers day", "memorial day", "easter", "new years day", "mlk day", "valentines day", "presidents day", "st patricks day", "april fools day", "independence day", "4th of july", "labor day", "columbus day", "veterans day", "christmas eve", "new years eve" ]
 
-	:param daysFromEaster: Number of days from Easter to check.
-	:return: True if within range, False otherwise.
-	"""
-	global now	
-	# Using the Anonymous Gregorian algorithm to calculate Easter Sunday
-	year = now.year  # Determine the year from the global variable 'now'
-	a = year % 19
-	b = year // 100
-	c = year % 100
-	d = b // 4
-	e = b % 4
-	f = (b + 8) // 25
-	g = (b - f + 1) // 3
-	h = (19 * a + b - d - g + 15) % 30
-	i = c // 4
-	k = c % 4
-	l = (32 + 2 * e + 2 * i - h - k) % 7
-	m = (a + 11 * h + 22 * l) // 451
-	month = (h + l - 7 * m + 114) // 31
-	day = ((h + l - 7 * m + 114) % 31) + 1
-	
-	easter_sunday = datetime.date(year, month, day)
-	#target_date = easter_sunday + datetime.timedelta(days=daysFromEaster)
-	return is_date_within_range(datetime.date(now.year, now.month, now.day), easter_sunday, daysFromEaster)
-
-from datetime import date, timedelta
-
-def IsFathersDay(daysFromFathersDay=0):
-	"""
-	Checks if the current date is Father's Day or within a specified range of days from Father's Day.
-
-	:param daysFromFathersDay: Number of days from Father's Day to check.
-	:return: True if within range, False otherwise.
-	"""
-
-	global now	
-	june_first = datetime.date(now.year, 6, 1) # Get June 1st of the current year
-	first_sunday = june_first + datetime.timedelta(days=(6 - june_first.weekday() + 7) % 7) # Find the first Sunday of June
-	fathers_day_date = first_sunday + datetime.timedelta(weeks=2) # Calculate Father's Day (third Sunday of June)
-
-	return is_date_within_range(datetime.date(now.year, now.month, now.day), fathers_day_date, daysFromFathersDay)
-
-import datetime
-
-def IsMemorialDay(daysFromMemorialDay=0):
-    """
-    Checks if the current date is Memorial Day or within a specified range of days from Memorial Day.
-
-    :param daysFromMemorialDay: Number of days from Memorial Day to check.
-    :return: True if within range, False otherwise.
-    """
-
-    global now  
-    may_last = datetime.date(now.year, 5, 31)  # Get May 31st of the current year
-    last_monday = may_last - datetime.timedelta(days=may_last.weekday())  # Find the last Monday of May
-
-    return is_date_within_range(datetime.date(now.year, now.month, now.day), last_monday, daysFromMemorialDay)
-
-def IsMothersDay(daysFromMothersDay=0):
-	"""
-	Checks if the current date is Mother's Day or within a specified range of days from Mother's Day.
-
-	:param daysFromMothersDay: Number of days from Mother's Day to check.
-	:return: True if within range, False otherwise.
-	"""
-
+def get_holiday_datetime(holiday, year=None):
+	"""Calculates Thanksgiving (4th Thursday of Nov) for a given year."""
 	global now
-	may_first = date(now.year, 5, 1)  # May 1st of the current year
-	first_sunday = may_first + timedelta(days=(6 - may_first.weekday() + 7) % 7)  # First Sunday of May
-	mothers_day_date = first_sunday + timedelta(weeks=1)  # Second Sunday of May
+	search_year = year if year is not None else now.year
+	holiday = holiday.lower().replace(" ", "")
+	ret = -1
 
-	return is_date_within_range(datetime.date(now.year, now.month, now.day), mothers_day_date, daysFromMothersDay)
+	if holiday == "thanksgiving":
+    # Thanksgiving is the 4th Thursday of November (falls between Nov 22 and Nov 28)
+		first_of_nov = datetime.datetime(search_year, 11, 1)
+		dw = first_of_nov.weekday()
+		day = 22 + (10 - dw) % 7
+		ret = datetime.datetime(search_year, 11, day, now.hour, now.minute)
+
+	elif holiday == "mothersday":
+		# Mother's Day is the 2nd Sunday in May
+		may_first = datetime.datetime(search_year, 5, 1)
+		# Calculate the first Sunday, then add 7 days for the second Sunday
+		first_sunday_day = 1 + (6 - may_first.weekday() + 7) % 7
+		day = first_sunday_day + 7
+		ret = datetime.datetime(search_year, 5, day, now.hour, now.minute)
+
+	elif holiday == "xmas":
+		# The "xmas" keyword is used to check for the period after Thanksgiving and on or before Christmas.
+		# For a true Christmas check, use the holiday "christmas"
+		first_of_nov = datetime.datetime(search_year, 11, 1)
+		dw = first_of_nov.weekday()
+		day = 22 + (10 - dw) % 7
+		tg = datetime.datetime(search_year, 11, day, now.hour, now.minute)
+		cd = datetime.datetime(search_year, 12, 25, now.hour, now.minute)
+		if now > tg and now <= cd:
+			ret = cd
+
+	elif holiday == "christmas":
+		# Christmas is a fixed date: Dec 25th. If you want to check for the period after Thanksgiving day and on or before Christmas, use the holiday "xmas"
+		# Fixed date: Dec 25th
+		ret = datetime.datetime(search_year, 12, 25, now.hour, now.minute)
+		
+	elif holiday == "halloween":
+		# Fixed date: Oct 31st
+		ret = datetime.datetime(search_year, 10, 31, now.hour, now.minute)
+
+	elif holiday == "memorialday":
+		# Memorial Day is the last Monday in May
+		# Start at May 31st and subtract the weekday to get back to the previous Monday
+		may_31 = datetime.datetime(search_year, 5, 31)
+		dw = may_31.weekday() # Monday is 0, Sunday is 6
+		day = 31 - dw
+		ret = datetime.datetime(search_year, 5, day, now.hour, now.minute)
+
+	elif holiday == "fathersday":
+		# Father's Day is the 3rd Sunday in June
+		june_first = datetime.datetime(search_year, 6, 1)
+		# First Sunday
+		first_sunday_day = 1 + (6 - june_first.weekday() + 7) % 7
+		# Add 14 days to get from the 1st Sunday to the 3rd
+		day = first_sunday_day + 14
+		ret = datetime.datetime(search_year, 6, day, now.hour, now.minute)
+
+	elif holiday == "easter":
+		# Using the Anonymous Gregorian algorithm to calculate Easter Sunday
+		# Optimized for Python 2.7 integer division
+		a = search_year % 19
+		b = search_year // 100
+		c = search_year % 100
+		d = b // 4
+		e = b % 4
+		f = (b + 8) // 25
+		g = (b - f + 1) // 3
+		h = (19 * a + b - d - g + 15) % 30
+		i = c // 4
+		k = c % 100 % 4
+		l = (32 + 2 * e + 2 * i - h - k) % 7
+		m = (a + 11 * h + 22 * l) // 451
+		month = (h + l - 7 * m + 114) // 31
+		day = ((h + l - 7 * m + 114) % 31) + 1
+		ret = datetime.datetime(search_year, month, day, now.hour, now.minute)
+
+	elif holiday == "newyearsday":
+		# Fixed date: Jan 1st
+		ret = datetime.datetime(search_year, 1, 1, now.hour, now.minute)
+
+	elif holiday == "mlkday":
+		# MLK Day is the 3rd Monday in January
+		jan_first = datetime.datetime(search_year, 1, 1)
+		first_monday_day = 1 + (0 - jan_first.weekday() + 7) % 7
+		day = first_monday_day + 14
+		ret = datetime.datetime(search_year, 1, day, now.hour, now.minute)
+
+	elif holiday == "valentinesday":
+		# Fixed date: Feb 14th
+		ret = datetime.datetime(search_year, 2, 14, now.hour, now.minute)
+
+	elif holiday == "presidentsday":
+		# Presidents Day is the 3rd Monday in February
+		feb_first = datetime.datetime(search_year, 2, 1)
+		first_monday_day = 1 + (0 - feb_first.weekday() + 7) % 7
+		day = first_monday_day + 14
+		ret = datetime.datetime(search_year, 2, day, now.hour, now.minute)
+
+	elif holiday == "stpatricksday":
+		# Fixed date: March 17th
+		ret = datetime.datetime(search_year, 3, 17, now.hour, now.minute)
+
+	elif holiday == "aprilfoolsday":
+		# Fixed date: April 1st
+		ret = datetime.datetime(search_year, 4, 1, now.hour, now.minute)
+
+	elif holiday == "independenceday" or holiday == "4thofjuly":
+		# Fixed date: July 4th
+		ret = datetime.datetime(search_year, 7, 4, now.hour, now.minute)
+
+	elif holiday == "laborday":
+		# Labor Day is the 1st Monday in September
+		sep_first = datetime.datetime(search_year, 9, 1)
+		day = 1 + (0 - sep_first.weekday() + 7) % 7
+		ret = datetime.datetime(search_year, 9, day, now.hour, now.minute)
+
+	elif holiday == "columbusday":
+		# Columbus Day is the 2nd Monday in October
+		oct_first = datetime.datetime(search_year, 10, 1)
+		first_monday_day = 1 + (0 - oct_first.weekday() + 7) % 7
+		day = first_monday_day + 7
+		ret = datetime.datetime(search_year, 10, day, now.hour, now.minute)
+
+	elif holiday == "veteransday":
+		# Fixed date: Nov 11th
+		ret = datetime.datetime(search_year, 11, 11, now.hour, now.minute)
+
+	elif holiday == "christmaseve":
+		# Fixed date: Dec 24th
+		ret = datetime.datetime(search_year, 12, 24, now.hour, now.minute)
+
+	elif holiday == "newyearseve":
+		# Fixed date: Dec 31st
+		ret = datetime.datetime(search_year, 12, 31, now.hour, now.minute)
+
+	return ret
 
 def is_number(s):
 	""" 
@@ -1726,55 +1818,35 @@ def is_number(s):
 
 def is_special_time(check):
 	"""
-	Checks if the current date is a special holiday or event.
+	Checks if the current date is a special holiday or event by 
+	looping through the global holiday array.
 
-	:param check: The string to check for special dates.
-	:return: True if the date is special, False otherwise.
+	:param check: The string to check against the holiday names.
+	:return: True if the current date matches the holiday criteria, False otherwise.
 	"""
-	num = 0
-	if check[:4].lower() == 'xmas':
-		if is_number(check[4:].strip()):
-			num = int(check[4:])
-		else:
-			return True if (IsThanksgiving(8) or IsXmas(-25)) and not IsThanksgiving(0) else False
-		return True if IsXmas(num) and IsThanksgiving(0) else False
+	check_lower = check.lower().strip()
 
-	if check[:9].lower() == 'christmas':
-		if is_number(check[9:].strip()):
-			num = int(check[9:])
-		else:
-			return True if (IsThanksgiving(8) or IsXmas(-25)) and not IsThanksgiving(0) else False
-		return True if IsXmas(num) and IsThanksgiving(0) else False
-
-	if check[:12].lower() == 'thanksgiving':
+	for holiday in holidays:
+		# We check if the input starts with the holiday name
+		if check_lower.startswith(holiday):
+			
+			# Extract potential numeric offset (the part after the holiday name)
+			remaining_part = check_lower[len(holiday):].strip()
+			printd("Checking if today is:", holiday, "remaining part:", remaining_part)
 			num = 0
-			if is_number(check[12:].strip()):
-					num = int(check[12:])
-			return True if IsThanksgiving(num) else False
+			if is_number(remaining_part):
+				num = int(remaining_part)
 
-	if check[:6].lower() == 'easter':
-		num = 0
-		if is_number(check[6:].strip()):
-			num = int(check[6:])
-		return True if IsEaster(num) else False
-
-	if check[:11].lower() == 'mothers day':
-		num = 0
-		if is_number(check[11:].strip()):
-			num = int(check[11:])
-		return True if IsMothersDay(num) else False
-
-	if check[:11].lower() == 'fathers day':
-		num = 0
-		if is_number(check[11:].strip()):
-			num = int(check[11:])
-		return True if IsFathersDay(num) else False
-
-	if check[:12].lower() == 'memorial day':
-		num = 0
-		if is_number(check[12:].strip()):
-			num = int(check[12:])
-		return True if IsMemorialDay(num) else False
+			# Call your date calculation function
+			# Assuming get_holiday_datetime returns a valid datetime object or equivalent
+			holiday_date = get_holiday_datetime(holiday)
+			if holiday_date == -1:
+				printd("Holiday not recognized:", holiday)
+				continue
+			printd("Checking special time for:", check, "Holiday:", holiday, "Holiday Date:", holiday_date, "Current Date:", datetime.date(now.year, now.month, now.day), "Range (days):", num)
+			is_within_range = is_date_within_range(datetime.date(now.year, now.month, now.day), holiday_date.date(), num)
+			
+			return True if is_within_range else False
 
 	return False
 
@@ -1804,61 +1876,6 @@ def open_url(url):
 	except:
 		return None
 
-def IsXmas(daysFromXmas):
-	"""
-	Checks if the current date is Christmas or within a specified range of days from Christmas.
-
-	:param daysFromXmas: Number of days from Christmas to check.
-	:return: True if within range, False otherwise.
-	"""
-	global now # always use the global datetime 'now' so it doesn't break test dates
-	
-	xmas = datetime.datetime.strptime(str("Dec 25 " + str(now.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
-	target_date = xmas + datetime.timedelta(days=daysFromXmas)
-	return is_date_within_range(now, xmas, daysFromXmas)
-
-def IsThanksgiving(daysFromThanksgiving):
-	"""
-	Checks if the current date is Thanksgiving or within a specified range of days from Thanksgiving.
-
-	:param daysFromThanksgiving: Number of days from Thanksgiving to check.
-	:return: True if within range, False otherwise.
-	"""
-	global now # always use the global datetime 'now' so it doesn't break test dates
-	
-	year = str(now.year)
-	d = datetime.datetime.strptime(str("Nov 1 " + year), '%b %d %Y')
-	dw = d.weekday()
-	thanksgiving = datetime.datetime.strptime(str("Nov " + str(22 + (10 - dw) % 7) + " " + str(d.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
-	target_date = thanksgiving + datetime.timedelta(days=daysFromThanksgiving)
-	return is_date_within_range(now, thanksgiving, daysFromThanksgiving)
-
-def PastThanksgiving(is_thanksgiving):
-	"""
-	Checks if the current date is Thanksgiving or past Thanksgiving and on or before Christmas.
-
-	:param is_thanksgiving: If True, check if today is Thanksgiving.
-	:return: True if past Thanksgiving, False otherwise.
-	"""
-	global now # always use the global datetime 'now' so it doesn't break test dates
-	
-	year = str(now.year)
-	d = datetime.datetime.strptime(str("Nov 1 " + year), '%b %d %Y')
-	dw = d.weekday()
-	datme = datetime.datetime.strptime(str("Nov " + str(22 + (10 - dw) % 7) + " " + str(d.year) + " " + str(now.hour).zfill(2) + ":" + str(now.minute).zfill(2)), '%b %d %Y %H:%M')
-
-	if is_thanksgiving: #check if today is thanksgiving
-		if now==datme and now.month==now.month:
-			return True
-	else:
-		if now > datme:
-			if now.month>=12 and now.day>25:
-				#it's past thanksgiving and also past xmas
-				return False
-			else:
-				#past thanksgiving and is xmas or before
-				return True
-	return False
 
 def replace_all_special_words(s, skip_drive_replacement=False):
 	"""
@@ -2104,6 +2121,85 @@ def weighted_random_choice(items, percentages):
 	Returns:
 	A randomly selected item from the list.
 	"""
+	if len(items) != len(percentages):
+		#raise ValueError("The number of items and percentages must match.")
+		return None
+
+	if sum(percentages) != 100:
+		#raise ValueError("The percentages must add up to 100.")
+		return None
+
+	# Create a cumulative distribution
+	cumulative_distribution = []
+	cumulative_sum = 0
+
+	for percent in percentages:
+		cumulative_sum += percent
+		cumulative_distribution.append(cumulative_sum)
+
+	# Generate a random number between 0 and 100
+	random_number = random.uniform(0, 100)
+
+	# Select the item based on the random number and cumulative distribution
+	for i, threshold in enumerate(cumulative_distribution):
+		if random_number <= threshold:
+			return items[i]
+
+def weighted_random_choice_auto(items, percentages):
+	"""
+	Selects a random item from a list based on the given percentages.
+
+	Args:
+	items (list): List of items to choose from.
+	percentages (list): List of percentages corresponding to the items or can be set to the string 'auto'.
+
+
+	Returns:
+	A randomly selected item from the list.
+	"""
+
+	# If percentages is set to 'auto', we will automatically calculate the percentages based on the number of files in the items, which point to directories.
+	# Then we can sent the percentages var based on those values and continue as normal.
+	# This is useful for randomly selecting from a list of directories where the number of files in each directory should determine the chances of it being selected.
+
+	if isinstance(percentages, basestring) and percentages.lower() == 'auto':
+		counts = []
+		total_files = 0
+		for item in items:
+			if os.path.isdir(item):
+				num_files = len(get_videos_from_dir_cached(item))
+				counts.append(num_files)
+				total_files += num_files
+			else:
+				counts.append(0) 
+
+		if total_files > 0:
+			# Multiply by 100 before dividing to handle integer division in Python 2.7
+			percentages = [(c * 100) / total_files for c in counts]
+			
+			# Largest Remainder Method: Distribute the losing remainders to guarantee exactly 100%
+			remainder = 100 - sum(percentages)
+			if remainder > 0:
+				# Sort indices by their modulo remainder descending
+				rem_indices = sorted(
+					range(len(counts)), 
+					key=lambda i: (counts[i] * 100) % total_files, 
+					reverse=True
+				)
+				for i in range(remainder):
+					percentages[rem_indices[i]] += 1
+		else:
+			# Equal integer distribution if no files are found
+			num_items = len(items)
+			if num_items > 0:
+				base = 100 / num_items
+				remainder = 100 % num_items
+				percentages = [base] * num_items
+				for i in range(remainder):
+					percentages[i] += 1
+			else:
+				percentages = []
+
 	if len(items) != len(percentages):
 		#raise ValueError("The number of items and percentages must match.")
 		return None
@@ -2498,20 +2594,29 @@ def resolve_video_by_type(schedule, folders):
 
 		if not server_folders:
 			printd("No folders returned from server, defaulting to local subfolders")
+			report_error("ORDERED-SHOW", ["No folders returned from server, defaulting to local subfolders: " + str(subfolders), "First video: " + first_video, "First local folder: " + first_local_folder, "Cleaned folder: " + cleaned_folder])
 			server_folders = subfolders
 
 		selfolder = random.choice(server_folders)
 		episodes = get_videos_from_dir_cached(selfolder)
 		if not episodes:
-			report_error("FOLDERS", ["Empty folder", selfolder])
+			# check if file exists on server, if not, report with error
+			fv_exists = os.path.exists(first_video)
+			report_error("FOLDERS", ["Empty folder", selfolder, "First video: (exists? " + str(fv_exists) + ")" + first_video, "First local folder: " + first_local_folder, "Cleaned folder: " + cleaned_folder])
 			if get_setting(['channels', 'error']):
 				channel_name_static = settings['channels']['error']
 				error_channel_set = True
 				return None
 			else:
 				exit()
-
-		full_url = "http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(ensure_string(episodes[0]))
+		random_episode = meta.get("random video on first play", False)
+		if random_episode: # if this is the first time playing the show, play a random episode, otherwise play in order, overriding the global "random video on first play" setting if it is set in the metadata for this schedule block
+			full_url = "http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(ensure_string(episodes[0]) + "&random=1")
+		if not random_episode: # this might be set to override the "random video on first play" global setting and force it to play the first video in the folder on the first play, then in order after that
+			full_url = "http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(ensure_string(episodes[0]) + "&random=0")
+		else: # if the global setting is not overridden, or even set at all, let the server decide what to play
+			full_url = "http://127.0.0.1/?get_next_episode=" + urllib.quote_plus(ensure_string(episodes[0]))
+		
 		urlcontents = open_url(full_url)
 
 		printd("OS-Response:", urlcontents)
@@ -2679,7 +2784,41 @@ def prepare_commercials_and_bumpers(source, schedule):
 	printd("Fixed commercial count mode. Count:", settings['commercials_per_break'])
 	return (int(settings['commercials_per_break']), None, None)
 
-report_error("STARTUP", ["Script is now running!"])
+def onStartup():
+	"""Performs startup tasks such as reporting that the script is running."""
+	report_error("STARTUP", ["Script is now running!", "Script Version: " + ensure_string(SCRIPT_VERSION), "Settings version: " + ensure_string(SETTINGS_VERSION)])
+
+	# 1. Safely grab the list of workers from settings.json
+	worker_list = get_setting(['workers'], default=[], force_type=list)
+	# 2. Iterate and trigger each PHP maintenance script
+	for worker in worker_list:
+		# Clean the worker path/string
+		worker_path = ensure_string(worker)		
+		# Construct the full local URL
+		full_url = "http://127.0.0.1/" + worker_path		
+		# Trigger the PHP worker
+		response = open_url(full_url)
+
+		if response:
+			# Ensure it's a string
+			clean_res = ensure_string(response)			
+			# Split the "1|Message" into ['1', 'Message']
+			parts = clean_res.split('|', 1)
+			
+			status = parts[0]
+			message = parts[1] if len(parts) > 1 else "No message provided"
+
+			if status == "1":
+				# Log success - maybe print to console or a startup file
+				printd("WORKER_SUCCESS", [worker_path, message])
+			else:
+				# Log error - report_error would be useful here
+				report_error("WORKER_FAIL", [worker_path, message])
+		else:
+			report_error("WORKER_TIMEOUT", [worker_path, "No response from local server"])
+
+onStartup() # Call the onStartup function to report that the script has started
+
 
 while True:
 	try:
@@ -2741,7 +2880,7 @@ while True:
 			continue
 
 		if video is None or len(video) == 0:
-			report_error("PLAY", ["No videos found", "Programing", programming_schedule[4]])
+			report_error("PLAY", ["No videos found", "Looked: " + str(programming_schedule[0]), "Programing", programming_schedule])
 			printd("No videos returned from 'resolve_video_by_type'")
 			continue
 
@@ -2762,7 +2901,8 @@ while True:
 
 		success = 0
 		play_video_attempts = 0
-		while(success == 0 and play_video_attempts < get_setting(['max_play_attempts'], 3)):
+		max_attempts = get_setting(['max_play_attempts'], 1)
+		while(success == 0 and play_video_attempts < max_attempts):
 			success = play_video(
 				source,
 				get_commercials(source),
@@ -2773,7 +2913,8 @@ while True:
 			)
 			play_video_attempts += 1
 			if success == 0:
-				report_error("PLAY_ATTEMPT", ["Video failed to play, retrying...", "Attempt #", ensure_string(play_video_attempts), "Source", ensure_string(source)])
+				if play_video_attempts < max_attempts:
+					report_error("PLAY_ATTEMPT", ["Video failed to play, retrying...", "Attempt #" + ensure_string(play_video_attempts) + " of " + ensure_string(max_attempts), "Source", ensure_string(source)])
 
 
 		if programming_schedule[4].get('minimum-before-repeat'):
