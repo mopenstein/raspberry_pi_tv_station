@@ -20,7 +20,15 @@ class ThemeManager implements ManageCard {
             $this->html = '<div style="color:red; margin:5px; padding:10px;">No themes found in the templates directory.</div>';
             return;
         }
-        $this->html = '<div style="margin:5px; padding:10px;">';
+        $this->html = '
+		<script>
+			function updateThemePreview(theme) {
+				const previewImage = document.getElementById("themePreview");
+				previewImage.src = "/templates/" + theme + ".preview.png"; // Assuming each theme has a preview.png
+			}
+		</script>
+		
+		<div style="margin:5px; padding:10px;">';
         $this->html .= '<strong>Switch Web-UI Theme</strong><br><br>';
         if($this->updateProcessed) {
             $this->html .= '
@@ -33,16 +41,23 @@ class ThemeManager implements ManageCard {
             ';
         }
         $this->html .= '<form method="POST" style="display:flex; gap:10px; align-items:center;">';
-        $this->html .= '<select name="new_theme" style="padding:4px;">';
-
+        $this->html .= '<select name="new_theme" style="padding:4px;" onchange="updateThemePreview(this.value)">';
+		$first = null;
         foreach ($themes as $path) {
             $folder = basename($path);
+			if ($first === null) {
+				$first = pathinfo($folder, PATHINFO_FILENAME);
+			}
             $this->html .= '<option value="' . pathinfo($folder, PATHINFO_FILENAME) . '">' . pathinfo($folder, PATHINFO_FILENAME) . '</option>';
         }
 
         $this->html .= '</select>';
         $this->html .= '<input type="submit" value="Apply Theme" style="padding:4px 10px;" class="btn" />';
-        $this->html .= '</form></div>';
+        $this->html .= '</form>
+		
+		<img style="max-width: 100%; height: auto; border: 1px solid #ccc; margin-top: 10px;" src="/templates/' . $first . '.preview.png" id="themePreview" />
+		
+		</div>';
     }
 
     private function processUpdate() {

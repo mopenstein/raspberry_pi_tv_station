@@ -24,6 +24,11 @@ class MountedDrivesManager implements ManageCard {
         $data = json_decode($raw_json, true);
         $drives = [];
 
+        // Ignore empty mounts and boot-specific volumes only
+        $isBootMount = function($mount) {
+            return empty($mount) || $mount === '/boot' || strpos($mount, '/boot/') === 0;
+        };
+
         if (!empty($data['blockdevices'])) {
             foreach ($data['blockdevices'] as $dev) {
                 // Ignore loopback devices and virtual memory (zram)
@@ -34,30 +39,29 @@ class MountedDrivesManager implements ManageCard {
                 // Check partitions with active mountpoints
                 if (!empty($dev['children'])) {
                     foreach ($dev['children'] as $child) {
-                        if (!empty($child['mountpoint'])) {
+                        if (!empty($child['mountpoint']) && !$isBootMount($child['mountpoint'])) {
                             $drives[] = $child;
                         }
                     }
-                } elseif (!empty($dev['mountpoint'])) {
+                } elseif (!empty($dev['mountpoint']) && !$isBootMount($dev['mountpoint'])) {
                     $drives[] = $dev;
                 }
             }
         }
 
         if (empty($drives)) {
-            $this->html = '<div style="margin:5px; padding:10px; color:#888;">No mounted storage devices detected.</div>';
+            $this->html = '<div style="margin:5px; padding:10px; color:#888;">No storage devices detected.</div>';
             return;
         }
 
-        $this->html = '<div style="margin:5px; padding:10px; font-size:13px;">';
-        $this->html .= '<strong>Active Mounted Drives</strong><br><br>';
-        $this->html .= '<table style="width:100%; border-collapse:collapse; text-align:left;">';
-        $this->html .= '<tr style="border-bottom:1px solid rgba(255,255,255,0.15); color:#888; font-size:11px; text-transform:uppercase;">';
-        $this->html .= '<th style="padding:6px 8px;">Device</th>';
-        $this->html .= '<th style="padding:6px 8px;">Mount Point</th>';
-        $this->html .= '<th style="padding:6px 8px;">FS</th>';
-        $this->html .= '<th style="padding:6px 8px;">Usage</th>';
-        $this->html .= '<th style="padding:6px 8px; text-align:right;">Free / Total</th>';
+        $this->html = '<div style="margin:2px; padding:6px; font-size:12px; box-sizing:border-box;">';
+        $this->html .= '<strong style="font-size:13px;">Active Mounted Drives</strong><br><br>';
+        $this->html .= '<table style="width:100%; border-collapse:collapse; text-align:left; table-layout:auto;">';
+        $this->html .= '<tr style="border-bottom:1px solid rgba(255,255,255,0.15); color:#888; font-size:10px; text-transform:uppercase; letter-spacing:0.5px;">';
+        $this->html .= '<th style="padding:6px 4px;">Device</th>';
+        $this->html .= '<th style="padding:6px 4px;">Mount</th>';
+        $this->html .= '<th style="padding:6px 4px;">FS</th>';
+        $this->html .= '<th style="padding:6px 4px; min-width:85px;">Usage</th>';
         $this->html .= '</tr>';
 
         foreach ($drives as $drive) {
@@ -89,42 +93,40 @@ class MountedDrivesManager implements ManageCard {
                 $barColor = '#f59e0b';
             }
 
-            $this->html .= '<tr style="border-bottom:1px solid rgba(255,255,255,0.07);">';
+            $this->html .= '<tr style="border-bottom:1px solid rgba(255,255,255,0.07); vertical-align:middle;">';
             
             // Device column
-            $this->html .= '<td style="padding:8px; white-space:nowrap;">';
-            $this->html .= '<strong>' . htmlspecialchars($devName) . '</strong>';
+            $this->html .= '<td style="padding:6px 4px; white-space:nowrap;">';
+            $this->html .= '<strong style="font-size:12px;">' . htmlspecialchars($devName) . '</strong>';
             if ($label !== '') {
-                $this->html .= '<br><span style="font-size:11px; color:#888;">' . $label . '</span>';
+                $this->html .= '<br><span style="font-size:10px; color:#888;">' . $label . '</span>';
             }
             $this->html .= '</td>';
 
             // Mount point column
-            $this->html .= '<td style="padding:8px; font-family:monospace; font-size:12px;">';
+            $this->html .= '<td style="padding:6px 4px; font-family:monospace; font-size:11px; word-break:break-all;">';
             $this->html .= htmlspecialchars($mount);
             $this->html .= '</td>';
 
             // Filesystem type
-            $this->html .= '<td style="padding:8px; font-size:11px; color:#aaa;">' . htmlspecialchars($fsType) . '</td>';
+            $this->html .= '<td style="padding:6px 4px; font-size:10px; color:#aaa;">' . htmlspecialchars($fsType) . '</td>';
 
-            // Usage progress bar
-            $this->html .= '<td style="padding:8px; min-width:90px;">';
-            $this->html .= '<div style="background:rgba(255,255,255,0.1); border-radius:4px; height:8px; width:100%; overflow:hidden;">';
+            // Usage progress bar + Combined Free/Total Subtext
+            $this->html .= '<td style="padding:6px 4px;">';
+            $this->html .= '<div style="background:rgba(255,255,255,0.1); border-radius:3px; height:6px; width:100%; overflow:hidden; margin-bottom:3px;">';
             $this->html .= "<div style=\"background:{$barColor}; width:{$usedPercent}%; height:100%;\"></div>";
             $this->html .= '</div>';
-            $this->html .= "<span style=\"font-size:10px; color:#aaa;\">{$usedPercent}% used</span>";
-            $this->html .= '</td>';
-
-            // Capacity summary
-            $this->html .= '<td style="padding:8px; text-align:right; font-family:monospace; font-size:11px; white-space:nowrap;">';
-            $this->html .= "{$freeFormatted} / {$totalFormatted}";
+            $this->html .= '<div style="display:flex; justify-content:space-between; font-size:9px; color:#999; font-family:monospace; white-space:nowrap; gap:4px;">';
+            $this->html .= "<span>{$usedPercent}%</span>";
+            $this->html .= "<span>{$freeFormatted} free</span>";
+            $this->html .= '</div>';
             $this->html .= '</td>';
 
             $this->html .= '</tr>';
         }
 
         $this->html .= '</table>';
-        $this->html .= '<div style="margin-top:10px; text-align:right;">';
+        $this->html .= '<div style="margin-top:8px; text-align:right;">';
         $this->html .= '<a href="#" onclick="location.reload();" style="font-size:11px; color:#888; text-decoration:none;">↻ Refresh Status</a>';
         $this->html .= '</div>';
         $this->html .= '</div>';
