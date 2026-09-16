@@ -10,6 +10,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'reset') {
     exit;
 }
 
+if (isset($_GET['action']) && $_GET['action'] === 'skip') {
+	file_put_contents($state_file, json_encode([
+		'step' => 'complete',
+		'hostname' => trim(shell_exec('hostname')),
+		'skipped_setup' => true,
+		'updated_at' => time()
+	], JSON_PRETTY_PRINT));
+    header('Location: index.php');
+    exit;
+}
+
 // Resume wizard if a step is already in flight
 if (file_exists($state_file)) {
     $state = json_decode(file_get_contents($state_file), true);
@@ -222,6 +233,8 @@ $current_ip = trim(shell_exec("hostname -I | awk '{print $1}'"));
     <form method="POST">
         <button type="submit" name="start" value="1" class="btn-start">Begin Setup</button>
     </form>
+	<br>
+	<button type="button" class="btn-start" style="background: #ff4757;" onclick="window.location.href='index.php?action=skip'">Skip Setup</button>
 </div>
 
 </body>
