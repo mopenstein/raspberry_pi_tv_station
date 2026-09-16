@@ -38,3 +38,7 @@ Inside the /home/pi/Desktop/videos/examples/ directory you will find a short bro
 Inside the /home/pi/Desktop/videos/commercials/ directory you will find a short, truncated public domain commercial that will play when the commercial break occurs as defined by the '.commercials' file for the current video playing.
 
 Works with composite or HDMI video out.
+
+# Disk Image Hash
+
+SHA256: 7dfc71801c15f48749694dc6136227c21a4140ef603367c1acff349057946692
