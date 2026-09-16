@@ -4,36 +4,27 @@ Download a disk image of my running raspberry pi tv station: [@ archive.org]([ht
 
 Requires at least a 8GB micro SD card, though bigger is better since the MYSQL database is stored on the SD card.
 
-Designed and tested on a Raspberry Pi 3B and 3b+ (runs absolutely perfectly). Also tested on a Raspberry Pi 2B v1.2 (runs slowly but does function)
+Designed and tested on a Raspberry Pi 2B, 3B, and 3b+.
+
+# Raspberry Pi Broadcast TV Station Setup Guide
+
+The Appliance Initializer guides you through four quick configuration steps to get your broadcast station online. Connect the Raspberry Pi to your local network via an ethernet wire and point your browser to: http://raspi-tv-station.local/ Setup will begin automatically.
+
+## Setup Steps
+
+1. **Station Identity**: Choose a unique local hostname for the broadcast unit (e.g., `raspi-tv-station`). Changing this triggers a quick ~30-second restart and updates your local access URL.
+<img src="./assets/tv-station-setup-step.png" width="200" title="Setup Preview 1">
+2. **Clock & Timezone**: Select your local region so scheduled broadcasts and bumpers air at the correct time. The wizard detects browser and Pi timezones, allowing you to sync clocks or skip if already matched.
+<img src="./assets/tv-station-setup-step-hostname.png" width="200" title="Setup Preview 2">
+3. **Media Storage**: Select and mount an attached USB storage drive (e.g., an exFAT drive) to persist your media under `/media/pi/drive_*`. Registers persistent mounts in `/etc/fstab`.
+<img src="./assets/tv-station-setup-step-mount.png" width="200" title="Setup Preview 3">
+4. **Wi-Fi Connection**: Join a local wireless network or continue using wired Ethernet to finalize your setup and bind services.
+<img src="./assets/tv-station-setup-step-wi-fi.png" width="200" title="Setup Preview 4">
+Once complete, the dashboard confirms your appliance is ready for air, displaying your final hostname, IP address, timezone, and storage target so you can launch the station interface.
+<img src="./assets/tv-station-setup-step-complete.png" width="200" title="Setup Preview 5">
+
+# Other
 
 You'll need to supply your own video files and you'll have to edit the settings.json file to reflect the location of those video files.
 
-Also need to edit the cmdline.txt (see below) file on the sd card after imaging to restore it to the default settings. This is so we can get to the terminal.
-
-Hooked composite out to TV so I could see what was going on. Plugged in ethernet wire, usb keyboard, and usb hard drive. Booted to terminal.
-
-At the terminal, you'll need to kill python because the script auto executes on boot: sudo pkill python
-
-You'll need to change the static IP address and Wifi settings. Edit fstab to automount your USB drive.
-
-Once you have an IP address and are connected to your local network you can navigate your browser to the pi's IP ADDRESS and edit the settings file 'Settings Editor'.
-
-You'll also need to create a .channel file and give it global read/write permissions. Do this even if you don't plan on using the channel feature. Channel file location is set in the 'settings' file.
-
-After getting everything running you should use raspi-config to expand the file system to reallocate the space on your sd card.
-
-Also accessible from the Web UI is a link to phpMyAdmin from where you'll want to truancate the "errors", "commercials", and "played" databases so you can start fresh.
-
-# cmdline.txt
-
-Those that install from the disk image will want to replace the cmdline.txt file on the newly flashed SD card with cmdline.old.txt (renamed to cmdline.txt) before booting for the first time in order to get access to the terminal. Doing this from Windows is not simple. Access to a linux PC will make life easier.
-
-After accessing the new Raspberry Pi and making the necessary changes replace /boot/cmdline.txt with the cmdline.txt file in this Github folder. Should be easy to do while still on the Raspberry Pi. This step is required so the Pi will boot to a blank screen with no splash or console text.
-
-# settings.json
-
-The settings.json file in this folder is a bare bones example to getting video playing. The settings.json file included in the Disk Image is quite complex.
-
-You'll have to edit the location of the "drive" to match your local machine.
-
-You'll also need to make a copy of the google spreadsheet that contains the tv station programming and edit the URL in the "web-ui"->"tv_schedule_link" setting. Your version of the spreadsheet needs to be shared publicly but it doesn't have to be editable (except for your personal edits). Example that I use is here: https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/copy
+Works with composite or HDMI video out.
