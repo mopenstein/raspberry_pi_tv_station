@@ -1,4 +1,21 @@
 <?php
+$setup_state_file = __DIR__ . '/setup/state.json';
+
+// If setup has never run, or is incomplete, redirect to the wizard
+if (file_exists($setup_state_file)) {
+    $state = json_decode(file_get_contents($setup_state_file), true);
+    
+    // Check if the wizard is still in progress (not marked complete)
+    if (!isset($state['step']) || $state['step'] !== 'complete') {
+        header('Location: /setup/');
+        exit;
+    }
+} else {
+    // No state file exists at all -> send to setup
+    header('Location: /setup/');
+    exit;
+}
+
 error_reporting(E_ALL);
 ini_set("display_errors", 1);
 
@@ -63,6 +80,7 @@ function prepareShowRow($row) {
     // Extract length %T(...)%
     $a = strpos($row["name"], "%T(");
     $b = strpos($row["name"], ")%", $a+1);
+	$secondsLength = ($a > -1 && $b > -1) ? (int)substr($row["name"], $a + 3, $b-$a - 3) : 0;
     $lengthValue = ($a > -1 && $b > -1) ? gmdate("H:i:s", (int)substr($row["name"], $a + 3, $b-$a - 3)) : "";
 
     $color = getShowTypeColor($showType);
@@ -75,6 +93,7 @@ function prepareShowRow($row) {
         'name'  => $row["short_name"],             // Matches $s['name']
         'url'   => urlencode($row["name"]),       // Matches $s['url']
         'len'   => $lengthValue,                  // Matches $s['len'] - FIXES ERROR
+		'slen'   => $secondsLength,                  // Raw seconds for potential use in JS
         'type'  => $showType,                     // Matches $s['type']
         'flag'   => $row["flag"]				  // Matches $s['flag'] for conditional button rendering
     ];
@@ -140,6 +159,7 @@ function getCommercialTypeColor($type) {
  * Fetches and processes Commercials for the View
  */
 function fetchCommercials($mysqli, $date, $channel, $drives) {
+	global $json_settings;
 
     $content_start_time = strtotime($date . ' 00:00:00');
     $content_end_time   = strtotime($date . ' 23:59:59');
@@ -173,45 +193,46 @@ while ($row = $res->fetch_assoc()) {
 	//if(date("w", $row["played"])!=$td) break;
 	$rname = $row["name"];
 	foreach($drives as $d) {
-		if(substr($row["name"], 0, strlen($d)) == $d) $rname = substr($row["name"], strlen($d));
+		if(substr($rname, 0, strlen($d)) == $d) $rname = substr($rname, strlen($d));
 	}
-	
-	
 	
 	$splits = explode('/', $rname);
+	$comm_offset = $json_settings["web-ui"]["commercial_type_colors_offset"] ?? null; // default to null if not set
 	$month_offset = 2;
 	$comm_type=0;
-	
-	if(strpos($row["name"], "%AM%")>0) $comm_type=1;
-	if(strpos($row["name"], "%PM%")>0) $comm_type=2;
-	if(strpos($row["name"], "%ANY%")>0) $comm_type=3;
-	
-	if($splits[count($splits)-$month_offset]=="any" || $splits[count($splits)-$month_offset]=="am" || $splits[count($splits)-$month_offset]=="pm") {
-		$month_offset = 3;
-	}
-	
 	$comm_type_emoji = [ "1F4FA", "1F476", "1F37A", "1F46A"];
-
-	if(array_key_exists($splits[count($splits)-$month_offset], $comm_months)==false) { 
-		$comm_months[$splits[count($splits)-$month_offset]]=[1, 0, 0, 0];
-		$comm_months[$splits[count($splits)-$month_offset]][$comm_type]=1;
-	} else { 
-		$comm_months[$splits[count($splits)-$month_offset]][0]++;
-		if($comm_type) $comm_months[$splits[count($splits)-$month_offset]][$comm_type]++;
-	}
-	
-	$a = strpos(basename($row["name"]), "%T(");
-	$b = strpos(basename($row["name"]), ")%", $a+1);
 	$len = "";
+
+	$a = strpos(basename($rname), "%T(");
+	$b = strpos(basename($rname), ")%", $a+1);
 	if($a>-1 && $b>-1) {
-		$len = gmdate("H:i:s", (int)substr(basename($row["name"]), $a + 3, $b-$a - 3));
+		$len = gmdate("H:i:s", (int)substr(basename($rname), $a + 3, $b-$a - 3));
 	}
 
+	if(strpos($rname, "%AM%")>0) $comm_type=1;
+	if(strpos($rname, "%PM%")>0) $comm_type=2;
+	if(strpos($rname, "%ANY%")>0) $comm_type=3;	
 
+	if(!is_numeric($comm_offset)) { // check if user defined offset is invalid, if so, try to auto-detect
+		if($splits[count($splits)-$month_offset]=="any" || $splits[count($splits)-$month_offset]=="am" || $splits[count($splits)-$month_offset]=="pm") {
+			$month_offset = 3;
+		}	
 
-	// Pre-calculate variables for cleaner mapping
-	$currentType = $splits[count($splits) - $month_offset];
-	$videoPath = stripslashes($row["name"]);
+		if(array_key_exists($splits[count($splits)-$month_offset], $comm_months)==false) { 
+			$comm_months[$splits[count($splits)-$month_offset]]=[1, 0, 0, 0];
+			$comm_months[$splits[count($splits)-$month_offset]][$comm_type]=1;
+		} else { 
+			$comm_months[$splits[count($splits)-$month_offset]][0]++;
+			if($comm_type) $comm_months[$splits[count($splits)-$month_offset]][$comm_type]++;
+		}
+		
+		// Pre-calculate variables for cleaner mapping
+		$currentType = $splits[count($splits) - $month_offset];
+	} else {
+		$currentType = $splits[count($splits) + $comm_offset];
+	}
+
+	$videoPath = stripslashes($rname);
 	$videoUrl = urlencode($videoPath);
 
 	$comms[] = [
@@ -220,7 +241,6 @@ while ($row = $res->fetch_assoc()) {
 		'timestamp'    => $row["played"],		// Matches $s['timestamp']
 		'folder'       => $splits[count($splits) - 2],
 		'typeLabel'    => $currentType,
-		'monthPrefix'  => $comm_months[$currentType][0] ?? '',
 		'emoji'        => $comm_type_emoji[$comm_type] ?? '2753', // Default to '?' emoji if missing
 		'videoUrl'     => $videoUrl,
 		'filename'     => basename($videoPath),
@@ -428,11 +448,16 @@ $View = [
 // Preload Disk Space
 $View['sys']['disk'][] = 'Root SD ' . floor(disk_free_space("/.") / (1024**3)) . 'GB';
 foreach (($json_settings["drive"] ?? []) as $drive) {
-    $View['sys']['disk'][] = floor(disk_free_space($drive) / (1024**3)) . "GB";
+	if (is_dir($drive)) {
+    	$View['sys']['disk'][] = floor(disk_free_space($drive) / (1024**3)) . "GB";
+	} else {
+		$View['sys']['disk'][] = "N/A";
+	}
 }
 
 // --- 3. FETCH & PROCESS EVERYTHING ---
 // (Logic calls to helper functions in functions.php)
+$View['timestamp'] = time(); // current timestamp for cache-busting or display purposes
 $View['data']['shows']       = fetchShows($mysqli, $the_date, $_GET["channelView"] ?? null);
 $View['data']['commercials'] = fetchCommercials($mysqli, $the_date, $_GET["channelView"] ?? null, $json_settings["drive"] ?? []);
 

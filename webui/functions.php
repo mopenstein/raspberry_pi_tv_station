@@ -160,6 +160,34 @@ function isDriveAllowed(string $path, array $drives): bool {
 	return false;
 }
 
+if(isset($_GET['get_last_played'])) {
+	$result = $mysqli->query("SELECT * FROM played ORDER BY id DESC LIMIT 1") or die($mysqli->error);
+	$last_played = null;
+	if ($result->num_rows > 0) {
+		$last_played = $result->fetch_assoc();
+	}
+	
+	if (!$last_played) {
+		die(json_encode([
+			"name" => "ERROR: NOT FOUND",
+			"short_name" => "ERROR",
+			"played" => -1,
+			"id" => -1,
+			"len" => -1
+		]));
+	}
+
+		// make this a json string instead of pipe delimited for better parsing on the client side
+		die(json_encode([
+			"name" => rawurlencode($last_played["name"]),
+			"short_name" => rawurlencode($last_played["short_name"]),
+			"played" => (int)$last_played["played"],
+			"id" => (int)$last_played["id"],
+			"len" => (int)substr($last_played["name"], strpos($last_played["name"], "%T(") + 3, strpos($last_played["name"], ")%") - strpos($last_played["name"], "%T(") - 3)
+		]));
+
+}
+
 if (isset($_GET['rename_video'], $_GET['to'])) {
 	$oldInput = urldecode($_GET['rename_video']);
 	$newInput = urldecode($_GET['to']);
@@ -211,8 +239,62 @@ if(isset($_GET["channel"]) && count($_GET)==1) {
 	}
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reboot') {
+    // 1. Send clean HTTP headers and clear buffer
+    ignore_user_abort(true);
+    set_time_limit(0);
 
-if(isset($_GET["reboot"])) {
+    // 2. Render holding UI to the browser
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Rebooting...</title>
+        <style>
+            body { font-family: monospace; background: #111; color: #0f0; padding: 40px; text-align: center; }
+            .box { border: 1px solid #333; display: inline-block; padding: 20px 40px; border-radius: 6px; }
+        </style>
+        <script>
+            // Poll the root page every 5 seconds until the Pi comes back up, then reload cleanly
+            function checkServer() {
+                fetch('/', { method: 'HEAD', cache: 'no-store' })
+                    .then(response => {
+                        if (response.ok) window.location.href = '/';
+                        else setTimeout(checkServer, 5000);
+                    })
+                    .catch(() => setTimeout(checkServer, 5000));
+            }
+            // Start polling after 20 seconds (give it time to actually shut down)
+            setTimeout(checkServer, 20000);
+        </script>
+    </head>
+    <body>
+        <div class="box">
+            <h2>Rebooting System</h2>
+            <p>Station reboot initiated. This page will automatically reload once the Pi is back online.</p>
+        </div>
+    </body>
+    </html>
+    <?php
+
+    // 3. Force output to browser and close connection
+    if (ob_get_level() > 0) {
+        ob_end_flush();
+    }
+    flush();
+
+    // FastCGI / Apache hook to close client socket immediately
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    }
+
+    // 4. Trigger reboot detached in the background
+    exec('sleep 1 && sudo /sbin/reboot >/dev/null 2>&1 &');
+    exit;
+}
+
+if(isset($_GET["rebootz"])) {
 	header("Location: /\n\n");
 	exec('sudo reboot');
 }
@@ -240,7 +322,9 @@ if(isset($_GET["skip"])) {
 
 if(isset($_GET["restart"])) {
 	//header("Location: /\n\n");
-	$result = exec('nohup bash ./restart.sh > /dev/null 2>&1 &');
+	//$result = exec('sudo ./home/pi/Desktop/restart.sh > /dev/null 2>&1 &');
+	echo 'sudo /home/pi/Desktop/brestart.sh';
+	$result = shell_exec('sudo /home/pi/Desktop/brestart.sh');
 	die($result);
 }
 
@@ -275,61 +359,45 @@ if(isset($_GET["db_manage_ext"])) {
 	}
 }
 
-function checkShowPlayAmount($sname, $csv) {
+function checkShowPlayAmount($sname, array $showList) {
 	global $mysqli;
 	if(isset($_GET["test"])) echo "$sname\n";
-	$csv = array_map('str_getcsv', explode("\r\n", $csv));
-	$narr = [];
-	$keys = [];
-	
-	//create an array of types (reruns, primetime, cartoons, etc)
-	//and also an array of keys for each type's name
-	for($i=0;$i<count($csv[0]);$i++) {
-		$narr[$csv[0][$i]] = [];
-		$keys[$i] = $csv[0][$i];
-	}
 
 	$res = $mysqli->query("SELECT *, COUNT(`short_name`) AS `value_occurrence` FROM `played` GROUP BY `short_name` ORDER BY `value_occurrence` DESC") or die($mysqli->error);
 	$shows = [];
-	//load each show that has been played and their play count
 	while ($brow = $res->fetch_assoc()) {
 		$shows[$brow["short_name"]] = $brow["value_occurrence"]*1;
 		if(isset($_GET["test"])) echo $brow["short_name"] ." = ". $brow["value_occurrence"] ."\n";
 	}
-	
-	$selected = null;
-	//populate each type with its shows and how many times it has been played
-	//and whilst doing so, set the current type so we can compare the played times against only the same type of shows
-	for($i=1;$i<count($csv);$i++) {
-		for($j=0;$j<count($csv[$i]);$j++) {
-			$conv_short_name = $csv[$i][$j];
-			if($conv_short_name!="") {
-				
-				if(strpos("S".$conv_short_name, "=")>0) {
-					$conv_short_name = substr($conv_short_name, strpos($conv_short_name, "=") + 1);
-				}
-				
-				if(isset($shows[$conv_short_name])) $cnt = $shows[$conv_short_name]; else $cnt = 0;
-				
 
-				array_push($narr[$keys[$j]], [$conv_short_name, $cnt]);
-				if($conv_short_name == $sname) {
-					$selected = $keys[$j];
-				}
+	$narr = [];
+	$selected = null;
+
+	foreach($showList as $catKey => $items) {
+		$narr[$catKey] = [];
+		foreach($items as $entry) {
+			$conv_short_name = $entry;
+			if(strpos("S".$conv_short_name, "=")>0) {
+				$conv_short_name = substr($conv_short_name, strpos($conv_short_name, "=") + 1);
+			}
+
+			$cnt = isset($shows[$conv_short_name]) ? $shows[$conv_short_name] : 0;
+			$narr[$catKey][] = [$conv_short_name, $cnt];
+
+			if($conv_short_name == $sname) {
+				$selected = $catKey;
 			}
 		}
 	}
+
 	if(isset($_GET["test"])) echo "///////////////////////////////narr\n";
 	if(isset($_GET["test"])) var_dump($narr);
 	$highest = -1;
 	$lowest = 999999;
 	$lowshow = "";
 	$list = [];
-	if($selected!=null) {
-	//shift the most played shows to the top
-	//and everything else to the bottom
+	if($selected!=null && isset($narr[$selected])) {
 		for($i=0;$i<count($narr[$selected]);$i++) {
-			//if($i>6) break;
 			if($narr[$selected][$i][1] >= $highest) {
 				$highest = $narr[$selected][$i][1];
 				array_unshift($list, $narr[$selected][$i]);
@@ -351,21 +419,15 @@ function checkShowPlayAmount($sname, $csv) {
 
 	$exit=true;
 
-	//check to make sure not every show has been played an equal amount of times
-	//by seeing if the highest play count is the same for each show
 	for($i=0;$i<count($list);$i++) {
-		//echo($list[$i][0] . ", " . $list[$i][1] . ", " . $highest . "\n");
 		if($list[$i][1] != $highest) { 
 			$exit=false;
 			break;
 		}
 	}
 	
-	//if each show has been played the same amount of times, then play whichever show this one is because it doesn't matter.
 	if($exit) return true;
 
-	//see if the current show is in the list of highest shows
-	//if it is, it shouldn't be played
 	for($i=0;$i<count($list);$i++) {
 		if($list[$i][1] != $lowest) { 
 			if($sname==$list[$i][0]) {
@@ -374,23 +436,17 @@ function checkShowPlayAmount($sname, $csv) {
 		}
 	}
 
-	//play the current show
 	return true;
 }
 
 function getTvShowName($filename, $showList) {
-	/*
-	Find the best matching show name from the provided show list based on the filename.
-	*/
 	if ($showList == null || count($showList) <= 0) return basename($filename);
 
-	// Strip off any %T(...) suffix
 	if (strrpos($filename, "%T(") !== false) {
 		$filename = substr($filename, 0, strrpos($filename, "%T("));
 	}
 	$filename = basename($filename);
 
-	// Normalize filename for matching
 	$cleanFilename = strtolower(preg_replace("~[_\W\s]~", '', $filename));
 
 	$bestMatch = '';
@@ -416,34 +472,76 @@ function getTvShowName($filename, $showList) {
 	return $bestMatch ?: $filename;
 }
 
-function parseCSV($csv, $verbose = null) {
-	$csv = array_map('str_getcsv', explode("\r\n", $csv));
-	$narr = [];
-	$keys = [];
+function parseCSVToArray($csv, $verbose = null) {
+	$lines = preg_split('/\r\n|\r|\n/', trim($csv));
+	if (empty($lines)) return [];
 
-	//create an array of types (reruns, primetime, cartoons, etc)
-	//and also an array of keys for each type's name
-	for($i=0;$i<count($csv[0]);$i++) {
-		$keys[$i] = $csv[0][$i];
-		$narr[$keys[$i]] = [];
-		if($verbose!=null) echo "Created category <i>{$keys[$i]}</i><br />\n";
+	$rows = array_map('str_getcsv', $lines);
+	$categoryData = [];
+	$headers = $rows[0];
+
+	// Track shows globally during parse to catch duplicates across categories
+	$seenShows = [];
+
+	for ($i = 0; $i < count($headers); $i++) {
+		$catName = trim($headers[$i]);
+		if ($catName !== '') {
+			$categoryData[$catName] = [];
+			if ($verbose !== null) echo "<div style='color:#555;margin-top:10px;'>Category: <b>{$catName}</b></div>\n";
+		}
 	}
 
-	for($i=1;$i<count($csv);$i++) {
-		for($j=0;$j<count($csv[$i]);$j++) {
-			if(preg_replace('/[^\da-z]/i', '', $csv[$i][$j])!="") {
-				array_push($narr[$keys[$j]], $csv[$i][$j]);
-				if($verbose!=null) echo "Added <b>'{$csv[$i][$j]}'</b> to <i>{$keys[$j]}</i> <small>verified against: '" . preg_replace('/[^\da-z]/i', '', $csv[$i][$j]) . "'</small><br />\n";
+	$headerKeys = array_keys($categoryData);
+	for ($i = 1; $i < count($rows); $i++) {
+		for ($j = 0; $j < count($rows[$i]); $j++) {
+			if (!isset($headerKeys[$j])) continue;
+			
+			$val = trim($rows[$i][$j]);
+			$stripped = preg_replace('/[^\da-z]/i', '', $val);
+
+			if ($stripped !== '') {
+				$categoryName = $headerKeys[$j];
+				$categoryData[$categoryName][] = $val;
+
+				if ($verbose !== null) {
+					// 1. Check for Alias syntax (Alias=Real Name)
+					$aliasNotice = "";
+					$checkTarget = $val;
+					if (strpos($val, "=") !== false) {
+						$parts = explode("=", $val, 2);
+						$aliasNotice = " <span style='color:#0066cc;'>(Alias Target: <b>'{$parts[0]}'</b> &rarr; Display: <b>'{$parts[1]}'</b>)</span>";
+						$checkTarget = $parts[0];
+					}
+
+					// 2. Check for Short Strings (High collision risk)
+					$shortWarning = "";
+					$cleanTarget = preg_replace('/[^\da-z]/i', '', $checkTarget);
+					if (strlen($cleanTarget) <= 3) {
+						$shortWarning = " <span style='background:#fff3cd;color:#856404;padding:2px 5px;border-radius:3px;font-weight:bold;'>&Delta; SHORT NAME ({$cleanTarget}): High collision risk!</span>";
+					}
+
+					// 3. Check for Global Duplicates across categories
+					$dupWarning = "";
+					$cleanLower = strtolower($cleanTarget);
+					if (isset($seenShows[$cleanLower])) {
+						$prevCat = $seenShows[$cleanLower];
+						$dupWarning = " <span style='background:#f8d7da;color:#721c24;padding:2px 5px;border-radius:3px;font-weight:bold;'>&times; DUPLICATE: Also in '{$prevCat}'!</span>";
+					} else {
+						$seenShows[$cleanLower] = $categoryName;
+					}
+
+					echo "<div>&bull; Added <b>'{$val}'</b> to <i>{$categoryName}</i> <small style='color:#777;'>[match: '{$stripped}']</small>{$aliasNotice}{$shortWarning}{$dupWarning}</div>\n";
+				}
 			} else {
-				//
-				//file_get_contents("http://127.0.0.1/?error=parseCSV|PHP|check%20your%20spreadsheet%20it%20contains%20an%20all%20white%20spaced%20entry");
-				if($csv[$i][$j]!="") echo "<h1 style=\"color:red;\">Check your spreadsheet. It contains an all white space entry</h1>";
+				if ($val !== '') {
+					echo "<div style='background:#f8d7da;color:#721c24;padding:6px;margin:4px 0;font-weight:bold;'>Check your spreadsheet. Category '{$headerKeys[$j]}' contains an all-whitespace entry!</div>\n";
+				}
 			}
 		}
 	}
-	return $narr;
-}
 
+	return $categoryData;
+}
 
 function getShowType($sname, $showList) {
 	if($showList==null) return "none";
@@ -460,45 +558,75 @@ function getShowType($sname, $showList) {
 	return "none";
 }
 
-
-function getShowNames($url, $force, $chan=null) {
-	if($chan==null) { //default channel
+function getShowNamesz($url, $force = false, $chan = null, $verbose = null) {
+	if ($chan === null) {
 		$chan = "";
 	} else {
 		$chan = "." . $chan;
 	}
 
-	$murl = md5($url) . $chan . ".cache";
-	
-	if(!$force && file_exists($murl)) {
-		return file_get_contents($murl);
+	$jsonFile = "schedule" . $chan . ".json";
+
+	if (!$force && file_exists($jsonFile)) {
+		$cachedData = json_decode(file_get_contents($jsonFile), true);
+		if (is_array($cachedData)) {
+			return $cachedData;
+		}
 	}
 
-	try {		
-		$str = file_get_contents($url);
-		file_put_contents($murl, $str);
-		return $str;
-	} catch(Exception $e) {
-		return file_get_contents($murl);
+	$csv = @file_get_contents($url);
+
+	if ($csv !== false && strlen(trim($csv)) > 0) {
+		$parsed = parseCSVToArray($csv, $verbose);
+		file_put_contents($jsonFile, json_encode($parsed, JSON_PRETTY_PRINT));
+		return $parsed;
 	}
+
+	if (file_exists($jsonFile)) {
+		$cachedData = json_decode(file_get_contents($jsonFile), true);
+		return is_array($cachedData) ? $cachedData : [];
+	}
+
+	return [];
 }
 
+function getShowNames($url, $force = false, $chan = null, $verbose = null) {
+	if ($chan === null) {
+		$chan = "";
+	} else {
+		$chan = "." . $chan;
+	}
+
+	$jsonFile = "schedule" . $chan . ".json";
+
+	if (file_exists($jsonFile)) {
+		$cachedData = json_decode(file_get_contents($jsonFile), true);
+		return is_array($cachedData) ? $cachedData : [];
+	}
+
+	return [];
+}
 
 if(isset($_GET["clear_cache"])) {
-	$sched_link = $json_settings["web-ui"]["tv_schedule_link"];
-	if(!$sched_link) die("no schedule link defined");
-	$wasted = parseCSV(getShowNames($sched_link.(substr($sched_link,-1)!="/" ? "/" : "").'export?format=csv', true), true);
+	//$sched_link = $json_settings["web-ui"]["tv_schedule_link"] ?? null;
+	//if(!$sched_link) die("no schedule link defined");
+	//$fetchUrl = rtrim($sched_link, "/") . '/export?format=csv';
+	
+	echo "<h2>Refreshing Schedule Cache...</h2>";
+	$wasted = getShowNames("", true, null, true);
+	echo "<br /><b>Done. Loaded " . count($wasted) . " categories into JSON cache.</b>";
+	var_dump($wasted);	
 	die();
 }
 
 $parsedShows = null;
-$sched_link = $json_settings["web-ui"]["tv_schedule_link"];
-if($sched_link) {
-	$unparsedCSV = getShowNames($sched_link.(substr($sched_link,-1)!="/" ? "/" : "").'export?format=csv', false);
-	$parsedShows = parseCSV($unparsedCSV);
-}
+//$sched_link = $json_settings["web-ui"]["tv_schedule_link"] ?? null;
+//if($sched_link) {
+//	$fetchUrl = rtrim($sched_link, "/") . '/export?format=csv';
+$parsedShows = getShowNames("", false);
+//}
 
-function getPathFromShortName($shortname) {
+function getPathFromShortName(string $shortname) {
 	global $mysqli;
 	$res = $mysqli->query("SELECT name FROM `played` WHERE short_name='".addslashes($shortname)."' LIMIT 1") or die($mysqli->error);
 	$brow = $res->fetch_assoc();
@@ -506,160 +634,109 @@ function getPathFromShortName($shortname) {
 	return dirname($brow["name"]);
 }
 
-
-/**
- * Checks the play count of every show in a given category. If all shows 
- * meet or exceed the $limit, the oldest entry for EACH show is deleted
- * to reset the cycle and maintain the cap.
- *
- * @param string $sname The name of the show type/category (e.g., "reruns").
- * @param string $csv A CSV string mapping categories to short show names.
- * @param int $limit The maximum number of entries allowed (e.g., 5).
- * @return bool True if a reset and deletion occurred, false otherwise.
- */
-function cleanupAndResetCategory(string $sname, string $csv, int $limit): bool
+function cleanupAndResetCategory(string $sname, array $showList, int $limit): bool
 {
-    global $mysqli;
+	global $mysqli;
 
-    // 1. Identify Target Shows (Using the same logic as your scheduler)
-    $csvRows = array_map('str_getcsv', explode("\r\n", $csv));
-    if (empty($csvRows)) return false;
-    
-    $categoryKeys = array_shift($csvRows); 
-    $targetShows = [];
+	if (!isset($showList[$sname]) || empty($showList[$sname])) {
+		return false;
+	}
 
-    foreach ($csvRows as $row) {
-        foreach ($row as $index => $shortName) {
-            if (!empty($shortName) && isset($categoryKeys[$index]) && $categoryKeys[$index] === $sname) {
-                $targetShows[] = preg_replace('/^[^=]+=/', '', $shortName);
-            }
-        }
-    }
-    if (empty($targetShows)) return false;
+	$targetShows = [];
+	foreach ($showList[$sname] as $shortName) {
+		$targetShows[] = preg_replace('/^[^=]+=/', '', $shortName);
+	}
 
-    // 2. Count Entries for Each Show
-    $placeholders = implode(',', array_fill(0, count($targetShows), '?'));
-    
-    $sql_count = "
-        SELECT 
-            short_name, 
-            COUNT(id) AS play_count
-        FROM played
-        WHERE short_name IN ($placeholders)
-        GROUP BY short_name
-    ";
+	if (empty($targetShows)) return false;
 
-    $stmt_count = $mysqli->prepare($sql_count);
-    $types = str_repeat('s', count($targetShows));
-    $stmt_count->bind_param($types, ...$targetShows);
-    $stmt_count->execute();
-    $result_count = $stmt_count->get_result();
+	$placeholders = implode(',', array_fill(0, count($targetShows), '?'));
+	
+	$sql_count = "
+		SELECT 
+			short_name, 
+			COUNT(id) AS play_count
+		FROM played
+		WHERE short_name IN ($placeholders)
+		GROUP BY short_name
+	";
 
-    $showsAtCapCount = 0;
-    $totalTargetShows = count($targetShows);
+	$stmt_count = $mysqli->prepare($sql_count);
+	$types = str_repeat('s', count($targetShows));
+	$stmt_count->bind_param($types, ...$targetShows);
+	$stmt_count->execute();
+	$result_count = $stmt_count->get_result();
 
-    while ($row = $result_count->fetch_assoc()) {
-        if ($row['play_count'] >= $limit) {
-            $showsAtCapCount++;
-        } else {
-            // If any single show is below the limit, the reset condition is NOT met.
-            $stmt_count->close();
-            return false;
-        }
-    }
-    $stmt_count->close();
+	$showsAtCapCount = 0;
+	$totalTargetShows = count($targetShows);
 
-    // Crucial Check: Ensure all shows in the category are present in the DB 
-    // and meet the cap. (This handles shows that might not have any entries yet.)
-    if ($showsAtCapCount !== $totalTargetShows) {
-        return false;
-    }
+	while ($row = $result_count->fetch_assoc()) {
+		if ($row['play_count'] >= $limit) {
+			$showsAtCapCount++;
+		} else {
+			$stmt_count->close();
+			return false;
+		}
+	}
+	$stmt_count->close();
 
-    // 3. Reset Condition Met: Delete the oldest entry for every show
-    
-    // Deletion must be done in a loop, one show at a time, to find the specific 
-    // oldest entry (MIN(played)) for that short_name.
-    $resetOccurred = false;
-    
-    // Begin transaction for safety (optional but recommended)
-    // $mysqli->begin_transaction();
+	if ($showsAtCapCount !== $totalTargetShows) {
+		return false;
+	}
 
-    foreach ($targetShows as $show_name) {
-        // Find and delete the SINGLE oldest entry for the current show.
-        $sql_delete = "
-            DELETE FROM played 
-            WHERE id = (
-                SELECT id 
-                FROM (
-                    SELECT id 
-                    FROM played 
-                    WHERE short_name = ? 
-                    ORDER BY played ASC 
-                    LIMIT 1
-                ) AS oldest_entry
-            )
-        ";
-        
-        // NOTE: The subquery structure (FROM (SELECT) AS temp) is necessary in MySQL 
-        // to prevent "You can't specify target table 'played' for update in FROM clause" error.
+	$resetOccurred = false;
 
-        $stmt_delete = $mysqli->prepare($sql_delete);
-        $stmt_delete->bind_param("s", $show_name);
-        
-        if ($stmt_delete->execute() && $mysqli->affected_rows > 0) {
-            $resetOccurred = true;
-        }
-        $stmt_delete->close();
-    }
-    
-    // Commit transaction if used
-    // $mysqli->commit(); 
-    
-    return $resetOccurred;
+	foreach ($targetShows as $show_name) {
+		$sql_delete = "
+			DELETE FROM played 
+			WHERE id = (
+				SELECT id 
+				FROM (
+					SELECT id 
+					FROM played 
+					WHERE short_name = ? 
+					ORDER BY played ASC 
+					LIMIT 1
+				) AS oldest_entry
+			)
+		";
+
+		$stmt_delete = $mysqli->prepare($sql_delete);
+		$stmt_delete->bind_param("s", $show_name);
+		
+		if ($stmt_delete->execute() && $mysqli->affected_rows > 0) {
+			$resetOccurred = true;
+		}
+		$stmt_delete->close();
+	}
+	
+	return $resetOccurred;
 }
 
-function getAvailableShows($sname, $sdir, $csv) {
+function getAvailableShows($sname, $sdir, array $showList) {
 	global $mysqli;
 	
-	$dirs_in_dir = $directories = glob($sdir . '/*' , GLOB_ONLYDIR);
+	$dirs_in_dir = glob($sdir . '/*' , GLOB_ONLYDIR);
 	if(isset($_GET["test"])) var_dump($dirs_in_dir);
-	
 	if(isset($_GET["test"])) echo "$sname\n";
-	$csv = array_map('str_getcsv', explode("\r\n", $csv));
-	$narr = [];
-	$keys = [];
-	
-	//create an array of types (reruns, primetime, cartoons, etc)
-	//and also an array of keys for each type's name
-	for($i=0;$i<count($csv[0]);$i++) {
-			$narr[$csv[0][$i]] = [];
-			$keys[$i] = $csv[0][$i];
-	}
 
 	$res = $mysqli->query("SELECT *, COUNT(`short_name`) AS `value_occurrence` FROM `played` GROUP BY `short_name` ORDER BY `value_occurrence` DESC") or die($mysqli->error);
 	$shows = [];
-	//load each show that has been played and their play count
 	while ($brow = $res->fetch_assoc()) {
 		$shows[$brow["short_name"]] = $brow["value_occurrence"]*1;
 		if(isset($_GET["test"])) var_dump($brow);
 	}
 
-	$selected = null;
-	//populate each type with its shows and how many times it has been played
-	//and whilst doing so, set the current type so we can compare the played times against only the same type of shows
-	for($i=1;$i<count($csv);$i++) {
-		for($j=0;$j<count($csv[$i]);$j++) {
-			$conv_short_name = $csv[$i][$j];
-			if($conv_short_name!="") {
-				
-				if(strpos("S".$conv_short_name, "=")>0) {
-					$conv_short_name = substr($conv_short_name, strpos($conv_short_name, "=") + 1);
-				}
-				
-				if(isset($shows[$conv_short_name])) $cnt = $shows[$conv_short_name]; else $cnt = 0;
-				
-				array_push($narr[$keys[$j]], [$conv_short_name, $cnt]);
+	$narr = [];
+	foreach($showList as $catKey => $items) {
+		$narr[$catKey] = [];
+		foreach($items as $entry) {
+			$conv_short_name = $entry;
+			if(strpos("S".$conv_short_name, "=")>0) {
+				$conv_short_name = substr($conv_short_name, strpos($conv_short_name, "=") + 1);
 			}
+
+			$cnt = isset($shows[$conv_short_name]) ? $shows[$conv_short_name] : 0;
+			$narr[$catKey][] = [$conv_short_name, $cnt];
 		}
 	}
 	
@@ -675,10 +752,8 @@ function getAvailableShows($sname, $sdir, $csv) {
 	$list = [];
 	if($selected!=null) {
 		if(!in_array($selected, array_keys($narr))) die('0');
-	//shift the most played shows to the top
-	//and everything else to the bottom
+
 		for($i=0;$i<count($narr[$selected]);$i++) {
-			//if($i>6) break;
 			if($narr[$selected][$i][1] >= $highest) {
 				$highest = $narr[$selected][$i][1];
 				array_unshift($list, $narr[$selected][$i]);
@@ -696,18 +771,13 @@ function getAvailableShows($sname, $sdir, $csv) {
 	for($i=0;$i<count($list);$i++) {
 		if(!isset($list[$i][2])) {
 			$dirshort = getPathFromShortName($list[$i][0]);
-			if($dirshort) { //show has been played before
+			if($dirshort) {
 				$list[$i][2] = $dirshort;
-			} else { //show hasn't been played before
+			} else {
 				$list[$i][2] = "";
 			}
 		}
 	}
-
-
-	//sometimes every show hasn't been played yet
-	//so we to compare the results versus the actual directory structure
-	//if a show hasn't been played yet, we need to add it to the list as being played 0 times
 
 	foreach($dirs_in_dir as $d) {
 		$d = str_replace("//", "/", $d);
@@ -737,43 +807,70 @@ function getAvailableShows($sname, $sdir, $csv) {
 
 	$exit=true;
 	$retlist = [];
-	//check to make sure not every show has been played an equal amount of times
-	//by seeing if the highest play count is the same for each show
+
 	for($i=0;$i<count($list);$i++) {
+		if(!file_exists($list[$i][2])) {
+			if(isset($_GET["test"])) {
+				echo "@@@@@@@@@ Directory does not exist for " . $list[$i][0] . " !!!!!!!!!!!!!!!!!!!!!!!\n";
+				addMessageToDatabase("SERVER|GET_AVAILABLE|Directory does not exist: " . $list[$i][2] . "|Short Name: " . $list[$i][0] . "|!- IT WILL BE IGNORED BUT YOU SHOULD CHECK YOUR SCHEDULE. MAKE SURE THE DIRECTORY EXISTS AND PLAYABLE FILES ARE THERE. -!");
+				echo "Highest: " . $highest . " - Directory: " . $list[$i][2] . " - Short Name: " . $list[$i][0] . " - Play Count: " . $list[$i][1] . "\n";
+			}
+			continue;
+		}
 		array_push($retlist, $list[$i][2]);
 		if($list[$i][1] != $highest && $highest!=$lowest) { 
 			$exit = false;
 		}
 	}
 
-
 	if($exit) {
 		return array_filter($retlist);
 	}
 
-	//see if the current show is in the list of highest shows
-	//if it is, it shouldn't be played
 	$retlist = [];
+	if(isset($_GET["test"])) {
+		echo "///////////////////////////////list\n";
+	}
+	$recheck = false;
 	for($i=0;$i<count($list);$i++) {
+		if(!file_exists($list[$i][2])) {
+			if(isset($_GET["test"])) {
+				echo "!!!!!!!!!!!!!!!! Directory does not exist for " . $list[$i][0] . " !!!!!!!!!!!!!!!!!!!!!!!\n";
+				addMessageToDatabase("SERVER|GET_AVAILABLE|Directory does not exist: " . $list[$i][2] . "|Short Name: " . $list[$i][0] . "|ALERT! IT WILL BE IGNORED BUT YOU SHOULD CHECK YOUR SCHEDULE, MAKE SURE THE DIRECTORY EXISTS, AND PLAYABLE FILES ARE THERE.");
+				echo "Highest: " . $highest . " - Directory: " . $list[$i][2] . " - Short Name: " . $list[$i][0] . " - Play Count: " . $list[$i][1] . "\n";
+			}
+			$recheck = true;
+			continue;
+		}
+
 		if(isset($_GET["test"])) {
-			echo $highest . " - " . $list[$i][2] . " - " . $list[$i][0] . " - " . $list[$i][1] . "\n";
+			echo "Highest: " . $highest . " - Directory: " . $list[$i][2] . " - Short Name: " . $list[$i][0] . " - Play Count: " . $list[$i][1] . "\n";
 		}
 		if($list[$i][1] != $highest && $list[$i][1]!=-1) { 
 			array_push($retlist, $list[$i][2]);
 		}
 	}
 
-	//play the current show
+	if(isset($_GET["test"])) {
+		echo "///////////////////////////////retlist\n";
+		var_dump($retlist);
+	}
 	return array_filter($retlist);
 }
-
 
 if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
 	$dir = urldecode($_GET["dir"]);
 	$getavailable = urldecode($_GET["getavailable"]);
+	if(!file_exists($getavailable)) {
+		addMessageToDatabase("SERVER|GET_AVAILABLE|File does not exist: " . $getavailable);
+		if(isset($_GET["h"])) { 
+			echo "File does not exist: " . $getavailable;
+		}
+	}
 	if(!is_dir($dir)) die('0');
 	$shortname=getTvShowName($getavailable, $parsedShows);
 	$showType=getShowType($shortname, $parsedShows);
+	
 	if(isset($_GET["h"])) {
 		
 		function highlightDiff($string1, $string2) {
@@ -783,7 +880,7 @@ if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
 			return "<b>" . substr($string2,0,$i) . "</b><i>" . substr($string2,$i) . "</i>";
 		}
 		
-		$avh = getAvailableShows($showType, $dir, $unparsedCSV);
+		$avh = getAvailableShows($showType, $dir, $parsedShows);
 		echo "<h1>$shortname $showType</h1>\n";
 		$lshow = "";
 		foreach($avh as $show) {
@@ -794,17 +891,15 @@ if(isset($_GET["getavailable"]) && isset($_GET["dir"])) {
 			}
 			$lshow=$show;
 		}
-		die();
+		die('0');
 	} else {
-		die(implode("\n", (getAvailableShows($showType, $dir, $unparsedCSV))));
+		die(implode("\n", (getAvailableShows($showType, $dir, $parsedShows))));
 	}
 }
-
 
 if(isset($_GET["getshowname"])) {
 
 	if(strpos(strtolower($_GET["getshowname"]), '/commercials/') > 0) {
-		//a commercial is being payed, ignore 
 		die("commercial|0");
 	}
 
@@ -813,14 +908,12 @@ if(isset($_GET["getshowname"])) {
 	
 	$showType=getShowType($shortname, $parsedShows);
 	
-	
-	
 	$row=0;
 	$remote_diff_set = false;
 
 	$time_diff = 0;
 	$row = 0;
-	//xmas time, double the time difference
+
 	if(isset($_GET["min_time"])) {
 		if(is_numeric($_GET["min_time"])) {
 			if($_GET["min_time"]*1!=0) {
@@ -835,20 +928,15 @@ if(isset($_GET["getshowname"])) {
 	$row = $res->fetch_row()[0]*1;
 	if(isset($_GET["test"])) var_dump($row);
 	
-	//if(isset($_GET["test"])) var_dump(checkShowPlayAmount($shortname, $unparsedCSV));
-	
-	if($remote_diff_set && $row>0) { // a custom time difference has been set, so we shouldn't play this video as it was last played with the custom time
+	if($remote_diff_set && $row>0) {
 		die("$shortname|$row|$showType|remote diff triggered|played within the last $time_diff seconds");
 	}
 	
-	if(checkShowPlayAmount($shortname, $unparsedCSV)) { // we should then check if it is one of the top shows of that type
+	if(checkShowPlayAmount($shortname, $parsedShows)) {
 		if(isset($_GET["test"])) echo "not played too much\n";
-		//it is not, so we should play something else
 		die("$shortname|0|$showType|has not been played too much|$row|$remote_diff_set");
 	} else {
 		if(isset($_GET["test"])) echo "has not been played too much\n";
-		//show is NOT one of the top of its category
-		// just in case the show has been played to recently, we need to override that because there might not be anything else available to play
 		die("$shortname|".time()."|$showType|has been played enough|$row|$remote_diff_set");
 	}		
 	
@@ -860,7 +948,6 @@ if(isset($_GET["get_next_episode"])) {
 	function getVideoFiles($dir, $exts = ['mp4', 'avi', 'webm', 'mpeg', 'm4v', 'mkv', 'mov', 'flv', 'wmv']) {
 		$dir = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
-		// Build the brace pattern: {mp4,MP4,avi,AVI,...}
 		$all_cases = [];
 		foreach ($exts as $e) {
 			$all_cases[] = strtolower($e);
@@ -868,30 +955,24 @@ if(isset($_GET["get_next_episode"])) {
 		}
 		
 		$pattern = $dir . '*.' . '{' . implode(',', array_unique($all_cases)) . '}';
-		
-		// Returns an array of paths or false on error
 		$files = glob($pattern, GLOB_BRACE);
 
 		return $files ?: [];
 	}
 
-	// 1. Clean the input once
 	$nv = urldecode($_GET["get_next_episode"] ?? '');
 	$clean_nv = rtrim($nv, "/");
 
-	// 2. Determine directory (Prioritize the path itself if it's a dir, else its parent)
 	$dir_name = is_dir($clean_nv) ? $clean_nv : dirname($clean_nv);
 
 	if (!is_dir($dir_name)) {
 		die("|0|directory does not exist|$dir_name|$nv|1");
 	}
 
-	// 3. Secure SQL Query
 	$escaped_dir = $mysqli->real_escape_string($dir_name);
 	$sql = "SELECT * FROM played WHERE name LIKE '$escaped_dir%' ORDER BY played DESC LIMIT 1";
 	$res = $mysqli->query($sql) or die($mysqli->error);
 
-	// 4. Debugging & Metadata
 	if (isset($_GET["dump"]) || isset($_GET["h"])) {
 		$shortname = getTvShowName($nv, $parsedShows);
 		if (isset($_GET["dump"])) {
@@ -899,36 +980,29 @@ if(isset($_GET["get_next_episode"])) {
 		}
 	}
 
-	// 5. Dynamic Filter
 	$filter = ['mp4', 'mkv', 'avi', 'mpeg', 'mpg', 'mov', 'webm', 'm4v', 'flv', 'wmv'];
 	if (!empty($_GET["filter"])) {
 		$filter = explode(",", $_GET["filter"]);
 	}
 
-	// 6. File Retrieval
 	$files = getVideoFiles($dir_name . '/', $filter);
 
 	if (empty($files)) {
 		die("|0|no files exist matching " . implode(",", $filter) . "|$dir_name|$nv|3");
 	}
 
-	// check "random video on first play" setting
 	if (mysqli_num_rows($res) == 0) {
-		// 1. Start with the global default
 		$should_random = $json_settings["random video on first play"] ?? false;
 
-		// 2. Override ONLY if ?random= exists in the URL
 		if (isset($_GET['random'])) {
 			$should_random = ($_GET['random'] === '1');
 		}
 
-		// 3. Final Execution
 		if ($should_random && !empty($files)) {
 			$rand_index = array_rand($files);
 			die($files[$rand_index] . "|1|play random episode per override/settings");
 		}
 
-		// 4. Fallback/Error Handling
 		if (!empty($files[0])) {
 			die($files[0] . "|1|play first episode");
 		}
@@ -939,28 +1013,23 @@ if(isset($_GET["get_next_episode"])) {
 	$row = $res->fetch_row();
 	$last_played = $row[2] ?? '';
 
-	// 1. Validation: Is the record still valid?
 	if (!file_exists($last_played)) {
 		die("|0|last played file does not exist (deleted?)|$nv");
 	}
 
-	// 2. Find the current position in our file list
 	$current_index = array_search($last_played, $files);
 
 	if ($current_index === false) {
-		// Last played file isn't in the current folder/filter results
 		die("|0|last played file no longer matches current filters|$nv");
 	}
 
-	// 3. Determine Next Index (Increment or Loop back to 0)
 	$next_index = $current_index + 1;
 	if ($next_index >= count($files)) {
-		$next_index = 0; // Loop back to the beginning
+		$next_index = 0;
 	}
 
 	$next_file = $files[$next_index];
 
-	// 4. Output based on request type
 	if (isset($_GET["h"])) {
 		$bn = basename($next_file);
 		$dn = dirname($next_file);
@@ -973,7 +1042,7 @@ if(isset($_GET["get_next_episode"])) {
 function logPlayback($mysqli, $current_video, $parsedShows, $channel = null, $debug = false, $timestamp_override = null) {
 
 	if ($channel === null) {
-		$channel = getCurrentChannel(); // fallback to file-based channel
+		$channel = getCurrentChannel();
 	}
 
 	if ($channel !== null) {
@@ -1001,12 +1070,10 @@ function logPlayback($mysqli, $current_video, $parsedShows, $channel = null, $de
 function addMessageToDatabase($message) {
 	global $mysqli;
 
-	// 1. If it's an UPTIME tick, clear old ones first
 	if (strpos($message, 'UPTIME|') === 0) {
 		$mysqli->query("DELETE FROM `errors` WHERE `name` LIKE 'UPTIME|%'");
 	}
 
-	// 2. Log the message (Common to both cases)
 	$escaped = $mysqli->real_escape_string($message);
 	$time = time();
 
@@ -1023,7 +1090,6 @@ function handleRandomVideoByCount($episode, $filter) {
 	}
 
 	do {
-		// 1. Fetch video data
 		$return = $filter ? getRandomVideoByCount($episode, $filter) : getRandomVideoByCount($episode);
 		
 		if (isset($_GET["dump"])) {
@@ -1031,15 +1097,12 @@ function handleRandomVideoByCount($episode, $filter) {
 			var_dump($return);
 		}
 
-		// Use list() instead of [] for PHP 7.0 compatibility
 		list($file, $status, $msg, $dir) = $return;
 
-		// 2. Immediate exit on failure status
 		if (!$file || $status === 0) {
 			return "$file|$status|$msg|$dir";
 		}
 
-		// 3. Validation and Cleanup
 		$exists = file_exists($file);
 		if (!$exists) {
 			$escaped = $mysqli->real_escape_string($file);
@@ -1049,7 +1112,6 @@ function handleRandomVideoByCount($episode, $filter) {
 
 	} while (!$exists && $attempts < $max_attempts);
 
-	// 4. Final Output
 	if (!$exists) {
 		return "|0|max attempts reached, no valid file found|$dir";
 	}
@@ -1061,19 +1123,16 @@ function getRandomVideoByCount($directory, $filter = "mp4,mkv,avi,mpeg,mpg,mov,w
 	global $mysqli;
 	global $parsedShows;
 
-	// 1. Clean Path and Basic Validation
 	$dir_name = rtrim($directory, '/') . '/';
 	if (!is_dir($dir_name)) {
 		return [$directory, 0, "video directory does not exist", $dir_name];
 	}
 
-	// 2. Scan Filesystem
 	$files = glob($dir_name . "*.{" . $filter . "}", GLOB_BRACE);
 	if (empty($files)) {
 		return [$directory, 0, "no files exist in directory", $dir_name];
 	}
 
-	// 3. Database Lookup & ghost scrubbing
 	$escaped_dir = $mysqli->real_escape_string($dir_name);
 	$sql = "SELECT name FROM played WHERE name LIKE '$escaped_dir%'";
 	$res = $mysqli->query($sql) or die($mysqli->error);
@@ -1085,7 +1144,6 @@ function getRandomVideoByCount($directory, $filter = "mp4,mkv,avi,mpeg,mpg,mov,w
 		if (isset($videos_played[$name])) {
 			$videos_played[$name]++;
 		} else {
-			// If file is in DB but not in our glob, check if it's a ghost to scrub
 			if (!file_exists($name)) {
 				$escaped_ghost = $mysqli->real_escape_string($name);
 				$mysqli->query("DELETE FROM played WHERE name='$escaped_ghost'");
@@ -1098,37 +1156,31 @@ function getRandomVideoByCount($directory, $filter = "mp4,mkv,avi,mpeg,mpg,mov,w
 		return [$files[array_rand($files)], 1, "fallback to random (empty map)", $dir_name];
 	}
 
-	// 4. Determine Min/Max Play Counts
 	$counts = array_values($videos_played);
 	$min = min($counts);
 	$max = max($counts);
 
-	// 5. Create pool of least-played videos
 	$pool = [];
 	foreach ($videos_played as $f => $c) {
 		if ($c === $min) $pool[] = $f;
 	}
 
-	// 6. Prevent immediate repeat if all have same play count
 	if ($min === $max && count($pool) > 1) {
 		$recent_sql = "SELECT name FROM played WHERE name LIKE '$escaped_dir%' ORDER BY played DESC LIMIT 1";
 		$recent_res = $mysqli->query($recent_sql);
 		if ($recent_res && $row = $recent_res->fetch_assoc()) {
 			$last_played = $row['name'];
-			// Remove from pool if it's there
 			$key = array_search($last_played, $pool);
 			if ($key !== false) {
 				unset($pool[$key]);
-				$pool = array_values($pool); // Re-index
+				$pool = array_values($pool);
 				if (isset($_GET["dump"])) echo "Excluded last played: $last_played<br />\n";
 			}
 		}
 	}
 
-	// 7. Pick random from least-played pool
 	$selected = $pool[array_rand($pool)];
 
-	// 8. Equalization Logic
 	if ($equalize) {
 		$predicted = $videos_played[$selected] + 1;
 		if ($predicted < $max) {
@@ -1156,7 +1208,6 @@ if (isset($_GET["get_next_rnd_episode_from_dir"])) {
 	$dirs = [];
 	$i = 1;
 
-	// 1. Collect and Weight Directories
 	while (isset($_GET["f$i"])) {
 		$dir_name = rtrim(urldecode($_GET["f$i"]), '/') . '/';
 		
@@ -1169,7 +1220,6 @@ if (isset($_GET["get_next_rnd_episode_from_dir"])) {
 			$play_count = (int)$brow["t"];
 			$file_count = iterator_count(new FilesystemIterator($dir_name, FilesystemIterator::SKIP_DOTS));
 			
-			// Prevent division by zero if directory is empty
 			$weighted = $file_count > 0 ? ($play_count / $file_count) : 999999;
 			$dirs[] = [$weighted, $dir_name];
 		}
@@ -1180,11 +1230,9 @@ if (isset($_GET["get_next_rnd_episode_from_dir"])) {
 		die("|0|no valid directories provided");
 	}
 
-	// 2. Find the lowest weight
 	$weights = array_column($dirs, 0);
 	$low = min($weights);
 
-	// 3. Filter to only include directories matching the lowest weight
 	$pool = array_filter($dirs, function($d) use ($low) {
 		return $d[0] <= $low;
 	});
@@ -1194,12 +1242,10 @@ if (isset($_GET["get_next_rnd_episode_from_dir"])) {
 		var_dump($pool);
 	}
 
-	// 4. Pick random from the filtered pool
 	$selected_dir = $pool[array_rand($pool)][1];
 	
 	exit(handleRandomVideoByCount($selected_dir, null));
 }
-
 
 $mntcont = strlen($drive_loc[0]);
 
@@ -1209,7 +1255,6 @@ function formatChannelName($ch) {
 	}
 	return null;
 }
-
 
 if (isset($_GET["current_video"])) {
 	$current_video = urldecode($_GET["current_video"]);
@@ -1222,7 +1267,7 @@ if (isset($_GET["current_video"])) {
 }
 
 if(isset($_GET["error"])) {
-	addMessageToDatabase(urldecode($_GET["error"]));	
+	addMessageToDatabase(urldecode($_GET["error"]));
 	exit(1);
 }
 
@@ -1231,7 +1276,6 @@ if (isset($_GET["current_comm"])) {
 	$timestamp = time();
 	$channel   = isset($_GET["channel"]) ? formatChannelName(trim($_GET["channel"])) : null;
 
-	// Use prepared statement (Safe from injection, no addslashes needed)
 	$stmt = $mysqli->prepare("INSERT INTO commercials (name, played, channel) VALUES (?, ?, ?)");
 	$stmt->bind_param("sis", $name, $timestamp, $channel);
 	$stmt->execute();
