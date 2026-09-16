@@ -13,16 +13,15 @@ class Programming implements ManageCard {
 		// Load links from a file or database
 		$this->links = [
 			[
-				"label" => "Clear Cache",
-				"url" 	=> "/?clear_cache=now",
+				"label" => "Scheduler",
+				"url" 	=> "/scheduler.php",
 				"style" => null,
 				"action" => null
 			],
 			[
-				"label" => "Schedule",
-				"url" 	=> $this->settings["web-ui"]["tv_schedule_link"],
+				"label" => "Scheduler Color Picker",
+				"url" 	=> "/picker.php",
 				"style" => null,
-				"target" => "_blank",
 				"action" => null
 			],
 			[

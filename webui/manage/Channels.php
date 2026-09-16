@@ -2,57 +2,58 @@
 
 class Channels implements ManageCard {
     private $name = 'Channels';
-	private $links = [];
-	private $html = null;
-	private $settings = null;
+    private $links = [];
+    private $html = null;
+    private $settings = null;
 
-	private function loadLinks() {
-		// Load links from a file or database
-		if ($this->settings == null) {
-			return $this->links;
-		}
+    private function loadLinks() {
+        // Reset links array to prevent appending duplicate entries on reload
+        $this->links = [];
 
-		$channels = $this->settings["channels"]["names"] ?? [];
-		$curr_channel = $_GET["channel"] ?? null;
-		
-		foreach ($channels as $c) {
-			$cc = $c;
-			if ($c == null || $c == "") $c = "default";
-				$style = null;
-			if ($curr_channel == $cc) {
-				$style = "color:green;font-weight:bold;";
-			}
-			$this->links[] = [
-				'label'        => $c,
-				'url'         => "/?channel=" . urlencode($c),
-				'style'       => $style,
-				'action'      => null,
-				'target'      => null
-			];
-		}
-	}
+        if ($this->settings == null) {
+            return $this->links;
+        }
 
-	public function __construct() {
-		// You can initialize any properties or perform setup tasks here
-		// I will load other links here
-		$this->loadLinks();
-	}
+        $channels = $this->settings["channels"]["names"] ?? [];
+        $curr_channel = $_GET["channel"] ?? null;
+        
+        foreach ($channels as $c) {
+            $raw_val = $c;
+            $display_name = (empty($c)) ? "default" : $c;
+            $style = null;
 
-	public function setSettings($json_settings) {
-		$this->settings = $json_settings;
-		// Reload links to update any that depend on settings
-		$this->loadLinks();
-	}		
+            if ($curr_channel === $raw_val || ($curr_channel === null && empty($raw_val))) {
+                $style = "color:green;font-weight:bold;";
+            }
 
-	public function priority() {
-        return 200; // Set a priority for ordering (higher number means higher priority)
+            $this->links[] = [
+                'label'   => $display_name,
+                'url'     => "/?channel=" . urlencode($display_name),
+                'style'   => $style,
+                'action'  => null,
+                'target'  => null
+            ];
+        }
     }
-	
-	public function name() {
+
+    public function __construct() {
+        $this->loadLinks();
+    }
+
+    public function setSettings($json_settings) {
+        $this->settings = $json_settings;
+        $this->loadLinks();
+    }       
+
+    public function priority() {
+        return 200;
+    }
+    
+    public function name() {
         return $this->name;
     }
 
-	public function links() {
+    public function links() {
         return $this->links;
     }
 

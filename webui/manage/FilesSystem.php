@@ -21,18 +21,29 @@ class FilesSystem implements ManageCard {
 				"action" => null
 			],
 			[
-				"label" => "Reboot",
-				"url" 	=> "/?reboot=now",
-				"style" => "color:red;",
-				"action" => "return confirm('This will reboot the system. Are you sure?')"
+				"label" => "Run Setup Wizard",
+				"url" 	=> "/setup/?action=reset",
+				"style" => null,
+				"action" => null
 			]
 		];
 	}
+
+	private function loadHtml() {
+        // Load HTML content from a file or database
+        $this->html = '<ul style="list-style: none;">
+        <form method="POST" action="" style="display:inline;">
+            <input type="hidden" name="action" value="reboot">
+            <li style="padding: 0.75rem 1rem;"><a href="#" style="color: red;" onclick="if(confirm(\'Reboot the Pi now?\')) this.closest(\'form\').submit(); return false;">Reboot System</a></li>
+        </form>
+		</ul>';
+    }
 
 	public function __construct() {
 		// You can initialize any properties or perform setup tasks here
 		// I will load other links here
 		$this->loadLinks();
+		$this->loadHtml();
 	}
 
 	public function priority() {
