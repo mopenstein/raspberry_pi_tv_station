@@ -84,13 +84,36 @@ $active_filename = basename($schedule_file);
 		cursor: pointer;
 	}
 
+	/* Mobile dropdown wrapper */
+	.filter-mobile-wrapper {
+		display: none;
+		margin-top: 4px;
+	}
+	.mobile-cat-picker {
+		width: 100%;
+		background: #0d1117;
+		border: 1px solid var(--border);
+		color: var(--text);
+		padding: 8px 12px;
+		border-radius: 6px;
+		font-size: 0.9rem;
+		font-weight: 600;
+		outline: none;
+	}
+	.mobile-cat-picker:focus {
+		border-color: var(--primary);
+	}
+
+	/* Desktop / Tablet Chip Layout */
 	.filter-scroll {
 		display: flex;
+		flex-wrap: wrap; /* Allows wrapping on desktop instead of a single infinite horizontal track */
 		gap: 6px;
-		overflow-x: auto;
-		padding-bottom: 4px;
-		-webkit-overflow-scrolling: touch;
+		padding-top: 4px;
+		max-height: 110px;
+		overflow-y: auto; /* Clean vertical scroll within header if list gets massive */
 	}
+
 	.filter-chip {
 		background: var(--card-bg);
 		border: 1px solid var(--border);
@@ -100,12 +123,23 @@ $active_filename = basename($schedule_file);
 		white-space: nowrap;
 		color: var(--text-muted);
 		cursor: pointer;
+		user-select: none;
 	}
 	.filter-chip.active {
 		background: var(--primary);
 		color: #fff;
 		border-color: var(--primary);
 		font-weight: 600;
+	}
+
+	/* Responsive break: use native select under 768px */
+	@media (max-width: 768px) {
+		.filter-scroll {
+			display: none; /* Hide the long horizontal bar completely on phone screens */
+		}
+		.filter-mobile-wrapper {
+			display: block;
+		}
 	}
 
 	main {
@@ -247,6 +281,12 @@ $active_filename = basename($schedule_file);
 			<span class="file-badge"><?= htmlspecialchars($active_filename) ?></span>
 		</div>
 		<button class="btn btn-sm" onclick="saveToServer()">Save Changes</button>
+	</div>
+	<!-- Native picker on mobile; chips on wider screens -->
+	<div class="filter-mobile-wrapper">
+		<select id="mobileCategorySelect" class="mobile-cat-picker" onchange="setFilter(this.value)">
+			<!-- Populated dynamically via render() -->
+		</select>
 	</div>
 	<div class="filter-scroll" id="filterScroll"></div>
 </header>
@@ -620,25 +660,41 @@ function deleteCategory(cat) {
 }
 
 function render() {
-	// 1. Filter Chips
-	const filterScroll = document.getElementById('filterScroll');
+	// 1. Categories List
 	let categories = Object.keys(schedule).sort((a, b) => 
-    	a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+		a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 	);
 	let orderedCats = ["ALL", ...categories];
 
-	filterScroll.innerHTML = orderedCats.map(cat => {
-		let count = cat === "ALL" 
-			? Object.values(schedule).reduce((acc, arr) => acc + arr.length, 0)
-			: (schedule[cat] ? schedule[cat].length : 0);
-		let isActive = activeFilter === cat ? "active" : "";
-		return `<div class="filter-chip ${isActive}" onclick="setFilter('${cat}')">${cat} (${count})</div>`;
-	}).join('');
+	// Populate Desktop Chips
+	const filterScroll = document.getElementById('filterScroll');
+	if (filterScroll) {
+		filterScroll.innerHTML = orderedCats.map(cat => {
+			let count = cat === "ALL" 
+				? Object.values(schedule).reduce((acc, arr) => acc + arr.length, 0)
+				: (schedule[cat] ? schedule[cat].length : 0);
+			let isActive = activeFilter === cat ? "active" : "";
+			return `<div class="filter-chip ${isActive}" onclick="setFilter('${cat}')">${cat} (${count})</div>`;
+		}).join('');
+	}
+
+	// Populate Mobile Dropdown
+	const mobileSelect = document.getElementById('mobileCategorySelect');
+	if (mobileSelect) {
+		mobileSelect.innerHTML = orderedCats.map(cat => {
+			let count = cat === "ALL" 
+				? Object.values(schedule).reduce((acc, arr) => acc + arr.length, 0)
+				: (schedule[cat] ? schedule[cat].length : 0);
+			let isSelected = activeFilter === cat ? "selected" : "";
+			return `<option value="${cat}" ${isSelected}>${cat} (${count} shows)</option>`;
+		}).join('');
+	}
 
 	// 2. Populate Dropdown
 	renderCategoryDropdown();
 
 	// 3. Category Management Card (Hidden in ALL view)
+    // ... remainder of render() continues unchanged ...
 	const catManageCard = document.getElementById('categoryManageCard');
 	if (activeFilter === "ALL" || !schedule[activeFilter]) {
 		catManageCard.style.display = "none";
