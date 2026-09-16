@@ -547,7 +547,7 @@
                     <td align="center" style="font-family: monospace; padding:0px 0px 0px 10px;"><?= date("h:i\<\s\m\a\l\l\>:s\<\/\s\m\a\l\l\> A",$s['timestamp']) ?></td>
                     <td align="center"><span style="font-size: 0.75rem; font-weight: bold; padding:0px;"><?= $s['typeLabel'] ?></span></td>
                     <td style="padding-left:20px;">
-                        <?= $s['monthPrefix'] ?>. &#x<?= $s['emoji'] ?>; 
+                        <?= $count ?>. &#x<?= $s['emoji'] ?>; 
                         <a href="/?video=<?= $s['videoUrl'] ?>" style="color:white; font-weight: 600;"><?= $s['filename'] ?></a> <button class="btn btn-play" id="plus<?= $showCount ?>" onclick="playVideo('/?video=<?= $s['videoUrl'] ?>', <?= $count ?>)">▶</button></div>
                         <span style="font-size: 0.75rem; opacity: 0.8;">(<?= $s['length'] ?>)</span>
                     </td>
@@ -592,7 +592,12 @@
             <div style="font-size: 0.75rem; color: var(--accent); font-weight: bold;"><?= date("m/d/y h:i:s A", $m["timestamp"]) ?></div>
             <div style="font-weight: bold; margin: 0.25rem 0;"><?= $m['header'] ?></div>
             <ul style="padding-left: 1.25rem; color: var(--text-muted); font-size: 0.875rem;">
-                <?php foreach ($m['details'] as $d): ?><li><?= $d ?></li><?php endforeach; ?>
+                <?php foreach ($m['details'] as $d): ?><li><?php
+				if(substr($d,0, 6) == "ALERT!") {
+					$d = "<span style='color:red; font-weight:bold;'>".$d."</span>";
+				}
+				echo $d;
+				?></li><?php endforeach; ?>
             </ul>
         </div>
         <?php endforeach; ?>
@@ -618,54 +623,40 @@
 			<div class="card-table-wrapper">
 				<h3 style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 1rem;"><?= $cards['name'] ?></h3>
 				<?php if (!empty($cards['links'])): ?>
-				<ul style="list-style: none;">
-					<?php
-					$count = 0;
+								<?php
+								$count = 0;
+								$clean_id = preg_replace('/[^a-zA-Z0-9]/', '', $cards['name']);
+								$opened_extra = false;
+								?>
+								<ul style="list-style: none;">
+								<?php foreach ($cards['links'] as $link): ?>
+									<?php
+									if ($count == 5) {
+										// Close the first <ul> cleanly
+										echo '</ul>';
+										// Output the button and the hidden wrapper container
+										echo '<button class="btn" style="margin: 5px 0 5px 20px;" onclick="document.getElementById(\'' . $clean_id . '-extra-links\').style.display = \'block\'; this.style.display = \'none\';">Show More Links</button>';
+										echo '<div style="display:none;" id="' . $clean_id . '-extra-links">';
+										// Start a new valid <ul> inside the hidden div
+										echo '<ul style="list-style-type: square; padding-left: 20px; margin-top: 0;">';
+										$opened_extra = true;
+									}
 
-					foreach ($cards['links'] as $link) {
+									$style = !empty($link['style']) ? ' style="' . $link['style'] . '"' : '';
+									$target = !empty($link['target']) ? ' target="' . $link['target'] . '"' : '';
+									$action = !empty($link['action']) ? ' onclick="' . $link['action'] . '"' : '';
 
-						if ($count == 5) {
-							// Clean ID: alphanumeric only
-							$clean_id = preg_replace('/[^a-zA-Z0-9]/', '', $cards['name']);
-
-							echo '<button class="btn" style="margin-left: 0.75rem;padding: 0.5rem 1rem;" onclick="document.getElementById(\'' . $clean_id . '-extra-links\').style.display = \'block\'; this.style.display = \'none\';">Show More Links</button>';
-							echo '<div style="display:none;" id="' . $clean_id . '-extra-links">';
-						}
-
-						// style attribute
-						$style = $link['style'] ?? '';
-						if ($style !== '') {
-							$style = ' style="' . $style . '"';
-						}
-
-						// target attribute
-						$target = $link['target'] ?? '';
-						if ($target !== '') {
-							$target = ' target="' . $target . '"';
-						}
-
-						// action attribute (your old code was broken)
-						$action = $link['action'] ?? '';
-						if ($action !== '') {
-							$action = ' onclick="' . $action . '"';
-						}
-
-						// output link
-						if (isset($link['url']) && isset($link['label'])) {
-							echo '<li style="padding: 0.75rem 1rem;"><a href="' . $link['url'] . '"' . $style . $target . $action . '>' . $link['label'] . '</a></li>';
-							$count++;
-						}
-
-						
-					}
-
-					if ($count >= 5) {
-						echo '</div>';
-					}
-
-					?>
-				</ul>
-				<?php endif; ?>
+									if (isset($link['url']) && isset($link['label'])) {
+										echo '<li style="padding: 0.75rem 1rem;"><a href="' . $link['url'] . '"' . $style . $target . $action . '>' . $link['label'] . '</a></li>';
+										$count++;
+									}
+									?>
+								<?php endforeach; ?>
+								</ul>
+								<?php if ($opened_extra): ?>
+									</div>
+								<?php endif; ?>
+							<?php endif; ?>
 				<?php if (!empty($cards['html'])): ?>
 					<?= $cards['html'] ?>
 				<?php endif; ?>

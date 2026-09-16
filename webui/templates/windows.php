@@ -629,36 +629,40 @@
                         <fieldset style="flex: 1; min-width: 300px;">
                             <legend><?= $cards['name'] ?></legend>
                             <?php if (!empty($cards['links'])): ?>
-                            <ul style="list-style-type: square; padding-left: 20px; margin-top: 5px;">
-                                <?php
-                                $count = 0;
+								<?php
+								$count = 0;
+								$clean_id = preg_replace('/[^a-zA-Z0-9]/', '', $cards['name']);
+								$opened_extra = false;
+								?>
+								<ul style="list-style-type: square; padding-left: 20px; margin-top: 5px;">
+								<?php foreach ($cards['links'] as $link): ?>
+									<?php
+									if ($count == 5) {
+										// Close the first <ul> cleanly
+										echo '</ul>';
+										// Output the button and the hidden wrapper container
+										echo '<button class="btn" style="margin: 5px 0 5px 20px;" onclick="document.getElementById(\'' . $clean_id . '-extra-links\').style.display = \'block\'; this.style.display = \'none\';">Show More Links</button>';
+										echo '<div style="display:none;" id="' . $clean_id . '-extra-links">';
+										// Start a new valid <ul> inside the hidden div
+										echo '<ul style="list-style-type: square; padding-left: 20px; margin-top: 0;">';
+										$opened_extra = true;
+									}
 
-                                foreach ($cards['links'] as $link) {
-                                    if ($count == 5) {
-                                        $clean_id = preg_replace('/[^a-zA-Z0-9]/', '', $cards['name']);
-                                        echo '<button class="btn" style="margin: 5px 0;" onclick="document.getElementById(\'' . $clean_id . '-extra-links\').style.display = \'block\'; this.style.display = \'none\';">Show More Links</button>';
-                                        echo '<div style="display:none;" id="' . $clean_id . '-extra-links">';
-                                    }
+									$style = !empty($link['style']) ? ' style="' . $link['style'] . '"' : '';
+									$target = !empty($link['target']) ? ' target="' . $link['target'] . '"' : '';
+									$action = !empty($link['action']) ? ' onclick="' . $link['action'] . '"' : '';
 
-                                    $style = $link['style'] ?? '';
-                                    if ($style !== '') { $style = ' style="' . $style . '"'; }
-
-                                    $target = $link['target'] ?? '';
-                                    if ($target !== '') { $target = ' target="' . $target . '"'; }
-
-                                    $action = $link['action'] ?? '';
-                                    if ($action !== '') { $action = ' onclick="' . $action . '"'; }
-
-                                    if (isset($link['url']) && isset($link['label'])) {
-                                        echo '<li style="margin-bottom: 4px;"><a href="' . $link['url'] . '"' . $style . $target . $action . '>' . $link['label'] . '</a></li>';
-                                        $count++;
-                                    }
-                                }
-
-                                if ($count >= 5) { echo '</div>'; }
-                                ?>
-                            </ul>
-                            <?php endif; ?>
+									if (isset($link['url']) && isset($link['label'])) {
+										echo '<li style="margin-bottom: 4px;"><a href="' . $link['url'] . '"' . $style . $target . $action . '>' . $link['label'] . '</a></li>';
+										$count++;
+									}
+									?>
+								<?php endforeach; ?>
+								</ul>
+								<?php if ($opened_extra): ?>
+									</div>
+								<?php endif; ?>
+							<?php endif; ?>
                             <?php if (!empty($cards['html'])): ?>
                                 <?= $cards['html'] ?>
                             <?php endif; ?>
