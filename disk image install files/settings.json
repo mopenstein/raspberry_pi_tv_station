@@ -1,24 +1,35 @@
 {
-	"version": "0.92",
-	"drive": ["/mnt/usb15"],
-	"play_show_episodes_in_order": true,
+	"version": "0.996",
+	
+	"drive": ["/home/pi/Desktop/videos/"],
+	"name": "Raspberry Pi TV Station",
 	"insert_commercials": true,
-	"commercials_per_break": "auto",
-	"time_test": null,
-	"time_test_example": "Jan 06 2023 11:01PM",
+	"max_play_attempts": 1,
+	"commercials_per_break": 1,
+	"commercials_fill_time_multiplier": 50,
+	"commercials_offset_time": -15,
+	"time_test":  null,
+	"time_test_example": "Jul 05 2026 12:30AM",
+	"debug": false,
+	"debug positon": 9999999,
 	"report_data": true,
+	"daily reboot": true,
+	"random video on first play": true,
 	"player_settings": ["--no-osd", "--blank"],
+	"cache_path": "/home/pi/Desktop/cache",
+	"workers": null,
 
 	"channels":	{
-				"error": "Movies",
-				"names": [null, "Movies", "Cartoons", "Reruns", "90s", "70s"],
-				"file": "/mnt/usb15/.channel"
+				"error": "Error",
+				"names": [null,  "Error"],
+				"file": "/home/pi/Desktop/.channel"
 			},
 
 	"web-ui": {
-			"show_type_colors": { "Reruns": "F8FFA2", "Easter": "CEF5FA", "Thanksiving": "D68B00", "Cartoons": "A2FFEF","Specials": "FFA2A2","Primetime": "dd8888","Gameshows": "88AAFF","Movies": "A2FFAC", "Christmas": "A2B9FF","sum_Monday": "D5A2FF","sum_Tuesday": "F5A2DF","sum_Wednesday": "A5F2DF","sum_Thursday": "D5F2AF","sum_Friday": "F5F2FF","sum_Saturday": "F5D2AF","sum_Sunday": "A5D2FF","win_Monday": "D5A2FF","win_Tuesday": "F5A2DF","win_Wednesday": "A5F2DF","win_Thursday": "D5F2AF","win_Friday": "F5F2FF","win_Saturday": "F5D2AF","win_Sunday": "A5D2FF","90s shows": "ffff00","90s cartoons": "00ff00", "70s shows": "ff0000", "70s cartoons": "ccccff", "Halloween": "FE9A0A", "halloween": "FE9A0A", "xmas": "d00", "none": "fff" },
-			"tv_schedule_link": "https://docs.google.com/spreadsheets/d/1QADkcJlcQRP1PPGCcgFtUiBjNtF-gjDE1SO4lcrBosk/",
-			"database_info": { "host": "localhost", "username": "pi", "password": "raspberry", "database_name": "shows" }
+			"show_type_colors": { "TV Show Examples": "00E1FF", "Station": "14A800" },
+			"commercial_type_colors": { "commercials": "FF00FF" },
+			"database_info": { "host": "localhost", "username": "pi", "password": "raspberry", "database_name": "shows" },
+			"theme": "modern"
 		  },
 
 	"youtube-dl":	{
@@ -26,68 +37,30 @@
 				"update_command": "pip install -U yt-dlp"
 			},
 
+	"vars": {
+			
+		},
+
 	"times": [
 		{
-			"name": ["%D[1]%/shows"],
-			"dayOfWeek": ["all"],
-			"month": ["all"],
-			"start": [17, 0],
-			"end": [23, 59],
-			"type": "video-show",
-			"channel": null
-		},
-		{
-			"name": ["%D[1]%/shows"],
-			"dayOfWeek": ["all"],
-			"month": ["all"],
-			"start": [0, 0],
-			"end": [4, 59],
-			"type": "video-show",
-			"channel": null
-		},
-		{
-			"name": ["%D[1]%/cartoons"],
-			"dayOfWeek": ["all"],
-			"month": ["all"],
-			"start": [5, 0],
-			"end": [16, 59],
-			"type": "video-show",
-			"channel": null
-		},
-		{
-			"name": ["%D[1]%/commercials"],
-			"dayOfWeek": null,
-			"month": ["all"],
-			"start": ["*", 16],
-			"end": ["*", 29],
-			"type": "commercial",
-			"special": null,
-			"channel": null
-		},
-		{
-			"name": ["%D[1]%/commercials"],
-			"dayOfWeek": null,
-			"month": ["all"],
-			"start": ["*", 46],
-			"end": ["*", 59],
-			"type": "commercial",
-			"special": null,
-			"channel": null
-		},
-		{
-			"name": ["%D[1]%/movies"],
-			"dayOfWeek": ["all"],
-			"start": [0, 0],
-			"end": [23, 59],
+			"name": ["%D[1]%/station"],
 			"type": "video",
-			"channel": "Movies"
+			"note": "if no other time has been triggered, play the 'technical difficulties' video because something went wrong somewhere"
+		},
+		{
+			"name": ["%D[1]%/examples/video"],
+			"type": "video",
+			"between": { "times": [ ["08:00PM", "08:30PM"] ] },
+			"note": "this example videos show will only play between 08:00PM and 08:30PM everyday. Remove the 'between' parameter or change the time to trigger."
 		}
 	],
 
 
-	"commercial_times": [{
-			"name": ["%D[1]%/commercials"],
-			"month": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+	"commercial_times": [
+		{
+			"name": ["%D[1]%/examples/commercials"],
+			"type": "video",
+			"note": "this is a catch-all"
 		}
 	]
 }
