@@ -23,7 +23,6 @@ sync:webui/functions.php->/var/www/html/functions.php
 sync:webui/index.php->/var/www/html/index.php
 sync:webui/kill.sh->/var/www/html/kill.sh
 sync:webui/picker.php->/var/www/html/picker.php
-sync:webui/programming.php->/var/www/html/programming.php
 sync:webui/restart.sh->/var/www/html/restart.sh
 sync:webui/scheduler.php->/var/www/html/scheduler.php
 sync:webui/scheduler_backend.php->/var/www/html/scheduler_backend.php
@@ -62,6 +61,7 @@ sync:webui/setup/step5.php->/var/www/html/setup/step5.php
 #run:python /var/www/html/migrate.py
 
 msg:==================================================
-msg:Update complete! 
+msg:
 msg:Please run 'sudo reboot' for changes to take effect.
+msg:
 msg:==================================================
