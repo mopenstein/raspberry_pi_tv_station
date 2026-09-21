@@ -368,7 +368,7 @@ $all_zones = DateTimeZone::listIdentifiers();
 <?php if (isset($_GET['rebooting'])): ?>
     <?php render_reboot_screen('step3.php'); ?>
 <?php else: ?>
-    <div class="badge">Step 2 of 4</div>
+    <div class="badge">Step 2 of 5</div>
     <h1>Clock & Timezone</h1>
     <p class="subtitle">Select your local region to ensure scheduled broadcasts and bumpers air at the right time.</p>
 

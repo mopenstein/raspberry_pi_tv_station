@@ -2,8 +2,8 @@
 $state_file = __DIR__ . '/state.json';
 require_once __DIR__ . '/reboot_helper.php';
 
-// Handle reboot countdown and healthcheck ping routing
-handle_reboot_logic('complete.php');
+// Handle reboot countdown and healthcheck ping routing to step 5
+handle_reboot_logic('step5.php');
 
 // Gatekeeper check: Ensure user belongs on Step 4
 if (!isset($_GET['rebooting'])) {
@@ -12,6 +12,9 @@ if (!isset($_GET['rebooting'])) {
         $active_step = $state['step'] ?? 4;
         if ($active_step < 4) {
             header("Location: step{$active_step}.php");
+            exit;
+        } elseif ($active_step > 4 && $active_step !== 'complete') {
+            header("Location: step5.php");
             exit;
         } elseif ($active_step === 'complete') {
             header("Location: complete.php");
@@ -72,15 +75,15 @@ function scan_wifi() {
 
 $wifi_list = scan_wifi();
 
-// Handle Skip Action (Keep ethernet or current setup)
+// Handle Skip Action (Proceed directly to Step 5 without rebooting)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['skip_step'])) {
     $state = file_exists($state_file) ? json_decode(file_get_contents($state_file), true) : [];
-    $state['step'] = 'complete';
+    $state['step'] = 5;
     $state['skipped_step4'] = true;
-    $state['completed_at'] = time();
+    $state['updated_at'] = time();
     file_put_contents($state_file, json_encode($state, JSON_PRETTY_PRINT));
 
-    header('Location: complete.php');
+    header('Location: step5.php');
     exit;
 }
 
@@ -128,14 +131,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_wifi'])) {
         // Reload daemon configuration
         shell_exec('sudo /sbin/wpa_cli -i wlan0 reconfigure 2>/dev/null');
 
-        // Advance state machine to complete
+        // Advance state machine to Step 5
         $state = file_exists($state_file) ? json_decode(file_get_contents($state_file), true) : [];
-        $state['step'] = 'complete';
+        $state['step'] = 5;
         $state['wifi_ssid'] = $ssid;
-        $state['completed_at'] = time();
+        $state['updated_at'] = time();
         file_put_contents($state_file, json_encode($state, JSON_PRETTY_PRINT));
 
-        // Trigger reboot cycle
+        // Trigger reboot cycle to Step 5
         header('Location: step4.php?rebooting=1');
         exit;
     }
@@ -384,9 +387,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_wifi'])) {
 <div class="container">
 
 <?php if (isset($_GET['rebooting'])): ?>
-    <?php render_reboot_screen('complete.php'); ?>
+    <?php render_reboot_screen('step5.php'); ?>
 <?php else: ?>
-    <div class="badge">Step 4 of 4</div>
+    <div class="badge">Step 4 of 5</div>
     <h1>Wi-Fi Connection</h1>
     <p class="subtitle">Join a local wireless network or continue using wired Ethernet.</p>
 
@@ -460,8 +463,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_wifi'])) {
             </button>
         </div>
 
-        <button type="submit" name="save_wifi" value="1" class="btn-submit">Connect & Finish Setup</button>
-        <button type="submit" name="skip_step" value="1" class="btn-skip" formnovalidate>Keep Current Network (Skip & Finish)</button>
+        <button type="submit" name="save_wifi" value="1" class="btn-submit">Connect &amp; Restart to Step 5</button>
+        <button type="submit" name="skip_step" value="1" class="btn-skip" formnovalidate>Keep Current Network (Skip)</button>
     </form>
 
     <?php render_emergency_reset(); ?>

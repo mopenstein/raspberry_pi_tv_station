@@ -414,7 +414,7 @@ function format_bytes($bytes) {
 <?php if (isset($_GET['rebooting'])): ?>
     <?php render_reboot_screen('step4.php'); ?>
 <?php else: ?>
-    <div class="badge">Step 3 of 4</div>
+    <div class="badge">Step 3 of 5</div>
     <h1>Media Storage</h1>
     <p class="subtitle">Select attached USB storage to mount under <code>/media/pi/drive_*</code>.</p>
 

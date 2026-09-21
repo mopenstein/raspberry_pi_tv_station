@@ -5,6 +5,9 @@ $state = file_exists($state_file) ? json_decode(file_get_contents($state_file), 
 $current_host = trim(shell_exec('hostname'));
 $current_ip = trim(shell_exec("hostname -I | awk '{print $1}'"));
 $timezone = trim(shell_exec('timedatectl show -p Timezone --value 2>/dev/null')) ?: 'UTC';
+
+// Check credential status from Step 5 state
+$password_status = !empty($state['password_updated']) ? 'Custom Password Set' : 'Default / Unchanged';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -130,6 +133,10 @@ $timezone = trim(shell_exec('timedatectl show -p Timezone --value 2>/dev/null'))
         <div class="summary-row">
             <span class="summary-label">Storage Target</span>
             <span class="summary-val">/media/pi/drive_*</span>
+        </div>
+        <div class="summary-row">
+            <span class="summary-label">System Credentials</span>
+            <span class="summary-val"><?= htmlspecialchars($password_status) ?></span>
         </div>
     </div>
 

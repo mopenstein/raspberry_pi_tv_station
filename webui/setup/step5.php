@@ -2,78 +2,88 @@
 $state_file = __DIR__ . '/state.json';
 require_once __DIR__ . '/reboot_helper.php';
 
-// Intercept background reboot trigger and healthcheck ping requests
-handle_reboot_logic('step2.php');
+// Handle reboot countdown and healthcheck ping routing to completion
+handle_reboot_logic('complete.php');
 
-// Gatekeeper check: Ensure user belongs on step 1 (bypassed if rebooting)
+// Gatekeeper check: Ensure user belongs on Step 5
 if (!isset($_GET['rebooting'])) {
     if (file_exists($state_file)) {
         $state = json_decode(file_get_contents($state_file), true);
-        $active_step = $state['step'] ?? 1;
-        if ($active_step > 1) {
+        $active_step = $state['step'] ?? 5;
+        if ($active_step < 5) {
             header("Location: step{$active_step}.php");
+            exit;
+        } elseif ($active_step === 'complete') {
+            header("Location: complete.php");
             exit;
         }
     }
 }
 
 $error = '';
-$current_host = trim(shell_exec('hostname'));
 
-// Handle Skip Action (No reboot needed)
+function update_linux_password(string $username, string $password): bool {
+    $descriptor_spec = [
+        0 => ["pipe", "r"],
+        1 => ["pipe", "w"],
+        2 => ["pipe", "w"],
+    ];
+
+    $process = proc_open('sudo /usr/sbin/chpasswd', $descriptor_spec, $pipes);
+
+    if (is_resource($process)) {
+        fwrite($pipes[0], "{$username}:{$password}\n");
+        fclose($pipes[0]);
+
+        stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        return proc_close($process) === 0;
+    }
+
+    return false;
+}
+
+// Handle Skip Action (Keep existing credentials, no reboot)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['skip_step'])) {
-    file_put_contents($state_file, json_encode([
-        'step' => 2,
-        'hostname' => $current_host,
-        'skipped_step1' => true,
-        'updated_at' => time()
-    ], JSON_PRETTY_PRINT));
+    $state = file_exists($state_file) ? json_decode(file_get_contents($state_file), true) : [];
+    $state['step'] = 'complete';
+    $state['skipped_step5'] = true;
+    $state['completed_at'] = time();
+    file_put_contents($state_file, json_encode($state, JSON_PRETTY_PRINT));
 
-    header('Location: step2.php');
+    header('Location: complete.php');
     exit;
 }
 
-// Handle Form Submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
-    $input_host = trim($_POST['hostname'] ?? '');
-    $clean_host = strtolower(preg_replace('/[^a-zA-Z0-9\-]/', '', $input_host));
-    $clean_host = trim($clean_host, '-');
+// Handle Password Save & System Update
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_password'])) {
+    $password = $_POST['password'] ?? '';
+    $confirm = $_POST['password_confirm'] ?? '';
 
-    if (empty($clean_host)) {
-        $error = 'Please enter a valid hostname using only letters, numbers, or hyphens.';
-    } elseif (strlen($clean_host) > 63) {
-        $error = 'Hostname must be 63 characters or fewer.';
-    } elseif ($clean_host === $current_host) {
-        file_put_contents($state_file, json_encode([
-            'step' => 2,
-            'hostname' => $clean_host,
-            'updated_at' => time()
-        ], JSON_PRETTY_PRINT));
-        header('Location: step2.php');
-        exit;
+    if (empty($password)) {
+        $error = 'Please enter a password or select Skip.';
+    } elseif (strlen($password) < 6) {
+        $error = 'Password must be at least 6 characters long.';
+    } elseif ($password !== $confirm) {
+        $error = 'Passwords do not match.';
     } else {
-        // 1. Update /etc/hostname
-        file_put_contents('/tmp/hostname.tmp', $clean_host . "\n");
-        shell_exec('cat /tmp/hostname.tmp | sudo tee /etc/hostname > /dev/null');
-        @unlink('/tmp/hostname.tmp');
+        if (update_linux_password('pi', $password)) {
+            $state = file_exists($state_file) ? json_decode(file_get_contents($state_file), true) : [];
+            $state['step'] = 'complete';
+            $state['password_updated'] = true;
+            $state['completed_at'] = time();
+            file_put_contents($state_file, json_encode($state, JSON_PRETTY_PRINT));
 
-        // 2. Update /etc/hosts
-        $hosts_content = file_get_contents('/etc/hosts');
-        $hosts_content = str_replace($current_host, $clean_host, $hosts_content);
-        file_put_contents('/tmp/hosts.tmp', $hosts_content);
-        shell_exec('cat /tmp/hosts.tmp | sudo tee /etc/hosts > /dev/null');
-        @unlink('/tmp/hosts.tmp');
-
-        // 3. Advance state machine to Step 2
-        file_put_contents($state_file, json_encode([
-            'step' => 2,
-            'hostname' => $clean_host,
-            'updated_at' => time()
-        ], JSON_PRETTY_PRINT));
-
-        // 4. Redirect into reboot countdown mode
-        header('Location: step1.php?rebooting=1&new_host=' . urlencode($clean_host));
-        exit;
+            // Trigger reboot cycle to complete
+            header('Location: step5.php?rebooting=1');
+            exit;
+        } else {
+            $error = 'Failed to set password. Verify /etc/sudoers.d permissions for chpasswd.';
+        }
     }
 }
 ?>
@@ -82,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Step 1: Station Identity</title>
+    <title>Step 5: System Password</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -136,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
             border: 1px solid rgba(234, 179, 8, 0.25);
             border-radius: 12px;
             padding: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             display: flex;
             align-items: flex-start;
             gap: 12px;
@@ -163,66 +173,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
             font-size: 0.9rem;
             margin-bottom: 20px;
         }
-        label {
+        label.input-label {
             display: block;
             font-size: 0.9rem;
             font-weight: 600;
             margin-bottom: 8px;
             color: #c9d1d9;
         }
-        input[type="text"] {
+        .password-wrapper {
+            position: relative;
+            width: 100%;
+            margin-bottom: 18px;
+        }
+        input[type="password"], input[type="text"] {
             width: 100%;
             padding: 14px;
+            padding-right: 48px;
             background: #202632;
             border: 1px solid #364154;
             border-radius: 10px;
             color: #ffffff;
             font-size: 1.05rem;
-            font-weight: 500;
-            margin-bottom: 12px;
         }
-        input[type="text"]:focus {
+        input[type="password"]:focus, input[type="text"]:focus {
             border-color: #00d4ff;
             outline: none;
             box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
         }
-        .url-box {
-            background: #202632;
-            border: 1px dashed #3a475d;
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 24px;
-        }
-        .url-box-header {
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: #8b949e;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-        .future-url-link {
-            display: inline-block;
-            font-family: monospace;
-            font-size: 1.05rem;
-            color: #00d4ff;
-            text-decoration: underline;
-            word-break: break-all;
-            padding: 4px 0;
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
             cursor: pointer;
-        }
-        .future-url-link:hover {
-            color: #4fe3ff;
-        }
-        .bookmark-note {
-            font-size: 0.82rem;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: #8b949e;
-            margin-top: 8px;
-            line-height: 1.4;
+            transition: color 0.15s ease;
+            -webkit-tap-highlight-color: transparent;
         }
-        .bookmark-note span {
-            color: #c9d1d9;
-        }
+        .toggle-password:hover { color: #00d4ff; }
+        .toggle-password svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; }
         .btn-submit {
             display: block;
             width: 100%;
@@ -236,6 +231,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
             text-align: center;
             cursor: pointer;
             box-shadow: 0 4px 18px rgba(0, 212, 255, 0.3);
+            margin-top: 10px;
             transition: transform 0.1s ease, background-color 0.15s ease;
             -webkit-tap-highlight-color: transparent;
         }
@@ -256,7 +252,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
             font-weight: 600;
             text-align: center;
             cursor: pointer;
-            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+            transition: all 0.15s ease;
             -webkit-tap-highlight-color: transparent;
         }
         .btn-skip:hover {
@@ -267,7 +263,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
         .btn-skip:active {
             transform: scale(0.98);
         }
-        /* Reboot Helper View Styles */
+        /* Reboot Helper Styles */
         .reboot-view { text-align: center; padding: 16px 0; }
         .spinner { margin: 20px auto 28px; width: 52px; height: 52px; border: 4px solid #232a37; border-top: 4px solid #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -284,20 +280,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
 <div class="container">
 
 <?php if (isset($_GET['rebooting'])): ?>
-    <?php
-    $target_host = $_GET['new_host'] ?? $current_host;
-    $destination = 'http://' . $target_host . '.local/setup/step2.php';
-    render_reboot_screen($destination, $target_host);
-    ?>
+    <?php render_reboot_screen('complete.php'); ?>
 <?php else: ?>
-    <div class="badge">Step 1 of 5</div>
-    <h1>Station Identity</h1>
-    <p class="subtitle">Choose a unique local name for this broadcast unit.</p>
+    <div class="badge">Step 5 of 5</div>
+    <h1>System Password</h1>
+    <p class="subtitle">Set a secure password for the standard Linux console and SSH account (<code>pi</code>).</p>
 
     <div class="notice-card">
         <div class="notice-icon">⚡</div>
         <div class="notice-text">
-            <strong>Reboot Notice:</strong> Changing the hostname requires a restart (~30s). If you like the current name, use the skip button below.
+            <strong>Reboot Notice:</strong> Applying system credential changes reboots the Pi (~30s) to finalize configuration.
         </div>
     </div>
 
@@ -306,47 +298,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_hostname'])) {
     <?php endif; ?>
 
     <form method="POST">
-        <label for="hostname">Station Hostname</label>
-        <input 
-            type="text" 
-            id="hostname" 
-            name="hostname" 
-            value="<?= htmlspecialchars($current_host) ?>" 
-            required 
-            maxlength="63"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="none"
-            spellcheck="false"
-        >
-
-        <div class="url-box">
-            <div class="url-box-header">Future Local Address</div>
-            <a id="futureLink" class="future-url-link" href="http://<?= htmlspecialchars($current_host) ?>.local/setup/" target="_blank" rel="noopener noreferrer">
-                http://<?= htmlspecialchars($current_host) ?>.local/setup/
-            </a>
-            <div class="bookmark-note">
-                📌 <span>Save or copy this link:</span> You will use it to access this setup portal and the station once rebooted.
-            </div>
+        <label class="input-label" for="passField">New Password</label>
+        <div class="password-wrapper">
+            <input 
+                type="password" 
+                id="passField" 
+                name="password" 
+                required 
+                autocomplete="new-password"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+            >
+            <button type="button" class="toggle-password" onclick="togglePass('passField', this)" aria-label="Toggle password">
+                <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
         </div>
 
-        <button type="submit" name="save_hostname" value="1" class="btn-submit">Save & Restart to Step 2</button>
-        <button type="submit" name="skip_step" value="1" class="btn-skip" formnovalidate>Keep Current Hostname (Skip)</button>
+        <label class="input-label" for="confirmField">Confirm New Password</label>
+        <div class="password-wrapper">
+            <input 
+                type="password" 
+                id="confirmField" 
+                name="password_confirm" 
+                required 
+                autocomplete="new-password"
+                autocorrect="off"
+                autocapitalize="none"
+                spellcheck="false"
+            >
+            <button type="button" class="toggle-password" onclick="togglePass('confirmField', this)" aria-label="Toggle password">
+                <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+        </div>
+
+        <button type="submit" name="save_password" value="1" class="btn-submit">Set Password & Restart to Finish</button>
+        <button type="submit" name="skip_step" value="1" class="btn-skip" formnovalidate>Keep Default Password (Skip)</button>
     </form>
 
     <?php render_emergency_reset(); ?>
 
     <script>
-        const input = document.getElementById('hostname');
-        const futureLink = document.getElementById('futureLink');
-
-        input.addEventListener('input', () => {
-            const sanitized = input.value.toLowerCase().replace(/[^a-z0-9\-]/g, '');
-            const targetHost = sanitized || 'station';
-            const targetUrl = 'http://' + targetHost + '.local/setup/';
-            futureLink.innerText = targetUrl;
-            futureLink.href = targetUrl;
-        });
+        function togglePass(fieldId, btn) {
+            const input = document.getElementById(fieldId);
+            const isPassword = input.getAttribute('type') === 'password';
+            input.setAttribute('type', isPassword ? 'text' : 'password');
+            btn.style.color = isPassword ? '#00d4ff' : '#8b949e';
+        }
     </script>
 <?php endif; ?>
 
