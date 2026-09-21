@@ -84,7 +84,6 @@ $active_filename = basename($schedule_file);
 		cursor: pointer;
 	}
 
-	/* Mobile dropdown wrapper */
 	.filter-mobile-wrapper {
 		display: none;
 		margin-top: 4px;
@@ -100,18 +99,15 @@ $active_filename = basename($schedule_file);
 		font-weight: 600;
 		outline: none;
 	}
-	.mobile-cat-picker:focus {
-		border-color: var(--primary);
-	}
+	.mobile-cat-picker:focus { border-color: var(--primary); }
 
-	/* Desktop / Tablet Chip Layout */
 	.filter-scroll {
 		display: flex;
-		flex-wrap: wrap; /* Allows wrapping on desktop instead of a single infinite horizontal track */
+		flex-wrap: wrap;
 		gap: 6px;
 		padding-top: 4px;
 		max-height: 110px;
-		overflow-y: auto; /* Clean vertical scroll within header if list gets massive */
+		overflow-y: auto;
 	}
 
 	.filter-chip {
@@ -124,6 +120,9 @@ $active_filename = basename($schedule_file);
 		color: var(--text-muted);
 		cursor: pointer;
 		user-select: none;
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
 	}
 	.filter-chip.active {
 		background: var(--primary);
@@ -132,14 +131,16 @@ $active_filename = basename($schedule_file);
 		font-weight: 600;
 	}
 
-	/* Responsive break: use native select under 768px */
+	.cat-color-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		display: inline-block;
+	}
+
 	@media (max-width: 768px) {
-		.filter-scroll {
-			display: none; /* Hide the long horizontal bar completely on phone screens */
-		}
-		.filter-mobile-wrapper {
-			display: block;
-		}
+		.filter-scroll { display: none; }
+		.filter-mobile-wrapper { display: block; }
 	}
 
 	main {
@@ -256,6 +257,29 @@ $active_filename = basename($schedule_file);
 		flex-grow: 1;
 	}
 
+	.color-ctrl-row {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		background: #0d1117;
+		border: 1px solid var(--border);
+		border-radius: 6px;
+		padding: 5px 10px;
+		margin-top: 8px;
+	}
+	.color-ctrl-row input[type="color"] {
+		width: 32px;
+		height: 26px;
+		border: none;
+		cursor: pointer;
+		background: transparent;
+	}
+	.color-hex-label {
+		font-family: monospace;
+		font-size: 0.8rem;
+		color: var(--text-muted);
+	}
+
 	.footer-bar {
 		position: fixed;
 		bottom: 0;
@@ -282,29 +306,24 @@ $active_filename = basename($schedule_file);
 		</div>
 		<button class="btn btn-sm" onclick="saveToServer()">Save Changes</button>
 	</div>
-	<!-- Native picker on mobile; chips on wider screens -->
 	<div class="filter-mobile-wrapper">
 		<select id="mobileCategorySelect" class="mobile-cat-picker" onchange="setFilter(this.value)">
-			<!-- Populated dynamically via render() -->
 		</select>
 	</div>
 	<div class="filter-scroll" id="filterScroll"></div>
 </header>
 
 <main>
-	<!-- Add Show UI -->
 	<section class="add-card">
 		<input type="text" id="newShowInput" class="input-field" placeholder="Show Name (or SearchTarget=DisplayTitle)..." 
 			onkeydown="if(event.key==='Enter') handleAddShow()" />
 		
 		<div class="add-row">
 			<select id="newShowCatSelect" class="input-field" style="margin-bottom:0;flex-grow:1;" onchange="handleCatSelectChange(this.value)">
-				<!-- Populated via render() -->
 			</select>
 			<button class="btn" style="flex-shrink:0;" onclick="handleAddShow()">Add Show</button>
 		</div>
 
-		<!-- Main Inline New Category Field -->
 		<div id="inlineNewCatBox" style="display:none;margin-top:8px;">
 			<input type="text" id="inlineCatInput" class="input-field" placeholder="Enter new category name (e.g. sum_Sunday)..." style="margin-bottom:0;" 
 				onkeydown="if(event.key==='Enter') handleAddShow()" 
@@ -312,10 +331,8 @@ $active_filename = basename($schedule_file);
 		</div>
 	</section>
 
-	<!-- Manage Category Card (Visible when not in ALL) -->
 	<section id="categoryManageCard" class="add-card" style="display:none;"></section>
 
-	<!-- Shows List View -->
 	<div id="showsList"></div>
 </main>
 
@@ -325,10 +342,11 @@ $active_filename = basename($schedule_file);
 </footer>
 
 <script>
-let schedule = <?= json_encode(empty($schedule) ? (object)[] : $schedule) ?>;
+let schedule = <?= json_encode(empty($schedule) ? (object)[] :$schedule) ?>;
 if (Array.isArray(schedule)) {
 	schedule = {};
 }
+let categoryColors = <?= json_encode($show_type_colors) ?> || {};
 let activeFilter = "ALL";
 let expandedShowId = null;
 
@@ -382,7 +400,6 @@ function handleAddShow() {
 	}
 	nameInput.style.borderColor = 'var(--border)';
 
-	// If "+ New Category..." is active, derive category name from the text input
 	if (targetCat === "__CREATE_NEW__") {
 		const newCatName = inlineInput.value.trim();
 		if (!newCatName) {
@@ -398,7 +415,6 @@ function handleAddShow() {
 		return;
 	}
 
-	// Move existing show if already present elsewhere
 	const existing = findExistingShow(rawName);
 	if (existing) {
 		let confirmMove = confirm(`"${rawName}" already exists in [${existing.category}].\n\nMove and reassign it to [${targetCat}]?`);
@@ -417,7 +433,6 @@ function handleAddShow() {
 		return;
 	}
 
-	// Auto-create category entry if it doesn't exist yet
 	if (!schedule[targetCat]) {
 		schedule[targetCat] = [];
 	}
@@ -430,7 +445,6 @@ function handleAddShow() {
 	markDirty();
 	render();
 
-	// Keep dropdown on the active target category and refocus show input
 	const updatedCatSelect = document.getElementById('newShowCatSelect');
 	if (updatedCatSelect) updatedCatSelect.value = targetCat;
 	nameInput.focus();
@@ -541,6 +555,37 @@ function markDirty() {
 	el.style.color = "var(--warn)";
 }
 
+function saveCategoryColor(cat, hexColor) {
+	const status = document.getElementById('statusIndicator');
+	status.innerText = `Saving color for [${cat}]...`;
+	status.style.color = "var(--warn)";
+
+	const cleanHex = hexColor.replace('#', '').toUpperCase();
+
+	const fd = new FormData();
+	fd.append('action', 'save_category_color');
+	fd.append('category', cat);
+	fd.append('color', cleanHex);
+
+	fetch('scheduler_backend.php', { method: 'POST', body: fd })
+		.then(r => r.json())
+		.then(res => {
+			if (res.status === 'success') {
+				categoryColors[cat] = cleanHex;
+				status.innerText = `Color saved for [${cat}]`;
+				status.style.color = "var(--success)";
+				render();
+			} else {
+				status.innerText = "Color save failed: " + res.message;
+				status.style.color = "var(--danger)";
+			}
+		})
+		.catch(err => {
+			status.innerText = "Color save error: " + err.message;
+			status.style.color = "var(--danger)";
+		});
+}
+
 function saveToServer() {
 	const status = document.getElementById('statusIndicator');
 	status.innerText = "Saving atomically...";
@@ -576,6 +621,11 @@ function escapeHtml(str) {
 	return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function getCatColorHex(cat) {
+	let raw = categoryColors[cat] || '58A6FF';
+	return raw.startsWith('#') ? raw : '#' + raw;
+}
+
 function renderCategoryDropdown() {
 	const addSelect = document.getElementById('newShowCatSelect');
 	const inlineBox = document.getElementById('inlineNewCatBox');
@@ -586,7 +636,6 @@ function renderCategoryDropdown() {
 	let selectOptions = '';
 
 	if (categories.length === 0) {
-		// No categories exist: lock selection to + New Category and open the input
 		selectOptions = `<option value="__CREATE_NEW__" selected>+ New Category...</option>`;
 		addSelect.innerHTML = selectOptions;
 		if (inlineBox) {
@@ -596,18 +645,14 @@ function renderCategoryDropdown() {
 		return;
 	}
 
-	// Categories exist: offer an initial placeholder if filter is ALL
-	let hasSelection = false;
 	categories.forEach(cat => {
 		let isSelected = (activeFilter !== "ALL" && activeFilter === cat);
-		if (isSelected) hasSelection = true;
 		selectOptions += `<option value="${cat}" ${isSelected ? "selected" : ""}>${cat}</option>`;
 	});
 
 	selectOptions += `<option value="__CREATE_NEW__">+ New Category...</option>`;
 	addSelect.innerHTML = selectOptions;
 
-	// Reset inline box display if switching away from __CREATE_NEW__
 	if (addSelect.value !== "__CREATE_NEW__" && inlineBox) {
 		inlineBox.style.display = "none";
 	}
@@ -629,7 +674,6 @@ function commitRenameCategory(oldCat) {
 		return;
 	}
 
-	// Preserve key insertion order while reassigning
 	const newSchedule = {};
 	for (let cat in schedule) {
 		if (cat === oldCat) {
@@ -639,6 +683,11 @@ function commitRenameCategory(oldCat) {
 		}
 	}
 	schedule = newSchedule;
+
+	if (categoryColors[oldCat]) {
+		categoryColors[newCat] = categoryColors[oldCat];
+		saveCategoryColor(newCat, categoryColors[newCat]);
+	}
 
 	activeFilter = newCat;
 	markDirty();
@@ -660,13 +709,12 @@ function deleteCategory(cat) {
 }
 
 function render() {
-	// 1. Categories List
 	let categories = Object.keys(schedule).sort((a, b) => 
 		a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 	);
 	let orderedCats = ["ALL", ...categories];
 
-	// Populate Desktop Chips
+	// Filter Chips
 	const filterScroll = document.getElementById('filterScroll');
 	if (filterScroll) {
 		filterScroll.innerHTML = orderedCats.map(cat => {
@@ -674,11 +722,14 @@ function render() {
 				? Object.values(schedule).reduce((acc, arr) => acc + arr.length, 0)
 				: (schedule[cat] ? schedule[cat].length : 0);
 			let isActive = activeFilter === cat ? "active" : "";
-			return `<div class="filter-chip ${isActive}" onclick="setFilter('${cat}')">${cat} (${count})</div>`;
+			let colorDot = (cat !== "ALL")
+				? `<span class="cat-color-dot" style="background:${getCatColorHex(cat)};"></span>` 
+				: '';
+			return `<div class="filter-chip ${isActive}" onclick="setFilter('${cat}')">${colorDot}${cat} (${count})</div>`;
 		}).join('');
 	}
 
-	// Populate Mobile Dropdown
+	// Mobile Dropdown
 	const mobileSelect = document.getElementById('mobileCategorySelect');
 	if (mobileSelect) {
 		mobileSelect.innerHTML = orderedCats.map(cat => {
@@ -690,16 +741,15 @@ function render() {
 		}).join('');
 	}
 
-	// 2. Populate Dropdown
 	renderCategoryDropdown();
 
-	// 3. Category Management Card (Hidden in ALL view)
-    // ... remainder of render() continues unchanged ...
+	// Category Management Card
 	const catManageCard = document.getElementById('categoryManageCard');
 	if (activeFilter === "ALL" || !schedule[activeFilter]) {
 		catManageCard.style.display = "none";
 		catManageCard.innerHTML = '';
 	} else {
+		let currentHex = getCatColorHex(activeFilter);
 		catManageCard.style.display = "block";
 		catManageCard.innerHTML = `
 			<span class="drawer-label">Manage Category: ${escapeHtml(activeFilter)}</span>
@@ -710,10 +760,16 @@ function render() {
 				<button class="btn btn-outline" style="flex-shrink:0;" onclick="commitRenameCategory('${escapeHtml(activeFilter)}')">Rename</button>
 				<button class="btn btn-outline btn-danger" style="flex-shrink:0;" onclick="deleteCategory('${escapeHtml(activeFilter)}')">Delete</button>
 			</div>
+			<div class="color-ctrl-row">
+				<input type="color" value="${currentHex}" 
+					oninput="document.getElementById('catHexDisplay').innerText = this.value.toUpperCase();"
+					onchange="saveCategoryColor('${escapeHtml(activeFilter)}', this.value)" />
+				<span class="color-hex-label">UI Color: <b id="catHexDisplay">${currentHex.toUpperCase()}</b></span>
+			</div>
 		`;
 	}
 
-	// 4. Shows List
+	// Shows List
 	const showsList = document.getElementById('showsList');
 	showsList.innerHTML = '';
 
@@ -744,6 +800,7 @@ function render() {
 		let displayPart = hasAlias ? item.show.split('=')[1] : item.show;
 		let cleaned = cleanTarget(searchPart);
 		let isShort = cleaned.length > 0 && cleaned.length <= 3;
+		let catHex = getCatColorHex(item.cat);
 
 		const card = document.createElement('div');
 		card.className = `show-card ${isExpanded ? 'expanded' : ''}`;
@@ -756,7 +813,7 @@ function render() {
 				</div>
 				<div style="display:flex;gap:4px;align-items:center;">
 					${isShort ? `<span class="badge badge-warn">&Delta; Short (${cleaned})</span>` : ''}
-					${activeFilter === "ALL" ? `<span class="badge badge-cat">${item.cat}</span>` : ''}
+					${activeFilter === "ALL" ? `<span class="badge" style="background:#1f2d42;color:${catHex};">${item.cat}</span>` : ''}
 					<span style="color:var(--text-muted);font-size:0.8rem;margin-left:4px;">${isExpanded ? '&#9650;' : '&#9660;'}</span>
 				</div>
 			</div>

@@ -36,19 +36,7 @@ class VideoStream
     private function setHeader()
     {
         ob_get_clean();
-		$ext = strtolower(pathinfo($this->path, PATHINFO_EXTENSION));
-		switch ($ext) {
-			case "mp4":
-			case "mkv":
-				header("Content-Type: video/mp4");
-			break;
-			case "avi":
-				header("Content-Type: video/avi");
-			break;
-			case "webm":
-				header("Content-Type: video/webm");
-			break;
-		}
+        header("Content-Type: video/mp4");
         header("Cache-Control: max-age=2592000, public");
         header("Expires: ".gmdate('D, d M Y H:i:s', time()+2592000) . ' GMT');
         header("Last-Modified: ".gmdate('D, d M Y H:i:s', @filemtime($this->path)) . ' GMT' );
