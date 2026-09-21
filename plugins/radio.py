@@ -1,10 +1,15 @@
+# MetaData
 #
+# name: Radio Station Plugin
 # version: 0.1
 # version date: 2026.02.09
 #
-#	A plugin to handle radio playback keywords
-#	"audio" - plays a random audio file from a specified folder
+# description: A plugin to handle radio playback keywords \
+#	"audio" - plays a random audio file from a specified folder \
 #	"radio" - plays a radio program based on a specified format with support for random, balanced, and ordered playback
+#
+# EndMetaData
+#
 #
 # Must be placed in the plugins directory specified in settings.json
 
@@ -254,7 +259,7 @@ def handle(keyword, programming_schedule):
 						if len(parts) >= 0:
 							selfolder = random.choice(parts).strip()
 
-							url = "http://127.0.0.1/?" + urllib.urlencode({ 'get_next_episode': selected_folder, 'filter': filter_string })
+							url = "http://127.0.0.1/?" + urllib.urlencode({ 'get_next_episode': selfolder, 'filter': filter_string })
 							urlcontents = functions["open_url"](url)
 							functions["printd"]("Next episode response:", urlcontents)
 							parts = urlcontents.split("|")
