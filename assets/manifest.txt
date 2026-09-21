@@ -1,9 +1,67 @@
-msg:=== Updating 1980s TV Station (Build 104) ===
-msg:Testing update script
-msg:Date published 2026/09/21
+version:1
+date:2026/09/21
 
 # clean up old/deprecated files
 #remove:/home/pi/Desktop/_rnd80s.py
 
 # main script
 sync:_station.py->/home/pi/Desktop/_station.py
+
+# support scripts
+sync:restart.sh->/home/pi/Desktop/restart.sh
+sync:startup.sh->/home/pi/Desktop/startup.sh
+sync:stop_script.sh->/home/pi/Desktop/stop_script.sh
+sync:test_settings.py->/home/pi/Desktop/test_settings.py
+
+# web ui
+sync:webui/index.php->/var/www/html/index.php
+sync:webui/functions.php->/var/www/html/functions.php
+sync:webui/db_manage_extx.inc->/var/www/html/db_manage_extx.inc
+sync:webui/db_management_build.php->/var/www/html/db_management_build.php
+sync:webui/dir.php->/var/www/html/dir.php
+sync:webui/functions.php->/var/www/html/functions.php
+sync:webui/index.php->/var/www/html/index.php
+sync:webui/kill.sh->/var/www/html/kill.sh
+sync:webui/picker.php->/var/www/html/picker.php
+sync:webui/programming.php->/var/www/html/programming.php
+sync:webui/restart.sh->/var/www/html/restart.sh
+sync:webui/scheduler.php->/var/www/html/scheduler.php
+sync:webui/scheduler_backend.php->/var/www/html/scheduler_backend.php
+sync:webui/settings-doc.html->/var/www/html/settings-doc.html
+sync:webui/settings.class.inc->/var/www/html/settings.class.inc
+sync:webui/settings.php->/var/www/html/settings.php
+sync:webui/test_settings.php->/var/www/html/test_settings.php
+sync:webui/videoeditor.php->/var/www/html/videoeditor.php
+sync:webui/videostream.inc->/var/www/html/videostream.inc
+sync:webui/youtube-dl.php->/var/www/html/youtube-dl.php
+
+sync:webui/manage/Channels.php->/var/www/html/manage/Channels.php
+sync:webui/manage/Database.php->/var/www/html/manage/Database.php
+sync:webui/manage/FilesSystem.php->/var/www/html/manage/FilesSystem.php
+sync:webui/manage/MountedDrivesManager.php->/var/www/html/manage/MountedDrivesManager.php
+sync:webui/manage/Plugins.php->/var/www/html/manage/Plugins.php
+sync:webui/manage/Programming.php->/var/www/html/manage/Programming.php
+sync:webui/manage/ThemeManager.php->/var/www/html/manage/ThemeManager.php
+
+sync:webui/templates/modern.php->/var/www/html/templates/modern.php
+sync:webui/templates/modern.preview.png->/var/www/html/templates/modern.preview.png
+sync:webui/templates/windows.php->/var/www/html/templates/windows.php
+sync:webui/templates/windows.preview.png->/var/www/html/templates/windows.preview.png
+
+sync:webui/setup/complete.php->/var/www/html/setup/complete.php
+sync:webui/setup/index.php->/var/www/html/setup/index.php
+sync:webui/setup/reboot_helper.php->/var/www/html/setup/reboot_helper.php
+sync:webui/setup/step1.php->/var/www/html/setup/step1.php
+sync:webui/setup/step2.php->/var/www/html/setup/step2.php
+sync:webui/setup/step3.php->/var/www/html/setup/step3.php
+sync:webui/setup/step4.php->/var/www/html/setup/step4.php
+sync:webui/setup/step5.php->/var/www/html/setup/step5.php
+
+# Execute the migration via CLI PHP
+#run:php /var/www/html/migrate.php
+#run:python /var/www/html/migrate.py
+
+msg:==================================================
+msg:Update complete! 
+msg:Please run 'sudo reboot' for changes to take effect.
+msg:==================================================
