@@ -6,16 +6,17 @@ date:2026/09/21
 
 # main script
 sync:_station.py->/home/pi/Desktop/_station.py
+run:chmod o+x /home/pi/Desktop/_station.py
 
 # support scripts
 sync:restart.sh->/home/pi/Desktop/restart.sh
-run:chmod +x /home/pi/Desktop/restart.sh
+run:chmod o+x /home/pi/Desktop/restart.sh
 sync:startup.sh->/home/pi/Desktop/startup.sh
-run:chmod +x /home/pi/Desktop/startup.sh
+run:chmod o+x /home/pi/Desktop/startup.sh
 sync:stop_script.sh->/home/pi/Desktop/stop_script.sh
-run:chmod +x /home/pi/Desktop/stop_script.sh
+run:chmod o+x /home/pi/Desktop/stop_script.sh
 sync:test_settings.py->/home/pi/Desktop/test_settings.py
-run:chmod +x /home/pi/Desktop/test_settings.py
+run:chmod o+x /home/pi/Desktop/test_settings.py
 
 # web ui
 sync:webui/index.php->/var/www/html/index.php
@@ -25,10 +26,10 @@ sync:webui/db_management_build.php->/var/www/html/db_management_build.php
 sync:webui/functions.php->/var/www/html/functions.php
 sync:webui/index.php->/var/www/html/index.php
 sync:webui/kill.sh->/var/www/html/kill.sh
-run:chmod +x /var/www/html/kill.sh
+run:chmod o+x /var/www/html/kill.sh
 sync:webui/picker.php->/var/www/html/picker.php
 sync:webui/restart.sh->/var/www/html/restart.sh
-run:chmod +x /var/www/html/restart.sh
+run:chmod o+x /var/www/html/restart.sh
 sync:webui/scheduler.php->/var/www/html/scheduler.php
 sync:webui/scheduler_backend.php->/var/www/html/scheduler_backend.php
 sync:webui/settings-doc.html->/var/www/html/settings-doc.html
