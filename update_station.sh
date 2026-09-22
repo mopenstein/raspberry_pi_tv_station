@@ -38,6 +38,16 @@ while IFS= read -r line || [ -n "$line" ]; do
     # Skip empty lines and comment lines
     [[ -z "$line" || "$line" =~ ^# ]] && continue
 
+    # Capture and save the manifest release/build date
+    if [[ "$line" =~ ^date: ]]; then
+        VERSION_DATE="${line#date:}"
+        echo "Manifest date: $VERSION_DATE"
+        echo "$VERSION_DATE" > /home/pi/Desktop/.manifest_version
+        chown pi:pi /home/pi/Desktop/.manifest_version
+        chmod 644 /home/pi/Desktop/.manifest_version
+        continue
+    fi
+
     # Generic status or release message
     if [[ "$line" =~ ^msg: ]]; then
         echo "${line#msg:}"
@@ -126,11 +136,5 @@ done < "$TMP_MANIFEST"
 
 # Clean up temporary manifest file
 rm -f "$TMP_MANIFEST"
-
-# Ensure traverse access so www-data can read desktop scripts
-chmod o+x /home/pi /home/pi/Desktop 2>/dev/null
-
-# Final sweep for web directory
-chown -R www-data:www-data /var/www/html/ 2>/dev/null
 
 echo "Update process finished successfully."

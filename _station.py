@@ -1,7 +1,8 @@
 #!/usr/bin/python
-# version: 102.3
+# version: 102.4
 # version date: 2026.09.15
 #
+#	Migrating to _station.py from _rnd80s.py
 #
 # settings version: 0.996
 #
@@ -35,6 +36,7 @@ import subprocess				# for rebooting the machine
 import traceback				# for error reporting
 import hashlib					# for generating hash IDs
 import ast						# for safely evaluating mathematical expressions
+import shutil					# for file operations
 
 from datetime import date, timedelta
 
@@ -1488,6 +1490,20 @@ def is_cache_valid(cache_path, dir_path):
 		report_error("CACHE_VALIDATION", ["Error validating cache", ensure_string(e)])
 		return False
 
+def set_pi_permissions(path):
+	"""Ensure pi:pi ownership and appropriate permissions in Python 2."""
+	try:
+		if os.geteuid() == 0:
+			os.chown(path, 1000, 1000)
+
+		if os.path.isdir(path):
+			os.chmod(path, 0775)
+		else:
+			os.chmod(path, 0664)
+	except Exception as e:
+		report_error("SET_PI_PERMISSIONS", ["Warning: set_pi_permissions failed on %s: %s" % (path, str(e))])
+
+
 def get_files_from_dir(dir_path, extensions=VIDEO_EXTENSIONS, min_length=GET_VIDEOS_FROM_DIR_MIN_DURATION, max_length=GET_VIDEOS_FROM_DIR_MAX_DURATION):
 	"""
 	Loads all video filenames from a directory into an array, using caching and OS modification time checks.
@@ -1505,49 +1521,53 @@ def get_files_from_dir(dir_path, extensions=VIDEO_EXTENSIONS, min_length=GET_VID
 	cache_fname = os.path.join(cache_dir_name, "{}.cache".format(sanitized_dir))
 
 	if not os.path.exists(cache_dir_name):
-		os.makedirs(cache_dir_name)
+		try:
+			os.makedirs(cache_dir_name)
+		except OSError:
+			pass
 
-	# Regex to extract the video length
-	length_regex = re.compile(r'%T\((\d+)\)%')
+	# Ensure the directory itself is owned by pi:pi on every execution
+	set_pi_permissions(cache_dir_name)
 
-	all_filenames = [] # This will hold all filenames, whether from cache or fresh scan
+	all_filenames = []
+	update_cache = True
 
-	# Check if cache exists and is up-to-date
+	# Check if existing cache file is valid and newer than directory mtime
 	if os.path.exists(cache_fname):
-		cache_mtime = os.path.getmtime(cache_fname) # Get the last modified time of the cache file
-		dir_mtime = os.path.getmtime(dir_path) # Get the last modified time of the directory
+		cache_mtime = os.path.getmtime(cache_fname)
+		dir_mtime = os.path.getmtime(dir_path)
 
-		update_cache = False # Flag to determine if we need to update the cache
+		if cache_mtime >= dir_mtime and is_cache_valid(cache_fname, dir_path):
+			try:
+				with open(cache_fname, 'r') as f:
+					all_filenames = json.load(f)
+				update_cache = False
+			except Exception:
+				update_cache = True
 
-		if cache_mtime < dir_mtime: # If the cache file is older than the directory, we need to update it
-			update_cache = True 
-		elif not is_cache_valid(cache_fname, dir_path): # If the cache is not valid, we also need to update it
-			update_cache = True
-
-		if not update_cache: # Cache is valid and up-to-date
-			with open(cache_fname, 'r') as f:
-				all_filenames = json.load(f)
-		else: # Cache is outdated, rescan and update cache
-			filenames_from_scan = [] 
-			for ext in extensions: # Loop through each video extension
-				for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))): # Find all files with the current extension
-					filenames_from_scan.append(os.path.basename(full_file_path)) # Append the base name of the file to the list
-			
-			with open(cache_fname, 'w') as f: # Write the newly scanned filenames to the cache file
-				json.dump(filenames_from_scan, f) 
-			all_filenames = filenames_from_scan 
-	else: # Cache does not exist, rescan and create cache
+	# Single scan and dump path using Python 2 os.listdir
+	if update_cache:
+		valid_exts = tuple('.' + ext.lower().lstrip('.') for ext in extensions)
 		filenames_from_scan = []
-		for ext in extensions:
-			for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))):
-				filenames_from_scan.append(os.path.basename(full_file_path))
-		
-		with open(cache_fname, 'w') as f: # Write the scanned filenames to the cache file
+
+		try:
+			for fname in os.listdir(dir_path):
+				if fname.lower().endswith(valid_exts):
+					full_path = os.path.join(dir_path, fname)
+					if os.path.isfile(full_path):
+						filenames_from_scan.append(fname)
+		except OSError:
+			filenames_from_scan = []
+
+		with open(cache_fname, 'w') as f:
 			json.dump(filenames_from_scan, f)
+		set_pi_permissions(cache_fname)
 		all_filenames = filenames_from_scan
 
-	# Now, filter the 'all_filenames' based on min_length and max_length for the return result
+	# Filter all_filenames based on duration tag regex
+	length_regex = re.compile(r'%T\((\d+)\)%')
 	filtered_results_full_paths = []
+
 	for filename in all_filenames:
 		match = length_regex.search(filename)
 		if match:
@@ -1556,8 +1576,7 @@ def get_files_from_dir(dir_path, extensions=VIDEO_EXTENSIONS, min_length=GET_VID
 				if min_length <= video_length <= max_length:
 					filtered_results_full_paths.append(os.path.join(dir_path, filename))
 			except ValueError:
-				# Handle cases where the extracted group might not be a valid integer
-				pass # Or log a warning
+				pass
 
 	return filtered_results_full_paths
 
