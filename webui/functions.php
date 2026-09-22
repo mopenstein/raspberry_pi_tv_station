@@ -9,6 +9,7 @@ require_once("settings.class.inc");
 
 $Settings = new Settings();
 $json_response = $Settings->load("/home/pi/Desktop/settings.json");
+$settings_equalize = $json_settings["equalize playcount"] ?? false;
 
 // 1. Validation Logic
 if (($json_settings = $json_response[0]) === null) {
@@ -1119,10 +1120,11 @@ function handleRandomVideoByCount($episode, $filter) {
 	return "$file|$status|$msg|$dir";
 }
 
-function getRandomVideoByCount($directory, $filter = "mp4,mkv,avi,mpeg,mpg,mov,webm,m4v,flv,wmv", $equalize = true) {
+function getRandomVideoByCount($directory, $filter = "mp4,mkv,avi,mpeg,mpg,mov,webm,m4v,flv,wmv") {
 	global $mysqli;
 	global $parsedShows;
-
+	global $settings_equalize;
+	
 	$dir_name = rtrim($directory, '/') . '/';
 	if (!is_dir($dir_name)) {
 		return [$directory, 0, "video directory does not exist", $dir_name];
@@ -1181,7 +1183,7 @@ function getRandomVideoByCount($directory, $filter = "mp4,mkv,avi,mpeg,mpg,mov,w
 
 	$selected = $pool[array_rand($pool)];
 
-	if ($equalize) {
+	if ($settings_equalize) {
 		$predicted = $videos_played[$selected] + 1;
 		if ($predicted < $max) {
 			$diff = $max - $predicted;
@@ -1200,8 +1202,8 @@ if (isset($_GET["get_next_rnd_episode"])) {
 	$episode = urldecode($_GET["get_next_rnd_episode"]);
 	$filter = isset($_GET["filter"]) ? urldecode($_GET["filter"]) : null;
 
-	$equalize = $json_settings["equalize playcount"] ?? false;
-	die(handleRandomVideoByCount($episode, $filter, $equalize));
+	
+	die(handleRandomVideoByCount($episode, $filter));
 }
 
 if (isset($_GET["get_next_rnd_episode_from_dir"])) {
