@@ -1,27 +1,70 @@
 <?php
 
 class SystemUpdater implements ManageCard {
-    private $name = 'System & Software Updates';
+    private $name = 'Software Updater';
     private $links = [];
     private $html = '';
     private $updater_script = '/home/pi/Desktop/update_station.sh';
+    private $version_file = '/home/pi/Desktop/.manifest_version';
+    private $remote_manifest_url = 'https://raw.githubusercontent.com/mopenstein/raspberry_pi_tv_station/main/assets/manifest.txt';
 
     public function __construct() {
-        // Intercept streaming request if triggered via AJAX
         if (isset($_GET['action']) && $_GET['action'] === 'run_station_update') {
             $this->streamUpdateProcess();
-            exit; // Stop execution so no dashboard HTML is returned
+            exit;
         }
 
         $this->renderCard();
     }
 
+    private function getInstalledDate() {
+        if (file_exists($this->version_file)) {
+            $date = trim(file_get_contents($this->version_file));
+            return !empty($date) ? htmlspecialchars($date) : 'Unknown';
+        }
+        return 'Not Recorded';
+    }
+
+    private function getRemoteDate() {
+        // Fast, cached curl check to read remote date without stalling page load
+        $ctx = stream_context_create([
+            'http' => [
+                'timeout' => 2, // 2-second ceiling so page never hangs
+                'header'  => "User-Agent: PiTV-Updater\r\n"
+            ]
+        ]);
+
+        $remote_head = @file_get_contents($this->remote_manifest_url, false, $ctx, 0, 512);
+        if ($remote_head !== false) {
+            if (preg_match('/^date:\s*(.+)$/m', $remote_head, $matches)) {
+                return trim($matches[1]);
+            }
+        }
+        return null;
+    }
+
     private function renderCard() {
+        $installed_date = $this->getInstalledDate();
+        $remote_date = $this->getRemoteDate();
+
+        $status_badge = '';
+        if ($remote_date !== null) {
+            if ($installed_date !== $remote_date) {
+                $status_badge = '<span style="background: #f59e0b; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;">Update Available: ' . htmlspecialchars($remote_date) . '</span>';
+            } else {
+                $status_badge = '<span style="background: #22c55e; color: #000; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 6px;">Up to Date</span>';
+            }
+        }
+
         $this->html = '
         <div style="margin:5px; padding:10px;">
-            <strong>Check & Install Station Updates</strong>
-            <p style="margin: 8px 0 12px 0; color: #666; font-size: 13px;">
-                Fetch the latest scripts, station assets, and fixes directly from the repository.
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <strong>Check & Install Station Updates</strong>
+                ' . $status_badge . '
+            </div>
+            
+            <p style="margin: 6px 0 12px 0; color: #94a3b8; font-size: 12px;">
+                Installed Version: <strong>' . $installed_date . '</strong>
             </p>
 
             <button id="btnStartUpdate" class="btn" style="padding: 6px 14px; cursor: pointer;" onclick="executeStationUpdate()">
@@ -54,7 +97,6 @@ class SystemUpdater implements ManageCard {
             status.style.color = "#bbb";
 
             try {
-                // Strip fragments (#Manage) and target the PHP handler cleanly
                 const url = window.location.pathname + "?action=run_station_update";
                 const response = await fetch(url);
                 
