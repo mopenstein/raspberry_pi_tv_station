@@ -202,7 +202,7 @@ class Plugins implements ManageCard {
                 background: rgba(0, 0, 0, 0.35);
                 border: 1px dashed rgba(255, 255, 255, 0.15);
                 border-radius: 4px;
-                padding: 8px 10px;
+                padding: 0px 10px 8px 10px;
                 margin-bottom: 8px;
                 display: flex;
                 align-items: center;
@@ -354,15 +354,6 @@ class Plugins implements ManageCard {
         </style>
         <div class="plugin-stack">';
 
-        // Upload control bar
-        $out .= '
-        <div class="plugin-upload-bar">
-            <form method="POST" enctype="multipart/form-data">
-                <input type="file" name="plugin_file" accept=".py" required>
-                <button type="submit" class="plugin-btn">Upload / Update</button>
-            </form>
-        </div>';
-
         if (!empty($this->status_msg)) {
             $out .= '<div class="plugin-status-msg">' . $this->status_msg . '</div>';
         }
@@ -410,6 +401,16 @@ class Plugins implements ManageCard {
         }
 
         $out .= '</div>';
+
+		        // Upload control bar
+        $out .= '
+        <div class="plugin-upload-bar">
+			<div style="width:100%; font-size:75%; border-bottom: 1px dashed rgba(255, 255, 255, 0.15);; padding: 5px;">Upload/update a plugin (.py file):</div>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="file" name="plugin_file" accept=".py" required>
+                <button type="submit" class="plugin-btn">Add</button>
+            </form>
+        </div>';
         return $out;
     }
 
