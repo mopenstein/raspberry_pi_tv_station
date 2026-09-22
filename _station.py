@@ -1,44 +1,13 @@
 #!/usr/bin/python
-# version: 102.3
-# version date: 2026.09.15
+# version: 102.31
+# version date: 2026.09.22
 #
-#	Script is now compatible with HDMI output as well as composite video.
-#
-#	Sound stuttering when going into commercials has been fixed.
-# 
-#	Screen flickering during the transition from main video to commercials has been reduced.
-#
-#	System Image is now compatible with Raspberry Pi 2,3b, and 3b+ models.
-#
-#	Error checking in 'ordered-show' video type is a bit more robust. Will report an error if a Show is in the schedule but the directory is empty or doesn't exist. This helps prevent issues where a show is scheduled but cannot be played due to missing files.
-#
-#	Added 'auto' as a choice in the 'weighted' chance setting
-#		When 'auto' is selected, the script will automatically calculate weights for directories based on the amount of files in each directory, giving directories with more files higher chances of being selected. This allows for a more dynamic and balanced selection process without requiring users to manually assign weights.
-#
-#	Added "date", "time", and "datetime" functions to the equation evaluator
-# 		This allows users to easily incorporate specific dates and times into their equations for more dynamic scheduling and behavior.
-#
-#	Streamlined holidays and added additional holidays to the holiday checking functionality
-#		Including: Halloween, MLK Day, Presidents Day, St. Patrick's Day, April Fools' Day, Independence Day, Labor Day, Columbus Day, Veterans Day, Christmas Eve, and New Year's Eve.
-#
-#	External Google Spreadsheet is no longer required for schedule references. The webui has a built into tool to manage schedule references.
-#
-#	Added functionality to help automate jobs via the webui
-#		On startup, the script will ping the local web server to trigger any PHP jobs that need to be run on a schedule.
-#
-#	Web UI is now themable, allowing users to choose between different visual styles for the web interface. 
-#		The theme is set by altering the "theme" setting in the settings file.
-#		Manage cards have been added and are dynamically loaded. See manage/ in the html directory for examples.
+#	Migrating to _station.py from _rnd80s.py
+#	Fixed ownership issues with cache
 #
 # settings version: 0.996
 #
-#	Added new setting: "workers"
-#		This setting is an array that points to PHP worker files. Useful for automating database maintenance tasks and other scheduled jobs without needing to set up separate cron jobs on the server. Each worker file will be pinged on startup to trigger the corresponding PHP job.
-#	Added new setting: "equalize playcount"
-#		This setting is a boolean that, when enabled, will attempt to equalize the playcount of videos in the database by adding dummy play records for videos that have been played less than the most played video. This helps ensure a more balanced rotation of videos.
-#	Added new setting to webui: "theme"
-#		This setting allows the user to choose between different frontend skins. The default theme is "modern", but additional themes can be added by creating new template files in the "templates" directory and altering this setting.
-
+#
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!#
@@ -68,6 +37,7 @@ import subprocess				# for rebooting the machine
 import traceback				# for error reporting
 import hashlib					# for generating hash IDs
 import ast						# for safely evaluating mathematical expressions
+import shutil					# for file operations
 
 from datetime import date, timedelta
 
@@ -1521,6 +1491,20 @@ def is_cache_valid(cache_path, dir_path):
 		report_error("CACHE_VALIDATION", ["Error validating cache", ensure_string(e)])
 		return False
 
+def set_pi_permissions(path):
+	"""Ensure pi:pi ownership and appropriate permissions in Python 2."""
+	try:
+		if os.geteuid() == 0:
+			os.chown(path, 1000, 1000)
+
+		if os.path.isdir(path):
+			os.chmod(path, 0775)
+		else:
+			os.chmod(path, 0664)
+	except Exception as e:
+		report_error("SET_PI_PERMISSIONS", ["Warning: set_pi_permissions failed on %s: %s" % (path, str(e))])
+
+
 def get_files_from_dir(dir_path, extensions=VIDEO_EXTENSIONS, min_length=GET_VIDEOS_FROM_DIR_MIN_DURATION, max_length=GET_VIDEOS_FROM_DIR_MAX_DURATION):
 	"""
 	Loads all video filenames from a directory into an array, using caching and OS modification time checks.
@@ -1538,49 +1522,53 @@ def get_files_from_dir(dir_path, extensions=VIDEO_EXTENSIONS, min_length=GET_VID
 	cache_fname = os.path.join(cache_dir_name, "{}.cache".format(sanitized_dir))
 
 	if not os.path.exists(cache_dir_name):
-		os.makedirs(cache_dir_name)
+		try:
+			os.makedirs(cache_dir_name)
+		except OSError:
+			pass
 
-	# Regex to extract the video length
-	length_regex = re.compile(r'%T\((\d+)\)%')
+	# Ensure the directory itself is owned by pi:pi on every execution
+	set_pi_permissions(cache_dir_name)
 
-	all_filenames = [] # This will hold all filenames, whether from cache or fresh scan
+	all_filenames = []
+	update_cache = True
 
-	# Check if cache exists and is up-to-date
+	# Check if existing cache file is valid and newer than directory mtime
 	if os.path.exists(cache_fname):
-		cache_mtime = os.path.getmtime(cache_fname) # Get the last modified time of the cache file
-		dir_mtime = os.path.getmtime(dir_path) # Get the last modified time of the directory
+		cache_mtime = os.path.getmtime(cache_fname)
+		dir_mtime = os.path.getmtime(dir_path)
 
-		update_cache = False # Flag to determine if we need to update the cache
+		if cache_mtime >= dir_mtime and is_cache_valid(cache_fname, dir_path):
+			try:
+				with open(cache_fname, 'r') as f:
+					all_filenames = json.load(f)
+				update_cache = False
+			except Exception:
+				update_cache = True
 
-		if cache_mtime < dir_mtime: # If the cache file is older than the directory, we need to update it
-			update_cache = True 
-		elif not is_cache_valid(cache_fname, dir_path): # If the cache is not valid, we also need to update it
-			update_cache = True
-
-		if not update_cache: # Cache is valid and up-to-date
-			with open(cache_fname, 'r') as f:
-				all_filenames = json.load(f)
-		else: # Cache is outdated, rescan and update cache
-			filenames_from_scan = [] 
-			for ext in extensions: # Loop through each video extension
-				for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))): # Find all files with the current extension
-					filenames_from_scan.append(os.path.basename(full_file_path)) # Append the base name of the file to the list
-			
-			with open(cache_fname, 'w') as f: # Write the newly scanned filenames to the cache file
-				json.dump(filenames_from_scan, f) 
-			all_filenames = filenames_from_scan 
-	else: # Cache does not exist, rescan and create cache
+	# Single scan and dump path using Python 2 os.listdir
+	if update_cache:
+		valid_exts = tuple('.' + ext.lower().lstrip('.') for ext in extensions)
 		filenames_from_scan = []
-		for ext in extensions:
-			for full_file_path in glob.glob(os.path.join(dir_path, '*.{}'.format(ext))):
-				filenames_from_scan.append(os.path.basename(full_file_path))
-		
-		with open(cache_fname, 'w') as f: # Write the scanned filenames to the cache file
+
+		try:
+			for fname in os.listdir(dir_path):
+				if fname.lower().endswith(valid_exts):
+					full_path = os.path.join(dir_path, fname)
+					if os.path.isfile(full_path):
+						filenames_from_scan.append(fname)
+		except OSError:
+			filenames_from_scan = []
+
+		with open(cache_fname, 'w') as f:
 			json.dump(filenames_from_scan, f)
+		set_pi_permissions(cache_fname)
 		all_filenames = filenames_from_scan
 
-	# Now, filter the 'all_filenames' based on min_length and max_length for the return result
+	# Filter all_filenames based on duration tag regex
+	length_regex = re.compile(r'%T\((\d+)\)%')
 	filtered_results_full_paths = []
+
 	for filename in all_filenames:
 		match = length_regex.search(filename)
 		if match:
@@ -1589,8 +1577,7 @@ def get_files_from_dir(dir_path, extensions=VIDEO_EXTENSIONS, min_length=GET_VID
 				if min_length <= video_length <= max_length:
 					filtered_results_full_paths.append(os.path.join(dir_path, filename))
 			except ValueError:
-				# Handle cases where the extracted group might not be a valid integer
-				pass # Or log a warning
+				pass
 
 	return filtered_results_full_paths
 
@@ -2786,6 +2773,22 @@ def prepare_commercials_and_bumpers(source, schedule):
 
 def onStartup():
 	"""Performs startup tasks such as reporting that the script is running."""
+
+	# Wait up to 30 seconds for the web server to accept HTTP requests on boot
+	server_ready = False
+	for _ in range(30):
+		try:
+			# Query an endpoint or check if the server is returning actual data
+			res = urllib2.urlopen("http://127.0.0.1/?get_last_played=1", timeout=2)
+			if res.getcode() == 200:
+				server_ready = True
+				break
+		except Exception:
+			sleep(1)
+
+	if not server_ready:
+		print("Failed to connect to web server after 30 seconds.")
+
 	report_error("STARTUP", ["Script is now running!", "Script Version: " + ensure_string(SCRIPT_VERSION), "Settings version: " + ensure_string(SETTINGS_VERSION)])
 
 	# 1. Safely grab the list of workers from settings.json
