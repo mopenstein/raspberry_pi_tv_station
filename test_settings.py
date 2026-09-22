@@ -11,8 +11,24 @@ import re						# regular expressions
 import calendar					# used in special date calculating
 import sys						# for accepting arguments from command line
 import json						# settings file is in json format
-import traceback
+import traceback				# for debugging and error reporting
 import hashlib					# for generating hash IDs
+import ast						# for safely evaluating mathematical expressions
+
+# Allowed AST nodes for safe evaluation of mathematical expressions
+ALLOWED_AST_NODES = (
+    ast.Expression,
+    ast.BinOp,        # +, -, *, /, %
+    ast.UnaryOp,      # -x, +x
+    ast.operator,     # Add, Sub, Mult, Div, etc.
+    ast.unaryop,      # USub, UAdd
+    ast.Num,          # Python 2 numbers (int, float)
+    ast.Name,         # variable lookups like 'hour', 'day'
+    ast.Call,         # function calls like sin(), clamp()
+    ast.Compare,      # ==, !=, <, >, <=, >=
+    ast.cmpop,        # comparison operators
+    ast.IfExp,        # ternary 'x if cond else y'
+)
 
 output_print = []
 
@@ -323,87 +339,97 @@ def getDayOfWeek(d):
 def getMonth(m):
 	return ['invalid', 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'][m % 12]
 
+# below is the ReferenceDecoder class used to decode the settings file and resolve $ref references within the settings file,
+# allowing for more dynamic and reusable settings structures. It also keeps track of all objects it has decoded in a list 
+# called "references" so that it can search through them when resolving $ref references.
+
 class ReferenceDecoder(json.JSONDecoder):
-		def __init__(self, *args, **kwargs):
-				super(ReferenceDecoder, self).__init__(object_hook=self.object_hook, *args, **kwargs)
-				self.references = []
+	def __init__(self, *args, **kwargs):
+		# Python 2 requires explicit class and self in super()
+		super(ReferenceDecoder, self).__init__(object_hook=self.object_hook, *args, **kwargs)
+		self.references = []
 
-		def object_hook(self, obj):
-				self.references.append(obj)
-				for item in obj:
-						if str(obj[item]).startswith("$ref/"):
-								oref = str(obj[item]).split("/")
-								for x in range(0, len(self.references), 1):
-										if oref[1] in self.references[x]:
-												target = self.references[x]
-												try:
-														for idx in oref[1:]:
-															if type(target) == list and is_number(idx) == True:
-																	target = target[int(idx)]
-															else:
-																	target = target[idx]
-														obj[item] = target
-												except Exception as e:
-														report_error("JSON_REF_DECODER", [ "error parsing variable in settings", e, str(item), str(obj[item]) ])
-														pass
+	def object_hook(self, obj):
+		self.references.append(obj)
+		for key, value in obj.items():
+			if isinstance(value, basestring) and value.startswith("$ref/"):
+				# expand special keywords first
+				expanded = replace_all_special_words(value, skip_drive_replacement=True)
+				# split into path segments
+				oref = expanded.split("/")[1:]  # skip "$ref"
 
-				return obj
+				for ref in self.references:
+					if oref[0] in ref:
+						target = ref
+						try:
+							for idx in oref:
+								if isinstance(target, list) and is_number(idx):
+									target = target[int(idx)]
+								else:
+									target = target[idx]
+							obj[key] = target
+						except Exception as e:
+							report_error(
+								"JSON_REF_DECODER",
+								["error parsing variable in settings", e, str(key), str(value)]
+							)
+		return obj
 
 def eval_equation(equation, now):
-	"""
-	Tries to evaluate a mathematical equation string and return the result.
+    """
+    Tries to evaluate a mathematical equation string and return the result.
+    """
 
-	:param chance: A string representing a mathematical equation.
-	:param now: A datetime object representing the current date and time.
-	:return: The result of the evaluated equation or 0 if an error occurs.
-	"""
-	# tries to take a string that should be a mathematical equation and calculate and return an answer
-	# uses EVAL() but santizes by removing anything not a number, math symbol, period, or parentheses
-	# replaces certain KEYWORDS to the corresponding value
-	try:
-		if len(equation) > 300:
-			return -2 # if the equation is too long, return -2
+    try:
+        if len(equation) > 300:
+            return -2
 
-		# Check for percentage format (e.g., "25%") and convert to decimal (e.g., "0.25")
-		match = re.match(r'(\d+(?:\.\d+)?)%', equation.strip())
-		if match and match.end() == len(equation.strip()):
-			num = float(match.group(1))
-			if 0.0 <= num <= 100.0:
-				return str(num / 100.0)
-		
+        # 1. Evaluate direct percentages first before passing to AST
+        match = re.match(r'(\d+(?:\.\d+)?)%', equation.strip())
+        if match and match.end() == len(equation.strip()):
+            num = float(match.group(1))
+            if 0.0 <= num <= 100.0:
+                return float(num / 100.0)
 
-		safe_globals = {
-			"__builtins__": {},
-			"sin": math.sin,
-			"cos": math.cos,
-			"tan": math.tan,
-			"abs": abs,
-			"min": min,
-			"max": max,
-			"round": round,
-			"floor": math.floor,
-			"ceil": math.ceil,
-			"log": math.log,
-			"exp": math.exp,
-			"pi": math.pi,
-			"e": math.e,
-			"scale": lambda x: float(x) / 100,
-			"clamp": lambda x,y=1.0: max(0.0, min(y, float(x))),
-			"bound": lambda x, low, high: max(low, min(high, float(x))),
-			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
-			"day": float(now.day),
-			"maxdays": float(calendar.monthrange(now.year, now.month)[1]),
-			"weekday": float(now.weekday()),
-			"month": float(now.month),
-			"hour": float(now.hour),
-			"minute": float(now.minute),
-			"second": float(now.second),
-			"year": float(now.year)
-		}
-		
-		return eval(equation, safe_globals, {})
-	except:
-		return str(traceback.format_exc()) + " equation length: [" + str(len(equation)) + "] equation: [" + equation + "]"
+        # 2. Validate syntax tree against sandbox escapes
+        if not is_safe_equation(equation):
+            return -3
+
+        safe_globals = {
+            "__builtins__": {},
+            "sin": math.sin,
+            "cos": math.cos,
+            "tan": math.tan,
+            "abs": abs,
+            "min": min,
+            "max": max,
+            "round": round,
+            "floor": math.floor,
+            "ceil": math.ceil,
+            "log": math.log,
+            "exp": math.exp,
+            "pi": math.pi,
+            "e": math.e,
+            "scale": lambda x: float(x) / 100,
+            "clamp": lambda x, y=1.0: max(0.0, min(y, float(x))),
+            "bound": lambda x, low, high: max(low, min(high, float(x))),
+            "stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
+            "date": lambda y, m, d: (datetime.datetime(int(y), int(m), int(d)) - datetime.datetime(1970, 1, 1)).total_seconds(),
+            "time": lambda h, m=0, s=0: int(h) * 3600 + int(m) * 60 + int(s),
+            "datetime": lambda y, mo, d, h=0, mi=0, s=0: (datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(s)) - datetime.datetime(1970, 1, 1)).total_seconds(),
+            "day": float(now.day),
+            "maxdays": float(calendar.monthrange(now.year, now.month)[1]),
+            "weekday": float(now.weekday()),
+            "month": float(now.month),
+            "hour": float(now.hour),
+            "minute": float(now.minute),
+            "second": float(now.second),
+            "year": float(now.year)
+        }
+        
+        return eval(equation, safe_globals, {})
+    except:
+        return -1
 
 def get_short_month_name(month_number):
 	month_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -412,7 +438,7 @@ def get_short_month_name(month_number):
 	else:
 		raise ValueError("Month number must be in the range 1-12")
 
-def replace_all_special_words(s):
+def replace_all_special_words(s, skip_drive_replacement=False):
 	"""
 	Replaces special keywords in a string with their actual values.
 	Handles keywords like %D[index]%, %day%, %day_of_week%, %month%, etc.
@@ -427,8 +453,9 @@ def replace_all_special_words(s):
 	# drive(s) location is set via an array in the settings.
 	# iterate each drive replacing the special keyword with the actual drive location
 	# 		%D[index]%
-	for i in range(len(settings['drive'])):
-		s = s.replace("%D[" + str((i+1)) + "]%", settings['drive'][i])
+	if not skip_drive_replacement:
+		for i in range(len(settings['drive'])):
+			s = s.replace("%D[" + str((i+1)) + "]%", settings['drive'][i])
 	# the day of the week and month special keywords can be replaced with the current day or week or month
 	for r in [["%day%", str(d)], ["%day_of_week%", getDayOfWeek(d)], ["%month%", getMonth(month)], ["%prev-month%", getMonth(month-1)], ["%next-month%", getMonth(month+1)]]:
 		s = s.replace(*r)
@@ -741,7 +768,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 
 			# Chance check
 			if 'chance' in time_item:
-				chance_eval = eval_equation(time_item['chance'])
+				chance_eval = eval_equation(time_item['chance'], now)
 				chance_rnd = random.random()
 				printd("Chance Eval", chance_eval, "rnd", chance_rnd, "allow_chance", allow_chance, "uneval", time_item['chance'])
 				if chance_rnd > float(chance_eval) or not allow_chance:
@@ -904,7 +931,7 @@ def verify_directories(config_data):
 		normalized_path = resolve_directory_placeholders(os.path.normpath(dir_path), drives)
 		
 		if not os.path.isdir(normalized_path):
-			return_value.append(["Resolved", normalized_path, "Unresolved", dir_path])
+			return_value.append(["Real Path", normalized_path, "Settings Path", dir_path])
 	
 	return return_value
 
@@ -914,7 +941,7 @@ base_directory = os.path.dirname(__file__)
 current_video_tag = None
 
 ############################ settings
-SETTINGS_VERSION = 0.995
+SETTINGS_VERSION = 0.996
 
 if base_directory != "":
 	base_directory = base_directory + "/" if base_directory[-1] != "/" else base_directory
