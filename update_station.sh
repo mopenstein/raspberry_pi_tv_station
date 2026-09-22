@@ -21,7 +21,8 @@ if ! curl -s --connect-timeout 4 -I "https://raw.githubusercontent.com" >/dev/nu
 fi
 
 echo "Fetching latest update manifest..."
-if ! curl -s -f -L "$GITHUB_RAW/assets/manifest.txt" -o "$TMP_MANIFEST"; then
+# Using cache-buster parameter to bypass CDN delay
+if ! curl -s -f -L "$GITHUB_RAW/assets/manifest.txt?cache=$(date +%s)" -o "$TMP_MANIFEST"; then
     echo "Error: Could not download manifest.txt from repository. Aborting."
     rm -f "$TMP_MANIFEST"
     exit 1
@@ -53,17 +54,31 @@ while IFS= read -r line || [ -n "$line" ]; do
         continue
     fi
 
-    # 2. Handle file sync/downloads with hash/byte check
+    # 2. Handle file sync/downloads with hash/byte check and permission preservation
     if [[ "$line" =~ ^sync: ]] || [[ "$line" =~ ^update: ]] || [[ "$line" =~ ^create: ]]; then
         PAYLOAD="${line#*:}"
         REMOTE_SRC="${PAYLOAD%%->*}"
         LOCAL_DEST="${PAYLOAD##*->}"
 
+        # Block the updater from modifying or replacing itself
+        if [ "$(readlink -f "$LOCAL_DEST" 2>/dev/null)" = "$(readlink -f "$0")" ] || [[ "$LOCAL_DEST" == *"update_station.sh" ]]; then
+            echo "Skipping self-update: $LOCAL_DEST is protected."
+            continue
+        fi
+
         # Ensure target directory tree exists
         mkdir -p "$(dirname "$LOCAL_DEST")"
 
+        # Capture existing metadata if the destination file already exists
+        PREV_OWNER=""
+        PREV_PERM=""
+        if [ -e "$LOCAL_DEST" ]; then
+            PREV_OWNER=$(stat -c "%u:%g" "$LOCAL_DEST" 2>/dev/null)
+            PREV_PERM=$(stat -c "%a" "$LOCAL_DEST" 2>/dev/null)
+        fi
+
         TMP_DOWNLOAD=$(mktemp)
-        if curl -s -f -L "$GITHUB_RAW/$REMOTE_SRC" -o "$TMP_DOWNLOAD"; then
+        if curl -s -f -L "$GITHUB_RAW/$REMOTE_SRC?cache=$(date +%s)" -o "$TMP_DOWNLOAD"; then
             # Compare temp download against existing destination file
             if [ -f "$LOCAL_DEST" ] && cmp -s "$TMP_DOWNLOAD" "$LOCAL_DEST"; then
                 echo "Unchanged: $LOCAL_DEST"
@@ -71,6 +86,26 @@ while IFS= read -r line || [ -n "$line" ]; do
             else
                 echo "Updating: $REMOTE_SRC -> $LOCAL_DEST"
                 mv "$TMP_DOWNLOAD" "$LOCAL_DEST"
+
+                # Restore previous permissions/ownership if it existed
+                if [ -n "$PREV_OWNER" ] && [ -n "$PREV_PERM" ]; then
+                    chown "$PREV_OWNER" "$LOCAL_DEST"
+                    chmod "$PREV_PERM" "$LOCAL_DEST"
+                else
+                    # Fallback for brand-new files: assign based on path and filetype
+                    if [[ "$LOCAL_DEST" == /home/pi/* ]]; then
+                        chown pi:pi "$LOCAL_DEST"
+                    elif [[ "$LOCAL_DEST" == /var/www/* ]]; then
+                        chown www-data:www-data "$LOCAL_DEST"
+                    fi
+
+                    # Grant 755 to scripts so both pi and www-data can execute
+                    if [[ "$LOCAL_DEST" =~ \.(py|sh|bin)$ ]]; then
+                        chmod 755 "$LOCAL_DEST"
+                    else
+                        chmod 644 "$LOCAL_DEST"
+                    fi
+                fi
             fi
         else
             echo "Warning: Failed to fetch $REMOTE_SRC"
@@ -92,8 +127,10 @@ done < "$TMP_MANIFEST"
 # Clean up temporary manifest file
 rm -f "$TMP_MANIFEST"
 
-# Enforce file permissions and web server ownership
-chmod +x /home/pi/Desktop/*.py /home/pi/Desktop/*.sh /home/pi/*.sh 2>/dev/null
+# Ensure traverse access so www-data can read desktop scripts
+chmod o+x /home/pi /home/pi/Desktop 2>/dev/null
+
+# Final sweep for web directory
 chown -R www-data:www-data /var/www/html/ 2>/dev/null
 
 echo "Update process finished successfully."
