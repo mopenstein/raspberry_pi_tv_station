@@ -8,7 +8,7 @@ Designed and tested on a Raspberry Pi 2B, 3B, and 3b+.
 
 # Raspberry Pi Broadcast TV Station Setup Guide
 
-The Appliance Initializer guides you through four quick configuration steps to get your broadcast station online. Connect the Raspberry Pi to your local network via an ethernet wire and point your browser to: http://raspi-tv-station.local/ Setup will begin automatically.
+The Appliance Initializer guides you through quick configuration steps to get your broadcast station online. Connect the Raspberry Pi to your local network via an ethernet wire and point your browser to: http://raspi-tv-station.local/ Setup will begin automatically.
 
 ## Setup Steps
 
