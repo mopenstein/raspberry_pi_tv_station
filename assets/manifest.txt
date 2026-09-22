@@ -39,6 +39,7 @@ sync:webui/manage/FilesSystem.php->/var/www/html/manage/FilesSystem.php
 sync:webui/manage/MountedDrivesManager.php->/var/www/html/manage/MountedDrivesManager.php
 sync:webui/manage/Plugins.php->/var/www/html/manage/Plugins.php
 sync:webui/manage/Programming.php->/var/www/html/manage/Programming.php
+sync:webui/manage/SystemUpdater.php->/var/www/html/manage/SystemUpdater.php
 sync:webui/manage/ThemeManager.php->/var/www/html/manage/ThemeManager.php
 
 sync:webui/templates/modern.php->/var/www/html/templates/modern.php
