@@ -24,7 +24,10 @@ The Appliance Initializer guides you through quick configuration steps to get yo
 4. **Wi-Fi Connection**: Join a local wireless network or continue using wired Ethernet to finalize your setup and bind services.
 <img src="/assets/tv-station-setup-step-wi-fi.png" width="200" title="Setup Preview 4">
 
-5. Once complete, the dashboard confirms your appliance is ready for air, displaying your final hostname, IP address, timezone, and storage target so you can launch the station interface.
+4. **Credentials**: Change the default password for the Raspberry Pi.
+<img src="/assets/tv-station-setup-step-credentials.png" width="200" title="Setup Preview 4">
+
+5. Once complete, the dashboard confirms your appliance is ready for air, displaying relevant information so you can launch the station interface.
 <img src="/assets/tv-station-setup-step-complete.png" width="200" title="Setup Preview 5">
 
 # Other
