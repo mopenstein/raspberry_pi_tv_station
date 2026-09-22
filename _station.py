@@ -61,7 +61,7 @@ if sys.version_info[0] >= 3:
 
 # Constants
 
-SCRIPT_VERSION		= 102.3 # current version of the script
+SCRIPT_VERSION		= 102.31 # current version of the script
 SETTINGS_VERSION	= 0.996 # the version of the "settings" this script supports
 
 GET_VIDEOS_FROM_DIR_MIN_DURATION = 0 	 	# default minimum duration of a video in seconds when returning videos from a directory
