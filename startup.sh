@@ -24,17 +24,14 @@ else
     done
 fi
 
-echo "Starting script... in 5"
-sleep 1
-echo "Starting script... in 4"
-sleep 1
-echo "Starting script... in 3"
-sleep 1
-echo "Starting script... in 2"
-sleep 1
-echo "Starting script... in 1"
-sleep 1
-echo "Starting script..."
+echo "Starting script in 30 seconds..."
+sleep 10
+echo "Starting script in 20 seconds..."
+sleep 10
+echo "Starting script in 10 seconds..."
+sleep 10
+
+echo "We now begin our broadcast day."
 
 export DISPLAY=:0
 python /home/pi/Desktop/_station.py
