@@ -252,7 +252,13 @@ def handle(keyword, programming_schedule):
 							continue
 
 					elif format_type == "ordered-show":
-						url = "http://127.0.0.1/?" + urllib.urlencode({ 'getavailable': 'file.mp3', 'dir': selected_folder })
+						dircontents[selected_dir] = functions["get_files_from_dir"](selected_folder, AUDIO_EXTENSIONS)
+						if not dircontents[selected_dir]:
+							print("No files found in folder:", selected_folder)
+							break
+						source = random.choice(dircontents[selected_dir])
+
+						url = "http://127.0.0.1/?" + urllib.urlencode({ 'getavailable': source, 'dir': selected_folder })
 						urlcontents = functions["open_url"](url)
 						functions["printd"]("Available episodes response:", urlcontents)
 						parts = urlcontents.split("\n")
