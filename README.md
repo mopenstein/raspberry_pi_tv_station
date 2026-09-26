@@ -33,7 +33,7 @@ This project reproduces a near perfect functioning tv station.
   <img src="./assets/stats.png" width="200" title="Preview 4">
 </p>
 
-## Getting Started: The Easy Way vs. The Manual Way
+## Getting Started
 
 Because this software relies on `omxplayer` (which was deprecated in recent Raspberry Pi OS updates), setting up the environment manually can be difficult.
 
