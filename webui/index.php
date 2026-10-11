@@ -347,11 +347,17 @@ function prepareManageView($json_settings, $db_manage_ext) {
                 $priority = (int)$card_instance->priority();
             }
 
+			$display = 'default';
+            if (method_exists($card_instance, 'display')) {
+                $display = $card_instance->display();
+            }
+
             $manage_cards[$class_name] = [
                 'name'     => $card_name,
                 'html'     => $card_instance->html(),
                 'links'    => $card_instance->links(),
-                'priority' => $priority
+                'priority' => $priority,
+				'display'  => $display
             ];
 
         } catch (\Throwable $e) {
