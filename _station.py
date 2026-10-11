@@ -226,11 +226,13 @@ def load_plugins(plugin_dir):
 
 				if not hasattr(module, "handle") or not callable(module.handle):
 					report_error("PLUGIN_LOAD", [name, "missing required 'handle' function."])
-					sys.exit(f"Exiting script: Halted because plugin '{name}' is missing the required 'handle' function.")
+					print("Exiting script: Halted because plugin '" + name + "' is missing the required 'handle' function.")
+					sys.exit(1)
 				
 				if not hasattr(module, "keywords") or not isinstance(module.keywords, list):
 					report_error("PLUGIN_LOAD", [name, "missing required 'keywords' list."])
-					sys.exit(f"Exiting script: Halted because plugin '{name}' is missing the required 'keywords' list.")
+					print("Exiting script: Halted because plugin '" + name + "' is missing the required 'keywords' list.")
+					sys.exit(1)
 
 				PLUGINS[name] = module
 
