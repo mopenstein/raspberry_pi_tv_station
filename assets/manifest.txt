@@ -3,6 +3,7 @@ date:2026/10/10
 
 # clean up old/deprecated files
 remove:/home/pi/Desktop/_rnd80s.py
+remove:/var/www/html/youtube-dl.php
 
 # main script
 sync:_station.py->/home/pi/Desktop/_station.py
@@ -30,7 +31,6 @@ sync:webui/settings.php->/var/www/html/settings.php
 sync:webui/test_settings.php->/var/www/html/test_settings.php
 sync:webui/videoeditor.php->/var/www/html/videoeditor.php
 sync:webui/videostream.inc->/var/www/html/videostream.inc
-sync:webui/youtube-dl.php->/var/www/html/youtube-dl.php
 sync:webui/tv-player.html->/var/www/html/tv-player.html
 sync:webui/web-player.php->/var/www/html/web-player.php
 
