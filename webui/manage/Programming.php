@@ -14,7 +14,7 @@ class Programming implements ManageCard {
 		$this->links = [
 			[
 				"label" => "Live TV Player",
-				"url" 	=> "/tvplayer.php",
+				"url" 	=> "/tv-player.html",
 				"style" => null,
 				"action" => null
 			],

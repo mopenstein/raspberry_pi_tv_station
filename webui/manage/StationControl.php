@@ -59,8 +59,9 @@ class StationControl implements ManageCard {
                 display: inline-flex;
                 align-items: center;
                 gap: 6px;
-                margin-bottom: 8px;
+                margin-bottom: 4px;
             }
+
             .st-pulse {
                 width: 7px;
                 height: 7px;
@@ -106,6 +107,15 @@ class StationControl implements ManageCard {
                 border-color: #3b82f6;
                 color: #60a5fa;
             }
+			.st-mini-player {
+				margin-top: 12px;
+				padding: 8px;
+				width: 80%;
+				border-radius: 8px;
+				overflow: hidden;
+				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+				background: #767676;
+			}
         </style>
 
         <div class="st-card">
@@ -114,7 +124,7 @@ class StationControl implements ManageCard {
                     <span id="stStatusText">' . $statusText . '</span>
             </div>
             <div class="st-header">
-                <br />
+                
             </div>
 
             <div class="st-controls">
@@ -128,6 +138,10 @@ class StationControl implements ManageCard {
                     Restart
                 </button>
             </div>
+
+			<div class="st-mini-player">
+        		<iframe style="width: 100%; border: 4px solid #111; border-radius: 4px;" src="web-player.php?autoplay=false&buttons=play,stop,fullscreen"></iframe>
+    		</div>
         </div>
 
         <script>
