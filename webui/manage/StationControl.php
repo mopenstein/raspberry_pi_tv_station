@@ -116,6 +116,26 @@ class StationControl implements ManageCard {
 				box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 				background: #767676;
 			}
+			.glowing-square {
+				width: 4px;
+				height: 4px;
+				background-color: #00ff66;
+				border-radius: 8px;
+				box-shadow: 0 0 20px #00ff66, 0 0 40px #00ff66;
+				animation: pulse 1s ease-in-out infinite alternate;
+				float: right;
+			}
+
+			@keyframes pulse {
+				from {
+					opacity: 0.2;
+					box-shadow: 0 0 5px #00ff66;
+				}
+				to {
+					opacity: 1;
+					box-shadow: 0 0 25px #00ff66, 0 0 50px #00ff66;
+				}
+			}	
         </style>
 
         <div class="st-card">
@@ -140,7 +160,9 @@ class StationControl implements ManageCard {
             </div>
 
 			<div class="st-mini-player">
+				<span style="font-size: 0.75rem; color: #e0e0e0;">Live Monitor</span>
         		<iframe style="width: 100%; border: 4px solid #111; border-radius: 4px;" src="web-player.php?autoplay=false&buttons=play,stop,fullscreen"></iframe>
+				<div class="glowing-square"></div>
     		</div>
         </div>
 

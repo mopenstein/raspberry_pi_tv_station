@@ -34,7 +34,9 @@ class FilesSystem implements ManageCard {
         $this->html = '<ul style="list-style: none;">
         <form method="POST" action="" style="display:inline;">
             <input type="hidden" name="action" value="reboot">
-            <li style="padding: 0.75rem 1rem;"><a href="#" style="color: red;" onclick="if(confirm(\'Reboot the Pi now?\')) this.closest(\'form\').submit(); return false;">Reboot System</a></li>
+            <center>
+				<button style="margin-top:12px; padding: 0.75rem 1rem; background: #ff000038; color: #f00; border-radius: 8px;" onclick="if(confirm(\'Reboot the Pi now?\')) this.closest(\'form\').submit(); return false;">{ ! } Reboot System { ! }</button>
+			</center>
         </form>
 		</ul>';
     }
