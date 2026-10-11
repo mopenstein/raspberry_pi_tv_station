@@ -329,6 +329,10 @@ class SystemUpdater implements ManageCard {
         }
     }
 
+	public function display() {
+        return "wide"; // Options: "default", "wide"
+    }
+
     public function name() { return $this->name; }
     public function links() { return $this->links; }
     public function html() { return $this->html; }
