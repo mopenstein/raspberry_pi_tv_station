@@ -216,6 +216,11 @@
             overflow: auto;
         }
 
+		.card-table-wrapper.card-layout-wide {
+			grid-column: 1 / -1;
+			width: 100%;
+		}
+
         table { width: 100%; border-collapse: collapse; text-align: left; }
         th { 
             background: rgba(255, 255, 255, 0.03);
@@ -654,58 +659,101 @@
         </section>
 
         <!-- Manage -->
-        <section id="Manage" class="tabcontent">
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-                <?php if (empty($View['data']['manage']['cards'])): ?>
-                    <div class="card-table-wrapper">
-                        <h3 style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 1rem;">Manage Cards</h3>
-                        <div style="padding: 1rem; color: var(--text-muted); text-align: center;">
-                            <b>No cards to show.</b><br />
-                            <span style="color:red;">Add some to the /manage/ directory to see them here.</span>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($View['data']['manage']['cards'] as $cards): ?>
-                    <div class="card-table-wrapper">
-                        <h3 style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 1rem;"><?= $cards['name'] ?></h3>
-                        <?php if (!empty($cards['links'])): ?>
-                            <?php
-                            $count = 0;
-                            $clean_id = preg_replace('/[^a-zA-Z0-9]/', '', $cards['name']);
-                            $opened_extra = false;
-                            ?>
-                            <ul style="list-style: none;">
-                            <?php foreach ($cards['links'] as $link): ?>
-                                <?php
-                                if ($count == 5) {
-                                    echo '</ul>';
-                                    echo '<button class="btn" style="margin: 5px 0 5px 20px;" onclick="document.getElementById(\'' . $clean_id . '-extra-links\').style.display = \'block\'; this.style.display = \'none\';">Show More Links</button>';
-                                    echo '<div style="display:none;" id="' . $clean_id . '-extra-links">';
-                                    echo '<ul style="list-style-type: square; padding-left: 20px; margin-top: 0;">';
-                                    $opened_extra = true;
-                                }
+		<section id="Manage" class="tabcontent">
+			<?php if (empty($View['data']['manage']['cards'])): ?>
+				<div class="card-table-wrapper">
+					<h3 style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 1rem;">Manage Cards</h3>
+					<div style="padding: 1rem; color: var(--text-muted); text-align: center;">
+						<b>No cards to show.</b><br />
+						<span style="color:red;">Add some to the /manage/ directory to see them here.</span>
+					</div>
+				</div>
+			<?php else: ?>
+				<?php
+					// 1. Group cards by display mode
+					$grouped = [];
+					foreach ($View['data']['manage']['cards'] as $key => $card) {
+						$mode = !empty($card['display']) ? $card['display'] : 'default';
+						if ($mode === 'hidden') continue;
+						$grouped[$mode][$key] = $card;
+					}
 
-                                $style = !empty($link['style']) ? ' style="' . $link['style'] . '"' : '';
-                                $target = !empty($link['target']) ? ' target="' . $link['target'] . '"' : '';
-                                $action = !empty($link['action']) ? ' onclick="' . $link['action'] . '"' : '';
+					// 2. Sort each group internally by priority (descending)
+					foreach ($grouped as $mode => &$groupCards) {
+						uasort($groupCards, function($a, $b) {
+							return ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0);
+						});
+					}
+					unset($groupCards);
 
-                                if (isset($link['url']) && isset($link['label'])) {
-                                    echo '<li style="padding: 0.75rem 1rem;"><a href="' . $link['url'] . '"' . $style . $target . $action . '>' . $link['label'] . '</a></li>';
-                                    $count++;
-                                }
-                                ?>
-                            <?php endforeach; ?>
-                            </ul>
-                            <?php if ($opened_extra): ?>
-                                </div>
-                            <?php endif; ?>
-                        <?php endif; ?>
-                        <?php if (!empty($cards['html'])): ?>
-                            <?= $cards['html'] ?>
-                        <?php endif; ?>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+					// 3. Put all other display types first, then 'wide' last
+					$other_modes = array_diff(array_keys($grouped), ['wide']);
+					$render_order = array_values($other_modes);
+					if (isset($grouped['wide'])) {
+						$render_order[] = 'wide';
+					}
+				?>
+
+				<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+					<?php foreach ($render_order as $mode): ?>
+						<?php if (empty($grouped[$mode])) continue; ?>
+						<?php foreach ($grouped[$mode] as $cards): ?>
+							<div class="card-table-wrapper card-layout-<?= htmlspecialchars($mode) ?>">
+								<?php if ($mode === 'collapsed'): ?>
+									<div style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 1rem; cursor: pointer;" 
+										onclick="var b = this.nextElementSibling; b.style.display = b.style.display === 'none' ? 'block' : 'none';">
+										<?= htmlspecialchars($cards['name']) ?> (click to expand)
+									</div>
+									<div style="display: none;">
+								<?php else: ?>
+									<h3 style="padding: 1rem; border-bottom: 1px solid var(--border); font-size: 1rem;">
+										<?= htmlspecialchars($cards['name']) ?>
+									</h3>
+									<div>
+								<?php endif; ?>
+
+									<?php if (!empty($cards['links'])): ?>
+										<?php
+										$count = 0;
+										$clean_id = preg_replace('/[^a-zA-Z0-9]/', '', $cards['name']);
+										$opened_extra = false;
+										?>
+										<ul style="list-style: none;">
+										<?php foreach ($cards['links'] as $link): ?>
+											<?php
+											if ($count == 5) {
+												echo '</ul>';
+												echo '<button class="btn" style="margin: 5px 0 5px 20px;" onclick="document.getElementById(\'' . $clean_id . '-extra-links\').style.display = \'block\'; this.style.display = \'none\';">Show More Links</button>';
+												echo '<div style="display:none;" id="' . $clean_id . '-extra-links">';
+												echo '<ul style="list-style-type: square; padding-left: 20px; margin-top: 0;">';
+												$opened_extra = true;
+											}
+
+											$style = !empty($link['style']) ? ' style="' . $link['style'] . '"' : '';
+											$target = !empty($link['target']) ? ' target="' . $link['target'] . '"' : '';
+											$action = !empty($link['action']) ? ' onclick="' . $link['action'] . '"' : '';
+
+											if (isset($link['url']) && isset($link['label'])) {
+												echo '<li style="padding: 0.75rem 1rem;"><a href="' . $link['url'] . '"' . $style . $target . $action . '>' . $link['label'] . '</a></li>';
+												$count++;
+											}
+											?>
+										<?php endforeach; ?>
+										</ul>
+										<?php if ($opened_extra): ?>
+											</div>
+										<?php endif; ?>
+									<?php endif; ?>
+
+									<?php if (!empty($cards['html'])): ?>
+										<?= $cards['html'] ?>
+									<?php endif; ?>
+								</div>
+							</div>
+						<?php endforeach; ?>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
             </div>
 
             <h3 style="margin-bottom: 1rem;">Flagged Videos</h3>
