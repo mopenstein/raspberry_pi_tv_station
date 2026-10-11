@@ -31,7 +31,8 @@ sync:webui/test_settings.php->/var/www/html/test_settings.php
 sync:webui/videoeditor.php->/var/www/html/videoeditor.php
 sync:webui/videostream.inc->/var/www/html/videostream.inc
 sync:webui/youtube-dl.php->/var/www/html/youtube-dl.php
-sync:webui/tvplayer.php->/var/www/html/tvplayer.php
+sync:webui/tv-player.html->/var/www/html/tv-player.html
+sync:webui/web-player.php->/var/www/html/web-player.php
 
 # Manage cards
 sync:webui/manage/StationControl.php->/var/www/html/manage/StationControl.php
