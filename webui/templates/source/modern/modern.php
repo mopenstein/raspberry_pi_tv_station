@@ -755,56 +755,6 @@
 				</div>
 			<?php endif; ?>
             </div>
-
-            <h3 style="margin-bottom: 1rem;">Flagged Videos</h3>
-            <div class="card-table-wrapper" style="margin-bottom: 2rem;">
-                <table>
-                    <tbody>
-                        <?php if (empty($View['data']['flagged_videos'])): ?>
-                            <tr><td style="text-align: center; color: var(--text-muted);">Nothing to see here</td></tr>
-                        <?php else: ?>
-                            <?php 
-                                $count = 0;
-                                foreach ($View['data']['flagged_videos'] as $v):
-                                    $count++;
-                            ?>
-                            <tr id="manVid_<?= $count ?>">
-                                <td><a href="/?video=<?= urlencode($v['name']) ?>" target="_blank"><?= $v['name'] ?></a></td>
-                                <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
-                                    <button class="type-badge" style="cursor: pointer; border: none;" onclick="unflagVideo(<?= $v['id'] ?>, 'manVid_<?= $count ?>');">unflag</button>
-                                    <button class="type-badge" style="cursor: pointer; border: none; background: var(--accent);" onclick="renameVideo('<?= $v['name'] ?>');">rename</button>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
-
-            <h3 style="margin-bottom: 1rem;">Flagged Commercials</h3>
-            <div class="card-table-wrapper">
-                <table>
-                    <tbody>
-                        <?php if (empty($View['data']['flagged_comms'])): ?>
-                            <tr><td style="text-align: center; color: var(--text-muted);">Nothing to see here</td></tr>
-                        <?php else: ?>
-                            <?php 
-                                $count = 0;
-                                foreach ($View['data']['flagged_comms'] as $v):
-                                    $count++;
-                            ?>
-                            <tr id="manComm_<?= $count ?>">
-                                <td><a href="/?video=<?= urlencode($v['name']) ?>" target="_blank"><?= $v['name'] ?></a></td>
-                                <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
-                                    <button class="type-badge" style="cursor: pointer; border: none;" onclick="unflagVideo(<?= $v['id'] ?>, 'manComm_<?= $count ?>');">unflag</button>
-                                    <button class="type-badge" style="cursor: pointer; border: none; background: var(--accent);" onclick="renameVideo('<?= $v['name'] ?>');">rename</button>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
-                </table>
-            </div>
         </section>
 
         <!-- Stats -->
