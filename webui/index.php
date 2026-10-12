@@ -284,21 +284,6 @@ function fetchGroupedMessages($mysqli) {
     return $messages;
 }
 
-/**
- * General fetcher for Flagged items (Videos or Commercials)
- */
-function fetchFlagged($mysqli, $table) {
-    $items = [];
-    $res = $mysqli->query("SELECT id, name FROM $table WHERE flag != 0 ORDER BY id DESC");
-    while ($row = $res->fetch_assoc()) {
-        $items[] = [
-            'id'   => $row['id'],
-            'name' => stripslashes($row['name'])
-        ];
-    }
-    return $items;
-}
-
 interface ManageCard {
     public function name();
 	public function links();
@@ -470,8 +455,6 @@ $View = [
         'commercials' => [],
         'comm_stats' => [],
         'messages' => [],
-        'flagged_videos' => [],
-        'flagged_comms' => [],
         'stats_rows' => [],
         'stats_summary' => []
     ]
@@ -495,13 +478,9 @@ $View['data']['shows']       = fetchShows($mysqli, $the_date, $_GET["channelView
 $View['data']['commercials'] = fetchCommercials($mysqli, $the_date, $_GET["channelView"] ?? null, $json_settings["drive"] ?? []);
 
 $View['data']['messages']    = fetchGroupedMessages($mysqli);
-$View['data']['flagged_videos'] = fetchFlagged($mysqli, 'played');
-$View['data']['flagged_comms']  = fetchFlagged($mysqli, 'commercials');
 $View['data']['stats']     = fetchStats($mysqli);
 
 $View['data']['manage'] = prepareManageView($json_settings, $db_manage_ext);
-$View['data']['flagged_videos'] = fetchFlagged($mysqli, 'played');
-$View['data']['flagged_comms']  = fetchFlagged($mysqli, 'commercials');
 
 // --- 4. RENDER ---
 $theme = $json_settings["web-ui"]["theme"] ?? "modern";
