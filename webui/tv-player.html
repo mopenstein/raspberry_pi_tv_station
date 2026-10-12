@@ -129,11 +129,11 @@
             box-sizing: border-box;
         }
 
-        .dial-container { display: flex; flex-direction: column; align-items: center; gap: 0.8cqw; }
-        .dial-label { color: #777; font-size: 1.8cqw; font-weight: bold; letter-spacing: 0.1cqw; }
+        .dial-container { display: flex; flex-direction: column; align-items: center; gap: 0.2cqw; }
+        .dial-label { color: #777; font-size: 1.4cqw; font-weight: bold; letter-spacing: 0.1cqw; }
         
         .knob {
-            width: 7.5cqw; height: 7.5cqw; border-radius: 50%;
+            width: 6cqw; height: 6cqw; border-radius: 50%;
             background: radial-gradient(circle at 30% 30%, #555, #111);
             border: 0.4cqw solid #000;
             box-shadow: 0.3cqw 0.4cqw 0.6cqw rgba(0,0,0,0.6);
@@ -146,13 +146,13 @@
 
         .speaker-grill {
             flex-grow: 1; width: 80%;
-            background: repeating-linear-gradient(0deg, #111, #111 0.6cqw, #222 0.6cqw, #222 1.2cqw);
+            background: repeating-linear-gradient(0deg, #111, #111 0.2cqw, #222 0.2cqw, #222 0.6cqw);
             border-radius: 0.6cqw; border: 0.15cqw solid #000; box-shadow: inset 0 0.8cqw 1.5cqw rgba(0,0,0,0.8);
         }
 
         /* --- New Power Knob --- */
         .power-knob {
-            width: 5cqw; height: 5cqw; border-radius: 50%;
+            width: 3cqw; height: 3cqw; border-radius: 50%;
             background: radial-gradient(circle at 30% 30%, #444, #111);
             border: 0.3cqw solid #000;
             box-shadow: 0.3cqw 0.4cqw 0.6cqw rgba(0,0,0,0.6);
@@ -161,7 +161,7 @@
         }
         .power-knob::after {
             content: ''; position: absolute; top: 0.5cqw; left: 50%; transform: translateX(-50%);
-            width: 0.4cqw; height: 1.5cqw; background: #999; border-radius: 0.2cqw;
+            width: 0.4cqw; height: 1.0cqw; background: #999; border-radius: 0.2cqw;
             transition: background 0.2s ease, box-shadow 0.2s ease;
         }
         /* Rotates 90 degrees and glows red when activated */
@@ -173,7 +173,7 @@
             box-shadow: 0 0 0.5cqw #ff5252;
         }
 
-        .buttons { display: flex; flex-direction: column; gap: 2cqw; width: 100%; margin-bottom: 1cqw; }
+        .buttons { display: flex; flex-direction: column; gap: 2cqw; width: 100%; margin-bottom: 0.5cqw; }
         .chunky-btn {
             background: #1a1a1a; color: #9e9e9e; 
             border: 0.3cqw solid #000; border-top-color: #444; border-left-color: #444;
@@ -215,8 +215,9 @@
                 
                 <div class="speaker-grill"></div>
                 
-                <div class="buttons" style="display:none;">
-                    <button id="fullscreen-btn" class="chunky-btn">FULL</button>
+				<div class="dial-container">
+                    <div class="dial-label">Full</div>
+                    <div class="power-knob" id="fullscreen-btn"></div>
                 </div>
 
                 <!-- Replaced Power Button with smaller knob -->
