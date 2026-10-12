@@ -20,7 +20,7 @@
             --crt-green-glow: rgba(63, 185, 80, 0.2);
             --tally-red: #f85149;
             --tally-red-glow: rgba(248, 81, 73, 0.25);
-			--tally-green: #22c55e;
+            --tally-green: #22c55e;
             --tally-green-glow: rgba(34, 197, 94, 0.25);
             --cyan-accent: #38bdf8;
             --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -272,6 +272,11 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
+        .instrument-frame.card-layout-wide {
+            grid-column: 1 / -1;
+            width: 100%;
+        }
+
         table.rack-table {
             width: 100%;
             border-collapse: collapse;
@@ -501,7 +506,6 @@
         a:hover { color: var(--amber); }
 
         @media (max-width: 768px) {
-            /* Mobile 2-Row Rack Switcher Grid */
             .bus-nav {
                 display: grid;
                 grid-template-columns: repeat(6, 1fr);
@@ -706,7 +710,6 @@
             if (hash && document.getElementById(hash)) {
                 swapTab(hash);
             }
-            // Poll station status every 4 seconds
             setInterval(pollAirStatus, 4000);
         });
 
@@ -760,17 +763,17 @@
 
             <a href="/?skip=1" class="btn-skip">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
-                SKIP BUS
+                SKIP
             </a>
         </div>
     </header>
 
     <nav class="bus-nav">
-        <button id="btnShows" class="tablinks active" onclick="swapTab('Shows')">Program Lineup</button>
+        <button id="btnShows" class="tablinks active" onclick="swapTab('Shows')">Programs</button>
         <button id="btnCommercials" class="tablinks" onclick="swapTab('Commercials')">Spots</button>
-        <button id="btnMessages" class="tablinks" onclick="swapTab('Messages')">System Log</button>
-        <button id="btnManage" class="tablinks" onclick="swapTab('Manage')">Rack Control</button>
-        <button id="btnStats" class="tablinks" onclick="swapTab('Stats')">Rotation Metrics</button>
+        <button id="btnMessages" class="tablinks" onclick="swapTab('Messages')">Messages</button>
+        <button id="btnManage" class="tablinks" onclick="swapTab('Manage')">System</button>
+        <button id="btnStats" class="tablinks" onclick="swapTab('Stats')">Metrics</button>
     </nav>
 
     <main>
@@ -802,7 +805,7 @@
                                 <td>
                                     <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 4px;">
                                         <a href="/?video=<?= $s['url'] ?>" style="font-weight: 600; font-size: 0.9rem;"><?= htmlspecialchars($s['name']) ?></a>
-                                        <button class="btn-ctl btn-play-trigger" onclick="playVideo('/?video=<?= $s['url'] ?>', '<?= $showCount ?>')">▶ MON</button>
+                                        <button class="btn-ctl btn-play-trigger" onclick="playVideo('/?video=<?= $s['url'] ?>', '<?=$showCount ?>')">▶ MON</button>
                                     </div>
                                     <div style="display: flex; gap: 6px; align-items: center;">
                                         <span class="tag-pill" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-rack); color: var(--text-dim);"><?= htmlspecialchars($s['len']) ?></span>
@@ -812,7 +815,7 @@
                                 </td>
                                 <td valign="top" style="text-align: right;">
                                     <div class="action-tray">
-                                        <a href="javascript:void(0)" class="btn-ctl" title="Inspect Break Commercials" onclick="viewCommercials('<?= $s['url'] ?>', '<?= $showCount ?>')">
+                                        <a href="javascript:void(0)" class="btn-ctl" title="Inspect Break Commercials" onclick="viewCommercials('<?= $s['url'] ?>', '<?=$showCount ?>')">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 6.5C18 5 16.5 4 14.5 4 10 4 6.5 7.5 6.5 12s3.5 8 8 8c2 0 3.5-1 4.5-2.5" stroke-width="3"></path><path d="M4.5 3c-1.5 2.5-2.5 5-2.5 9s1 6.5 2.5 9"></path></svg>
                                         </a>
                                         <button id="showAVFlagIcon_<?= $showCount ?>" class="btn-flag" onclick="flagVideo(<?= (int)$s['id'] ?>, '<?= $showCount ?>')" style="<?= $s['flag'] == 1 ? 'display: none;' : '' ?>" title="Flag Asset">
@@ -849,8 +852,7 @@
                         <?php else: ?>
                             <?php 
                             $commCount = 0;
-                            foreach ($View['data']['commercials'] as $c): 
-                                $commCount++;
+                            foreach ($View['data']['commercials'] as $c):$commCount++;
                                 $hexColor = ltrim($c['color'], '#');
                             ?>
                             <tr id="rowComm<?= $commCount ?>" style="border-left: 4px solid #<?= $hexColor ?>;">
@@ -866,7 +868,7 @@
                                     <div style="display: flex; align-items: baseline; gap: 0.5rem;">
                                         <span style="font-family: var(--font-mono); color: var(--text-dim);">&#x<?= $c['emoji'] ?>;</span>
                                         <a href="/?video=<?= $c['videoUrl'] ?>" style="font-weight: 500;"><?= htmlspecialchars($c['filename']) ?></a>
-                                        <button class="btn-ctl btn-play-trigger" onclick="playVideo('/?video=<?= $c['videoUrl'] ?>', 'Comm<?= $commCount ?>')">▶</button>
+                                        <button class="btn-ctl btn-play-trigger" onclick="playVideo('/?video=<?= $c['videoUrl'] ?>', 'Comm<?=$commCount ?>')">▶</button>
                                         <span style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim);">(<?= htmlspecialchars($c['length']) ?>)</span>
                                     </div>
                                 </td>
@@ -904,13 +906,13 @@
                     All operational loops nominal. Zero faults or system errors reported.
                 </div>
             <?php else: ?>
-                <?php foreach ($View['data']['messages'] as $m): 
+                <?php foreach ($View['data']['messages'] as$m): 
                     $entryDate = date("Y-m-d", $m["timestamp"]);
-                    if ($lastDate !== $entryDate):
+                    if ($lastDate !==$entryDate):
                 ?>
                     <div class="msg-feed-date"><?= $entryDate ?></div>
                 <?php 
-                        $lastDate = $entryDate;
+                        $lastDate =$entryDate;
                     endif;
                 ?>
                 <div class="msg-log-entry">
@@ -919,8 +921,14 @@
                         <span class="time"><?= date("H:i:s", $m['timestamp']) ?> (x<?= (int)$m['repeats'] ?>)</span>
                     </div>
                     <ul>
-                        <?php foreach ($m['details'] as $detail): ?>
-                            <li><?= htmlspecialchars($detail) ?></li>
+                        <?php foreach ($m['details'] as$detail): ?>
+                            <li><?php
+                                if (substr($detail, 0, 6) === "ALERT!") {
+                                    echo "<span style='color: var(--tally-red); font-weight: bold;'>" . htmlspecialchars($detail) . "</span>";
+                                } else {
+                                    echo htmlspecialchars($detail);
+                                }
+                            ?></li>
                         <?php endforeach; ?>
                     </ul>
                 </div>
@@ -928,106 +936,97 @@
             <?php endif; ?>
         </section>
 
-        <!-- Tab 4: Manage & Flagged Triage -->
+        <!-- Tab 4: Manage System Cards -->
         <section id="Manage" class="tabcontent">
-            <div class="manage-grid">
-                <?php if (empty($View['data']['manage']['cards'])): ?>
-                    <div class="instrument-frame">
-                        <div class="panel-heading">Hardware Cards</div>
-                        <div style="padding: 1rem; color: var(--text-dim); font-size: 0.8rem;">No custom control cards detected in <code>/manage/</code>.</div>
+            <?php if (empty($View['data']['manage']['cards'])): ?>
+                <div class="instrument-frame">
+                    <div class="panel-heading">System Cards</div>
+                    <div style="padding: 1.5rem; color: var(--text-dim); font-size: 0.8rem; text-align: center; font-family: var(--font-mono);">
+                        No operational control cards detected in <code>/manage/</code>.
                     </div>
-                <?php else: ?>
-                    <?php foreach ($View['data']['manage']['cards'] as $card): ?>
-                        <div class="instrument-frame">
-                            <div class="panel-heading"><?= htmlspecialchars($card['name']) ?></div>
-                            <div style="padding: 0.75rem;">
-                                <?php if (!empty($card['links'])): ?>
-                                    <?php 
-                                    $linkCount = 0;
-                                    $cleanId = preg_replace('/[^a-zA-Z0-9]/', '', $card['name']);
-                                    $openedExtra = false;
-                                    ?>
-                                    <ul style="list-style: none; margin-bottom: 0.5rem;">
-                                        <?php foreach ($card['links'] as $link): ?>
-                                            <?php 
-                                            if ($linkCount == 5) {
-                                                echo '</ul>';
-                                                echo '<button class="btn-ctl" style="margin-bottom: 0.5rem;" onclick="document.getElementById(\'' . $cleanId . '-more\').style.display = \'block\'; this.style.display = \'none\';">Expand All Routines</button>';
-                                                echo '<div style="display: none;" id="' . $cleanId . '-more"><ul style="list-style: none; margin-bottom: 0.5rem;">';
-                                                $openedExtra = true;
-                                            }
-                                            $styleAttr  = !empty($link['style']) ? ' style="' . htmlspecialchars($link['style']) . '"' : '';
-                                            $targetAttr = !empty($link['target']) ? ' target="' . htmlspecialchars($link['target']) . '"' : '';
-                                            $actionAttr = !empty($link['action']) ? ' onclick="' . htmlspecialchars($link['action']) . '"' : '';
-                                            ?>
-                                            <li style="margin-bottom: 4px;">
-                                                <a href="<?= htmlspecialchars($link['url']) ?>" class="btn-ctl" style="width: 100%; justify-content: flex-start;"<?= $styleAttr . $targetAttr . $actionAttr ?>>
-                                                    › <?= htmlspecialchars($link['label']) ?>
-                                                </a>
-                                            </li>
-                                            <?php $linkCount++; ?>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                    <?php if ($openedExtra) echo '</div>'; ?>
+                </div>
+            <?php else: ?>
+                <?php
+                    // 1. Group cards by display mode (support 'hidden')
+                    $grouped = [];
+                    foreach ($View['data']['manage']['cards'] as$key => $card) {$mode = !empty($card['display']) ?$card['display'] : 'default';
+                        if ($mode === 'hidden') continue;
+                        $grouped[$mode][$key] =$card;
+                    }
+
+                    // 2. Sort each group internally by priority (descending)
+                    foreach ($grouped as $mode => &$groupCards) {
+                        uasort($groupCards, function($a,$b) {
+                            return ($b['priority'] ?? 0) <=> ($a['priority'] ?? 0);
+                        });
+                    }
+                    unset($groupCards);
+
+                    // 3. Render non-wide types first, wide last
+                    $other_modes = array_diff(array_keys($grouped), ['wide']);
+                    $render_order = array_values($other_modes);
+                    if (isset($grouped['wide'])) {$render_order[] = 'wide';
+                    }
+                ?>
+
+                <div class="manage-grid">
+                    <?php foreach ($render_order as$mode): ?>
+                        <?php if (empty($grouped[$mode])) continue; ?>
+                        <?php foreach ($grouped[$mode] as$card): ?>
+                            <div class="instrument-frame card-layout-<?= htmlspecialchars($mode) ?>">
+                                <?php if ($mode === 'collapsed'): ?>
+                                    <div class="panel-heading" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" 
+                                         onclick="var b = this.nextElementSibling; b.style.display = b.style.display === 'none' ? 'block' : 'none';">
+                                        <span><?= htmlspecialchars($card['name']) ?></span>
+                                        <span style="font-size: 0.65rem; color: var(--text-dim);">[TOGGLE]</span>
+                                    </div>
+                                    <div style="display: none; padding: 0.75rem;">
+                                <?php else: ?>
+                                    <div class="panel-heading"><?= htmlspecialchars($card['name']) ?></div>
+                                    <div style="padding: 0.75rem;">
                                 <?php endif; ?>
 
-                                <?php if (!empty($card['html'])): ?>
-                                    <div style="margin-top: 0.5rem;"><?= $card['html'] ?></div>
-                                <?php endif; ?>
+                                    <?php if (!empty($card['links'])): ?>
+                                        <?php 
+                                        $linkCount = 0;
+                                        $cleanId = preg_replace('/[^a-zA-Z0-9]/', '', $card['name']);$openedExtra = false;
+                                        ?>
+                                        <ul style="list-style: none; margin-bottom: 0.5rem;">
+                                            <?php foreach ($card['links'] as$link): ?>
+                                                <?php 
+                                                if ($linkCount == 5) {
+                                                    echo '</ul>';
+                                                    echo '<button class="btn-ctl" style="margin-bottom: 0.5rem; width: 100%;" onclick="document.getElementById(\'' . $cleanId . '-more\').style.display = \'block\'; this.style.display = \'none\';">Expand All Routines</button>';
+                                                    echo '<div style="display: none;" id="' . $cleanId . '-more"><ul style="list-style: none; margin-bottom: 0.5rem;">';
+                                                    $openedExtra = true;
+                                                }
+                                                $styleAttr  = !empty($link['style']) ? ' style="' . htmlspecialchars($link['style']) . '"' : '';
+                                                $targetAttr = !empty($link['target']) ? ' target="' . htmlspecialchars($link['target']) . '"' : '';
+                                                $actionAttr = !empty($link['action']) ? ' onclick="' . htmlspecialchars($link['action']) . '"' : '';
+
+                                                if (isset($link['url']) && isset($link['label'])) {
+                                                    echo '<li style="margin-bottom: 4px;">';
+                                                    echo '<a href="' . htmlspecialchars($link['url']) . '" class="btn-ctl" style="width: 100%; justify-content: flex-start;"' . $styleAttr . $targetAttr .$actionAttr . '>';
+                                                    echo '› ' . htmlspecialchars($link['label']);
+                                                    echo '</a>';
+                                                    echo '</li>';
+                                                    $linkCount++;
+                                                }
+                                                ?>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                        <?php if ($openedExtra) echo '</div>'; ?>
+                                    <?php endif; ?>
+
+                                    <?php if (!empty($card['html'])): ?>
+                                        <div style="margin-top: 0.5rem;"><?= $card['html'] ?></div>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                        </div>
+                        <?php endforeach; ?>
                     <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-
-            <!-- Triage Tables -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1rem;">
-                <div class="instrument-frame">
-                    <div class="panel-heading">Flagged Broadcast Sequences</div>
-                    <table class="rack-table">
-                        <tbody>
-                            <?php if (empty($View['data']['flagged_videos'])): ?>
-                                <tr><td style="color: var(--text-dim); text-align: center; padding: 1.5rem;">Clean slate. No video sequences flagged.</td></tr>
-                            <?php else: ?>
-                                <?php $fvCount = 0; foreach ($View['data']['flagged_videos'] as $v): $fvCount++; ?>
-                                <tr id="manVid_<?= $fvCount ?>">
-                                    <td><a href="/?video=<?= urlencode($v['name']) ?>" target="_blank" style="font-family: var(--font-mono); font-size: 0.78rem;"><?= htmlspecialchars($v['name']) ?></a></td>
-                                    <td style="text-align: right; width: 140px;">
-                                        <div class="action-tray">
-                                            <button class="btn-ctl" onclick="unflagVideo(<?= (int)$v['id'] ?>, 'manVid_<?= $fvCount ?>');">Unflag</button>
-                                            <button class="btn-ctl" style="border-color: var(--amber); color: var(--amber);" onclick="renameVideo('<?= htmlspecialchars(addslashes($v['name'])) ?>');">Rename</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
                 </div>
-
-                <div class="instrument-frame">
-                    <div class="panel-heading">Flagged Interstitials & Ads</div>
-                    <table class="rack-table">
-                        <tbody>
-                            <?php if (empty($View['data']['flagged_comms'])): ?>
-                                <tr><td style="color: var(--text-dim); text-align: center; padding: 1.5rem;">Clean slate. No spots flagged.</td></tr>
-                            <?php else: ?>
-                                <?php $fcCount = 0; foreach ($View['data']['flagged_comms'] as $v): $fcCount++; ?>
-                                <tr id="manComm_<?= $fcCount ?>">
-                                    <td><a href="/?video=<?= urlencode($v['name']) ?>" target="_blank" style="font-family: var(--font-mono); font-size: 0.78rem;"><?= htmlspecialchars($v['name']) ?></a></td>
-                                    <td style="text-align: right; width: 140px;">
-                                        <div class="action-tray">
-                                            <button class="btn-ctl" onclick="unflagCommercial(<?= (int)$v['id'] ?>, 'manComm_<?= $fcCount ?>');">Unflag</button>
-                                            <button class="btn-ctl" style="border-color: var(--amber); color: var(--amber);" onclick="renameVideo('<?= htmlspecialchars(addslashes($v['name'])) ?>');">Rename</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            <?php endif; ?>
         </section>
 
         <!-- Tab 5: Rotation Stats -->
@@ -1044,8 +1043,7 @@
                     <tbody>
                         <?php 
                         $statCount = 0;
-                        foreach ($View['data']['stats'] as $st): 
-                            $statCount++;
+                        foreach ($View['data']['stats'] as $st):$statCount++;
                             $hexColor = ltrim($st['color'], '#');
                         ?>
                         <tr style="border-left: 4px solid #<?= $hexColor ?>;">
@@ -1056,7 +1054,7 @@
                             </td>
                             <td>
                                 <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                    <button class="btn-ctl" onclick="showStats('<?= htmlspecialchars(addslashes($st['shortName'])) ?>', '<?= $statCount ?>')" style="padding: 1px 5px; font-size: 0.65rem;">EXPAND</button>
+                                    <button class="btn-ctl" onclick="showStats('<?= htmlspecialchars(addslashes($st['shortName'])) ?>', '<?=$statCount ?>')" style="padding: 1px 5px; font-size: 0.65rem;">EXPAND</button>
                                     <span style="font-weight: 600;"><?= htmlspecialchars($st['shortName']) ?></span>
                                 </div>
                                 <div id="stats<?= $statCount ?>" class="scroll-box" style="display: none;"></div>
