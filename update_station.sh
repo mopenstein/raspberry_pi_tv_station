@@ -156,18 +156,18 @@ while IFS= read -r line || [ -n "$line" ]; do
                     chown "$PREV_OWNER" "$LOCAL_DEST"
                     chmod "$PREV_PERM" "$LOCAL_DEST"
                 else
-                    # Fallback for brand-new files: assign based on path and filetype
-                    if [[ "$LOCAL_DEST" == /home/pi/* ]]; then
+                    # Fallback for brand-new files: pi:www-data under /var/www, pi:pi everywhere else
+                    if [[ "$LOCAL_DEST" == /var/www/* ]]; then
+                        chown pi:www-data "$LOCAL_DEST"
+                    else
                         chown pi:pi "$LOCAL_DEST"
-                    elif [[ "$LOCAL_DEST" == /var/www/* ]]; then
-                        chown www-data:www-data "$LOCAL_DEST"
                     fi
 
-                    # Grant 755 to scripts so both pi and www-data can execute
+                    # Set maximum accessibility (read/write/execute for scripts, read/write for non-scripts)
                     if [[ "$LOCAL_DEST" =~ \.(py|sh|bin)$ ]]; then
-                        chmod 755 "$LOCAL_DEST"
+                        chmod 777 "$LOCAL_DEST"
                     else
-                        chmod 644 "$LOCAL_DEST"
+                        chmod 666 "$LOCAL_DEST"
                     fi
                 fi
             fi
