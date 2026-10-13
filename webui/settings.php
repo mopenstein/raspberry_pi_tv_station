@@ -33,9 +33,9 @@ function validateJsonReferences(string $jsonString): array {
         ];
     };
 
-    $checkRefs = function($item) use (&$checkRefs, &$errors, $vars, $jsonString, $getPositionData) {
+    $checkRefs = function($item) use (&$checkRefs, &$errors,$vars, $jsonString,$getPositionData) {
 		if (is_array($item)) {
-			foreach ($item as $value) {
+			foreach ($item as$value) {
 				$checkRefs($value);
 			}
 		} elseif (is_string($item) && strpos($item, '$ref/') === 0) {
@@ -44,24 +44,22 @@ function validateJsonReferences(string $jsonString): array {
 			}
 
 			$refPath = substr($item, 5);
-			$parts = explode('/', $refPath);
-			$current = $vars;
+			$parts = explode('/',$refPath);
+			$current =$vars;
 			$missing = false;
 			$traversed = "vars";
 
-			foreach ($parts as $part) {
-				if (!isset($current[$part])) {
-                    $missing = true;
+			foreach ($parts as$part) {
+				if (!isset($current[$part])) {$missing = true;
 					break;
 				}
 				$current = $current[$part];
 				$traversed .= " > " . $part;
 			}
 
-			if ($missing) {
-                $errors[] = [
+			if ($missing) {$errors[] = [
 					'label' => "Reference '{$item}' not found in [{$traversed}]",
-					'pos' => $getPositionData($item, $jsonString)
+					'pos' => $getPositionData($item,$jsonString)
 				];
 			}
 		}
@@ -70,7 +68,7 @@ function validateJsonReferences(string $jsonString): array {
     if (isset($data['times'])) $checkRefs($data['times'], 'times');
     if (isset($data['commercial_times'])) $checkRefs($data['commercial_times'], 'commercial_times');
 
-    return ['valid' => empty($errors), 'errors' => $errors];
+    return ['valid' => empty($errors), 'errors' =>$errors];
 }
 
 function json_error_to_string($id) {
@@ -98,28 +96,30 @@ $backup_dir = "/home/pi/settings_backups/";
 $base_name = basename($settings_file);
 $is_writable = is_writable($settings_file);
 
-// Helper: Ensure pi user retains full read/write access
+// Helper: Ensure pi:pi ownership and read/write permissions
 function ensure_permissions($file) {
+    clearstatcache(true, $file);
     if (file_exists($file)) {
         @chmod($file, 0666);
-        @chown($file, 'pi');
-        @chgrp($file, 'pi');
+        shell_exec('sudo /bin/chown pi:pi ' . escapeshellarg($file));
     }
 }
 
 // Helper: create rotating backup
-function create_backup($settings_file, $backup_dir, $base_name) {
+function create_backup($settings_file, $backup_dir,$base_name) {
     if (file_exists($settings_file)) {
         if (!is_dir($backup_dir)) {
             mkdir($backup_dir, 0777, true);
+            @chown($backup_dir, 'pi');
+            @chgrp($backup_dir, 'pi');
         }
         $timestamp = date('Ymd_His');
-        $backup_file = $backup_dir . '/' . $base_name . '.bak_' . $timestamp;
-        copy($settings_file, $backup_file);
+        $backup_file =$backup_dir . '/' . $base_name . '.bak_' .$timestamp;
+        copy($settings_file,$backup_file);
         ensure_permissions($backup_file);
 
-        $backups = glob($backup_dir . '/' . $base_name . '.bak_*');
-        usort($backups, function($a, $b) { return filemtime($b) - filemtime($a); });
+        $backups = glob($backup_dir . '/' .$base_name . '.bak_*');
+        usort($backups, function($a,$b) { return filemtime($b) - filemtime($a); });
         if (count($backups) > 10) {
             foreach (array_slice($backups, 10) as $old) unlink($old);
         }
@@ -127,11 +127,9 @@ function create_backup($settings_file, $backup_dir, $base_name) {
 }
 
 // 0. AJAX Preview backup endpoint
-if (isset($_GET['action']) && $_GET['action'] === 'preview_backup' && !empty($_GET['file'])) {
-    $requested_file = basename($_GET['file']);
-    $full_backup_path = $backup_dir . '/' . $requested_file;
+if (isset($_GET['action']) &&$_GET['action'] === 'preview_backup' && !empty($_GET['file'])) {$requested_file = basename($_GET['file']);$full_backup_path = $backup_dir . '/' .$requested_file;
 
-    if (file_exists($full_backup_path) && strpos($requested_file, $base_name . '.bak_') === 0) {
+    if (file_exists($full_backup_path) && strpos($requested_file,$base_name . '.bak_') === 0) {
         header('Content-Type: text/plain; charset=UTF-8');
         echo file_get_contents($full_backup_path);
         exit;
@@ -143,7 +141,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'preview_backup' && !empty($_G
 }
 
 // 1. Export settings.json
-if (isset($_GET['action']) && $_GET['action'] === 'export') {
+if (isset($_GET['action']) &&$_GET['action'] === 'export') {
     if (file_exists($settings_file)) {
         header('Content-Description: File Transfer');
         header('Content-Type: application/json');
@@ -169,7 +167,7 @@ if (isset($_POST["restore_server_backup"]) && !empty($_POST["backup_filename"]))
         $val = json_validator($content);
         if ($val[0]) {
             create_backup($settings_file, $backup_dir,$base_name);
-            file_put_contents($settings_file,$content);
+            file_put_contents($settings_file,$content, LOCK_EX);
             ensure_permissions($settings_file);
             header("Location: settings.php?msg=restored");
             exit;
@@ -188,7 +186,7 @@ if (isset($_POST["upload_backup"]) && isset($_FILES["backup_file"])) {
         $val = json_validator($uploaded_content);
         if ($val[0]) {
             create_backup($settings_file, $backup_dir,$base_name);
-            file_put_contents($settings_file,$uploaded_content);
+            file_put_contents($settings_file,$uploaded_content, LOCK_EX);
             ensure_permissions($settings_file);
             header("Location: settings.php?msg=uploaded");
             exit;
@@ -204,9 +202,9 @@ if (isset($_POST["upload_backup"]) && isset($_FILES["backup_file"])) {
     }
 }
 
-// 4. Handle Save
+// 4. Handle Save (writes directly in-place with exclusive locking)
 if (isset($_POST["settings"]) && isset($_POST["save"])) {
-    $raw_json = $_POST["settings"];
+    $raw_json =$_POST["settings"];
     $json_valid = json_validator($raw_json);
     
     if (!$json_valid[0]) {
@@ -219,9 +217,7 @@ if (isset($_POST["settings"]) && isset($_POST["save"])) {
 
     create_backup($settings_file, $backup_dir,$base_name);
 
-    $temp_file = $settings_file . '.tmp';
-    if (file_put_contents($temp_file, $raw_json) !== false) {
-        rename($temp_file, $settings_file);
+    if (file_put_contents($settings_file,$raw_json, LOCK_EX) !== false) {
         ensure_permissions($settings_file);
         header("Location: settings.php?saved=yes");
         exit();
@@ -336,7 +332,6 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
             display: block;
         }
 
-        /* Modal styling */
         .modal {
             display: none; 
             position: fixed; 
@@ -379,7 +374,6 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
         }
         .modal-close:hover { color: #fff; }
 
-        /* Responsive Backups List */
         .backup-list-container {
             max-height: 52vh;
             overflow-y: auto;
@@ -418,13 +412,10 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
             border-radius: 4px;
         }
 
-        /* Hide mobile card view by default on desktop */
-        /* Hide mobile card view by default on desktop */
         .mobile-backup-cards {
             display: none;
         }
 
-        /* Mobile Adjustments */
         @media (max-width: 680px) {
             body { margin: 8px; }
             .button-container { gap: 6px; }
@@ -433,7 +424,6 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
             .modal-content { margin: 8px auto; padding: 14px; }
             #editor { height: 64vh; font-size: 12px; }
 
-            /* Switch Table to Stacked Cards */
             .backup-table, .backup-table thead, .backup-table tbody, .backup-table th { display: none; }
             .mobile-backup-cards { display: block; }
             .backup-card {
@@ -537,7 +527,6 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
                 <?php if (empty($server_backups)): ?>
                     <div style="padding: 15px; font-size: 12px; color: #777;">No automatic backups found on disk.</div>
                 <?php else: ?>
-                    <!-- Standard desktop table -->
                     <table class="backup-table">
                         <thead>
                             <tr>
@@ -570,7 +559,6 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
                         </tbody>
                     </table>
 
-                    <!-- Mobile stacked card layout (auto-toggled via CSS) -->
                     <div class="mobile-backup-cards">
                         <?php foreach ($server_backups as $file):$mtime = filemtime($file);$formatted_date = date("M j, Y — H:i:s", $mtime);
                             $filename = basename($file);
