@@ -50,7 +50,6 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
             padding: 5px;
             border-radius: 4px;
             border: 1px solid #333;
-            /* Add these two lines: */
             transition: opacity 0.3s ease;
             opacity: 1;
         }
@@ -84,29 +83,26 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
     <?php endif; ?>
 
     <script>
-
     <?php if ($has_ui): ?>
         const controlsContainer = document.getElementById('player-controls');
         let hideTimeout;
 
         function wakeControls() {
             controlsContainer.style.opacity = '1';
-            controlsContainer.style.pointerEvents = 'auto'; // Re-enable clicks
+            controlsContainer.style.pointerEvents = 'auto';
             
             clearTimeout(hideTimeout);
             
             hideTimeout = setTimeout(() => {
                 controlsContainer.style.opacity = '0';
-                controlsContainer.style.pointerEvents = 'none'; // Prevent invisible clicks
-            }, 2500); // Fades out after 2.5 seconds of inactivity
+                controlsContainer.style.pointerEvents = 'none';
+            }, 2500);
         }
 
-        // Listen for user activity across the whole iframe
         document.addEventListener('mousemove', wakeControls);
         document.addEventListener('touchstart', wakeControls);
         document.addEventListener('click', wakeControls);
         
-        // Trigger once on load
         wakeControls();
     <?php endif; ?>
 
@@ -115,7 +111,7 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
         
         let isActive = <?= $autoplay ? 'true' : 'false' ?>;
         let pollInterval = null;
-        const SYNC_THRESHOLD_SECONDS = 2;
+        const SYNC_THRESHOLD_SECONDS = 1;
         const submediaPool = {};
 
         if (isActive) {
@@ -178,10 +174,12 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
             mainVideo.pause();
             mainVideo.style.opacity = '0';
             delete mainVideo.dataset.currentFile;
+            delete mainVideo.dataset.forceSync;
             
             overrideVideo.pause();
             overrideVideo.style.opacity = '0';
             delete overrideVideo.dataset.currentFile;
+            delete overrideVideo.dataset.forceSync;
             
             for (const layerId in submediaPool) {
                 submediaPool[layerId].pause();
@@ -202,12 +200,14 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
                 syncMediaNode(mainVideo, data.main);
 
                 const overrideKeys = Object.keys(data.overrides || {});
-                if (overrideKeys.length > 0) {
-                    syncMediaNode(overrideVideo, data.overrides[overrideKeys[0]]);
-                } else {
-                    overrideVideo.pause();
-                    overrideVideo.style.opacity = '0';
-                }
+				if (overrideKeys.length > 0) {
+					syncMediaNode(overrideVideo, data.overrides[overrideKeys[0]]);
+				} else {
+					overrideVideo.pause();
+					overrideVideo.style.opacity = '0';
+					delete overrideVideo.dataset.currentFile;
+					delete overrideVideo.dataset.forceSync;
+				}
 
                 const currentSubKeys = Object.keys(data.submedia || {});
                 
@@ -256,29 +256,10 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
             }
         }
 
-        function shutdownAllMedia() {
-            mainVideo.pause();
-            mainVideo.style.opacity = '0';
-            mainVideo.muted = true;
-            delete mainVideo.dataset.currentFile;
-            
-            overrideVideo.pause();
-            overrideVideo.style.opacity = '0';
-            overrideVideo.muted = true;
-            delete overrideVideo.dataset.currentFile;
-            
-            for (const layerId in submediaPool) {
-                submediaPool[layerId].pause();
-                submediaPool[layerId].remove();
-            }
-            Object.keys(submediaPool).forEach(k => delete submediaPool[k]);
-        }
-
         function syncMediaNode(videoEl, mediaData) {
             if (!mediaData || mediaData.state === "offline") {
                 videoEl.pause();
                 videoEl.style.opacity = '0';
-                videoEl.muted = true;
                 return;
             }
 
@@ -286,7 +267,6 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
 
             if (!videoEl.dataset.currentFile || videoEl.dataset.currentFile !== mediaData.file) {
                 videoEl.style.opacity = '0'; 
-                videoEl.muted = true;
                 videoEl.src = '/?video=' + mediaData.file;
                 videoEl.dataset.currentFile = mediaData.file;
                 videoEl.dataset.forceSync = "true"; 
@@ -300,27 +280,22 @@ $has_ui = $show_play || $show_stop || $show_fullscreen;
             } else {
                 if (videoEl.ended) {
                     videoEl.style.opacity = '0'; 
-                    videoEl.muted = true;
                     return; 
                 }
 
                 if (videoEl.readyState > 0) {
-                    const threshold = (videoEl.dataset.forceSync === "true") ? 0.1 : SYNC_THRESHOLD_SECONDS;
-                    if (Math.abs(videoEl.currentTime - mediaData.position) > threshold) {
+                    if (Math.abs(videoEl.currentTime - mediaData.position) > SYNC_THRESHOLD_SECONDS) {
                         videoEl.currentTime = mediaData.position;
                     }
                     
-                    if (videoEl.readyState >= 3 && videoEl.dataset.forceSync === "true") {
+                    if (videoEl.dataset.forceSync === "true" && videoEl.readyState >= 2) {
                         videoEl.dataset.forceSync = "false";
                     }
                     
-                    // Reveal video and unmute once synced
                     if (videoEl.dataset.forceSync === "false" && mediaData.visible !== false) {
                         videoEl.style.opacity = '1';
-                        videoEl.muted = false;
                     } else if (mediaData.visible === false) {
                         videoEl.style.opacity = '0';
-                        videoEl.muted = true;
                     }
                 }
                 
