@@ -151,19 +151,21 @@ while IFS= read -r line || [ -n "$line" ]; do
                 echo "Updating: $REMOTE_SRC -> $LOCAL_DEST"
                 mv "$TMP_DOWNLOAD" "$LOCAL_DEST"
 
-                # Restore previous permissions/ownership if it existed
-                if [ -n "$PREV_OWNER" ] && [ -n "$PREV_PERM" ]; then
+                # Always enforce pi:www-data for web files, regardless of prior ownership
+                if [[ "$LOCAL_DEST" == /var/www/* ]]; then
+                    chown pi:www-data "$LOCAL_DEST"
+                    if [[ "$LOCAL_DEST" =~ \.(sh|py|bin)$ ]]; then
+                        chmod 775 "$LOCAL_DEST"
+                    else
+                        chmod 664 "$LOCAL_DEST"
+                    fi
+                # Restore previous permissions/ownership if it existed outside /var/www
+                elif [ -n "$PREV_OWNER" ] && [ -n "$PREV_PERM" ]; then
                     chown "$PREV_OWNER" "$LOCAL_DEST"
                     chmod "$PREV_PERM" "$LOCAL_DEST"
                 else
-                    # Fallback for brand-new files: pi:www-data under /var/www, pi:pi everywhere else
-                    if [[ "$LOCAL_DEST" == /var/www/* ]]; then
-                        chown pi:www-data "$LOCAL_DEST"
-                    else
-                        chown pi:pi "$LOCAL_DEST"
-                    fi
-
-                    # Set maximum accessibility (read/write/execute for scripts, read/write for non-scripts)
+                    # Fallback for brand-new files outside /var/www
+                    chown pi:pi "$LOCAL_DEST"
                     if [[ "$LOCAL_DEST" =~ \.(py|sh|bin)$ ]]; then
                         chmod 777 "$LOCAL_DEST"
                     else
