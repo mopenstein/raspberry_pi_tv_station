@@ -74,45 +74,60 @@
         // Messages
         $block .= '<div class="section-title">Log Messages</div>';
         $block .= '<div class="msg-list">';
-        foreach($output["messages"] as $msg) {
-            $block .= '<div class="msg-item">';
-            if (isset($msg['type'])) $block .= '<span class="type-tag">' . htmlspecialchars($msg["type"]) . '</span>';
-            if(isset($msg["input"])) {
-                $block .= '<ul class="input-details">';
-				$next_one = null;
-                foreach($msg["input"] as $k => $v) {
-					$color = "default";
-					if(strpos($k, "directories")>0 || strpos($v, "directories")>0) {
-						$color = "red";
-						$next_one = "dir";
-						$block .= "<li style='color: $color;'><strong>$k:</strong> $v</li>";
+        foreach ($output["messages"] as $msg) {
+			$block .= '<div class="msg-item">';
+
+			if (isset($msg['type'])) {
+				$block .= '<span class="type-tag">' . htmlspecialchars($msg["type"]) . '</span>';
+			}
+
+			if (!empty($msg["input"]) && is_array($msg["input"])) {
+				$block .= '<ul class="input-details">';
+
+				// Dedicated branch for DIRECTORY_CHECK messages
+				if (isset($msg['type']) && $msg['type'] === 'DIRECTORY_CHECK') {
+					$label = isset($msg["input"][0]) ? htmlspecialchars($msg["input"][0]) : 'Directory Check:';
+					$block .= "<li style='color: red;'><strong>{$label}</strong></li>";
+
+					$raw_list = isset($msg["input"][1]) ? $msg["input"][1] : '[]';
+					$args = python_list_to_php_array($raw_list);
+
+					if (empty($args)) {
+						$block .= "<li style='color: green;'>✔️ None</li>";
 					} else {
-						if($next_one == "dir") {
-							$color = "default";
-							$args = python_list_to_php_array($v);
-							if(count($args) == 0) { // directory check is empty
-								$block .= "<li style='color: green;'>✔️ None</li>";
-							} else {
-								$block .= "<ul>";
-								foreach($args as $arg_v) {
-									for($j=0; $j<count($arg_v); $j+=2) {
-										$block .= "<li style='color: $color;'>{$arg_v[$j]}:</li>";
-										$block .= "<ul>";
-											$block .= "<li style='color: $color;'>{$arg_v[$j + 1]}</li>";
-										$block .= "</ul>";
-									}
-								}
+						$block .= "<ul>";
+						foreach ($args as $arg_v) {
+							if (!is_array($arg_v)) {
+								continue;
 							}
-							$next_one = null;
+							$count = count($arg_v);
+							for ($j = 0; $j < $count; $j += 2) {
+								$key_name = htmlspecialchars($arg_v[$j]);
+								$val_name = isset($arg_v[$j + 1]) ? htmlspecialchars($arg_v[$j + 1]) : '';
+
+								$block .= "<li>{$key_name}:</li>";
+								$block .= "<ul><li>{$val_name}</li></ul>";
+							}
+						}
+						$block .= "</ul>";
+					}
+				} else {
+					// Standard handler for all other message types (TIME/DATE, Chance, CHANNEL, etc.)
+					foreach ($msg["input"] as $k => $v) {
+						// If it's a numeric index, don't clutter the UI with "0: ...", just print the text
+						if (is_int($k)) {
+							$block .= "<li>" . htmlspecialchars((string)$v) . "</li>";
+						} else {
+							$block .= "<li><strong>" . htmlspecialchars((string)$k) . ":</strong> " . htmlspecialchars((string)$v) . "</li>";
 						}
 					}
+				}
 
-                    
-                }
-                $block .= "</ul>";
-            }
-            $block .= '</div>';
-        }
+				$block .= "</ul>";
+			}
+
+			$block .= '</div>';
+		}
         $block .= '</div>';
 
         // Programming
