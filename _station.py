@@ -599,10 +599,11 @@ def convert_percentages(expr):
 	# Match any number (int or float) followed by %
 	return re.sub(r'(\d+(?:\.\d+)?)%', repl, expr)
 
-def eval_equation(equation, now):
+def eval_equation(equation):
 	"""
 	Tries to evaluate a mathematical equation string and return the result.
 	"""
+	global now
 
 	try:
 		if len(equation) > 300:
