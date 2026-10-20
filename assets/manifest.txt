@@ -70,8 +70,8 @@ ifsync:webui/templates/source/niteowl/niteowl.preview.png->/var/www/html/templat
 # Optional Plugin Updates
 ifsync:plugins/source/pip/picture-in-picture.py->/home/pi/Desktop/plugins/picture-in-picture.py
 ifsync:plugins/source/pip/picture-in-picture.plugin.html->/var/www/html/docs/picture-in-picture.plugin.html
-ifsync:plugins/source/radio/radio.plugin.html->/home/pi/Desktop/plugins/radio.py
-ifsync:plugins/source/radio/radio.py->/var/www/html/docs/radio.plugin.html
+ifsync:plugins/source/radio/radio.plugin.html->/home/pi/Desktop/plugins/radio.plugin.html
+ifsync:plugins/source/radio/radio.py->/var/www/html/docs/radio.py
 
 # Setup wizard files
 sync:webui/setup/complete.php->/var/www/html/setup/complete.php
