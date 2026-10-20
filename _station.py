@@ -70,6 +70,8 @@ GET_VIDEOS_FROM_DIR_MIN_DURATION = 0 	 	# default minimum duration of a video in
 GET_VIDEOS_FROM_DIR_MAX_DURATION = 99999 	# default maximum duration of a video in seconds when returning videos from a directory
 VIDEO_EXTENSIONS = ('mp4', 'avi', 'webm', 'mpeg', 'm4v', 'mkv', 'mov', 'flv', 'wmv')	# video file extensions that are considered valid video files
 
+LAST_PROGRAMMING_SCHEDULE = None # global variable to hold the last programming schedule
+
 # Allowed AST nodes for safe evaluation of mathematical expressions
 ALLOWED_AST_NODES = (
 	ast.Expression,
@@ -606,7 +608,15 @@ def eval_equation(equation):
 	global now
 
 	try:
+		if isinstance(equation, (int, float, long)):
+			return float(equation)
+
+		equation = str(equation).strip()
+		if is_number(equation):
+			return float(equation)
+
 		if len(equation) > 300:
+			report_error("EVAL_EQUATION", ["Equation too long", equation])
 			return -2
 
 		# 1. Evaluate direct percentages first before passing to AST
@@ -622,8 +632,10 @@ def eval_equation(equation):
 		# 3. Validate syntax against allowed nodes and convert ints to floats in-place
 		for node in ast.walk(tree):
 			if not isinstance(node, ALLOWED_AST_NODES):
+				report_error("EVAL_EQUATION", ["Disallowed syntax in equation", equation, type(node).__name__])
 				return -3
 			if isinstance(node, ast.Attribute):
+				report_error("EVAL_EQUATION", ["Disallowed attribute access in equation", equation, node.attr])
 				return -3
 			if isinstance(node, ast.Num) and isinstance(node.n, (int, long)):
 				node.n = float(node.n)
@@ -665,7 +677,7 @@ def eval_equation(equation):
 		printd("day", safe_globals["day"], now.day)
 		return eval(code_obj, safe_globals, {})
 	except Exception:
-		report_error("EVAL_EQUATION", ["Error evaluating equation", equation])
+		report_error("EVAL_EQUATION", ["Error evaluating equation", equation, LAST_PROGRAMMING_SCHEDULE, traceback.format_exc()])
 		return -1
 
 def get_setting(find, default=None, force_type=None):
@@ -1085,6 +1097,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 		update_current_time()
 		global now
 		global current_video_tag
+		global LAST_PROGRAMMING_SCHEDULE
 
 		month, now_h, now_m = now.month, now.hour, now.minute
 		now_d, ddm, now_y = now.weekday(), now.day, now.year
@@ -1124,6 +1137,7 @@ def check_video_times(obj, channel=None, allow_chance=True):
 
 			# Chance check
 			if 'chance' in time_item:
+				LAST_PROGRAMMING_SCHEDULE = time_item
 				chance_eval = eval_equation(time_item['chance'])
 				chance_rnd = random.random()
 				printd("Chance Eval", chance_eval, "rnd", chance_rnd, "allow_chance", allow_chance, "uneval", time_item['chance'])
@@ -2722,6 +2736,7 @@ def prepare_commercials_and_bumpers(source, schedule):
 	Returns a tuple: (commercials_per_break, pregenerated_commercials_list, bumpers)
 	"""
 	global current_video_tag
+	global LAST_PROGRAMMING_SCHEDULE
 
 	meta = schedule[4]
 	video_type = schedule[2]
@@ -2787,6 +2802,7 @@ def prepare_commercials_and_bumpers(source, schedule):
 				bumpers_out_chance = bmeta.get('chance', {}).get('out', "1.0")
 
 		if bumpers_in or bumpers_out:
+			LAST_PROGRAMMING_SCHEDULE = schedule
 			bumpers = generate_bumpers_list(
 				bumpers_in, bumpers_out,
 				len(commercials) + 1,

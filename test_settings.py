@@ -374,13 +374,22 @@ class ReferenceDecoder(json.JSONDecoder):
 							)
 		return obj
 
-def eval_equation(equation, now):
+def eval_equation(equation):
 	"""
 	Tries to evaluate a mathematical equation string and return the result.
 	"""
+	global now
 
 	try:
+		if isinstance(equation, (int, float, long)):
+			return float(equation)
+
+		equation = str(equation).strip()
+		if is_number(equation):
+			return float(equation)
+
 		if len(equation) > 300:
+			report_error("EVAL_EQUATION", ["Equation too long", equation])
 			return -2
 
 		# 1. Evaluate direct percentages first before passing to AST
@@ -396,8 +405,10 @@ def eval_equation(equation, now):
 		# 3. Validate syntax against allowed nodes and convert ints to floats in-place
 		for node in ast.walk(tree):
 			if not isinstance(node, ALLOWED_AST_NODES):
+				report_error("EVAL_EQUATION", ["Disallowed syntax in equation", equation, type(node).__name__])
 				return -3
 			if isinstance(node, ast.Attribute):
+				report_error("EVAL_EQUATION", ["Disallowed attribute access in equation", equation, node.attr])
 				return -3
 			if isinstance(node, ast.Num) and isinstance(node.n, (int, long)):
 				node.n = float(node.n)
@@ -439,7 +450,7 @@ def eval_equation(equation, now):
 		printd("day", safe_globals["day"], now.day)
 		return eval(code_obj, safe_globals, {})
 	except Exception:
-		report_error("EVAL_EQUATION", ["Error evaluating equation", equation])
+		report_error("EVAL_EQUATION", ["Error evaluating equation", equation, LAST_PROGRAMMING_SCHEDULE, traceback.format_exc()])
 		return -1
 
 def get_short_month_name(month_number):
