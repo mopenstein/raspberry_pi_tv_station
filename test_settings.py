@@ -3,13 +3,11 @@ import argparse
 from time import sleep			# used to give time for the player to load the video file
 import math						# math functions
 import os						# for path directory access
-import glob						# how we quickly get all files in a directory
 import random					# choosing random stuff
 import time						# time functions
 import datetime					# date and time, used for testing purposes
 import re						# regular expressions
 import calendar					# used in special date calculating
-import sys						# for accepting arguments from command line
 import json						# settings file is in json format
 import traceback				# for debugging and error reporting
 import hashlib					# for generating hash IDs
@@ -17,17 +15,18 @@ import ast						# for safely evaluating mathematical expressions
 
 # Allowed AST nodes for safe evaluation of mathematical expressions
 ALLOWED_AST_NODES = (
-    ast.Expression,
-    ast.BinOp,        # +, -, *, /, %
-    ast.UnaryOp,      # -x, +x
-    ast.operator,     # Add, Sub, Mult, Div, etc.
-    ast.unaryop,      # USub, UAdd
-    ast.Num,          # Python 2 numbers (int, float)
-    ast.Name,         # variable lookups like 'hour', 'day'
-    ast.Call,         # function calls like sin(), clamp()
-    ast.Compare,      # ==, !=, <, >, <=, >=
-    ast.cmpop,        # comparison operators
-    ast.IfExp,        # ternary 'x if cond else y'
+	ast.Expression,
+	ast.BinOp,		# +, -, *, /, %
+	ast.UnaryOp,	  # -x, +x
+	ast.operator,	 # Add, Sub, Mult, Div, etc.
+	ast.unaryop,	  # USub, UAdd
+	ast.Num,		  # Python 2 numbers (int, float)
+	ast.Name,		 # variable lookups like 'hour', 'day'
+	ast.Load,		 # context for variable lookups
+	ast.Call,		 # function calls like sin(), clamp()
+	ast.Compare,	  # ==, !=, <, >, <=, >=
+	ast.cmpop,		# comparison operators
+	ast.IfExp,		# ternary 'x if cond else y'
 )
 
 output_print = []
@@ -92,32 +91,32 @@ def get_setting(find, default=None):
 	:param default: The default value to return if the setting is not found. Set to None by default.
 	:return: The value of the setting if found, otherwise the default value.
 
-    Example usage:
+	Example usage:
 
-    >>> settings = {
-    ...     "version": "0.992",
-    ...     "drive": ["/media/pi/ssd", "/media/pi/ssd_b"],
-    ...     "channels": {
-    ...         "error": "Error",
-    ...         "nested": {
-    ...             "deep": {
-    ...                 "value": 123
-    ...             }
-    ...         }
-    ...     }
-    ... }
-    >>> get_setting(['version'])
-    '0.992'
-    >>> get_setting(['drive', 0])
-    '/media/pi/ssd'
-    >>> get_setting(['channels', 'error'])
-    'Error'
-    >>> get_setting(['channels', 'nested', 'deep', 'value'])
-    123
-    >>> get_setting(['channels', 'missing'], 'not found')
-    'not found'
-    >>> get_setting(['drive', 10], 'fallback')
-    'fallback'
+	>>> settings = {
+	...	 "version": "0.992",
+	...	 "drive": ["/media/pi/ssd", "/media/pi/ssd_b"],
+	...	 "channels": {
+	...		 "error": "Error",
+	...		 "nested": {
+	...			 "deep": {
+	...				 "value": 123
+	...			 }
+	...		 }
+	...	 }
+	... }
+	>>> get_setting(['version'])
+	'0.992'
+	>>> get_setting(['drive', 0])
+	'/media/pi/ssd'
+	>>> get_setting(['channels', 'error'])
+	'Error'
+	>>> get_setting(['channels', 'nested', 'deep', 'value'])
+	123
+	>>> get_setting(['channels', 'missing'], 'not found')
+	'not found'
+	>>> get_setting(['drive', 10], 'fallback')
+	'fallback'
 	"""
 
 	global settings
@@ -220,7 +219,7 @@ def IsEaster(daysFromEaster):
 	m = (a + 11 * h + 22 * l) // 451
 	month = (h + l - 7 * m + 114) // 31
 	day = ((h + l - 7 * m + 114) % 31) + 1
-    
+	
 	easter_sunday = datetime.date(year, month, day)
 	#target_date = easter_sunday + datetime.timedelta(days=daysFromEaster)
 	return is_date_within_range(datetime.date(now.year, now.month, now.day), easter_sunday, daysFromEaster)
@@ -279,17 +278,17 @@ def is_special_time(check):
 	return False
 
 def is_valid_date(date_string):
-    try:
-        # Define the expected format
-        format = "%b %d %Y %I:%M%p"
-        
-        # Try to parse the date string
-        parsed = datetime.datetime.strptime(date_string, format)
-        
-        # Optional: return True if it matches, False otherwise
-        return True
-    except:
-        return False
+	try:
+		# Define the expected format
+		format = "%b %d %Y %I:%M%p"
+		
+		# Try to parse the date string
+		parsed = datetime.datetime.strptime(date_string, format)
+		
+		# Optional: return True if it matches, False otherwise
+		return True
+	except:
+		return False
 
 def update_current_time():
 	global now, settings
@@ -376,60 +375,72 @@ class ReferenceDecoder(json.JSONDecoder):
 		return obj
 
 def eval_equation(equation, now):
-    """
-    Tries to evaluate a mathematical equation string and return the result.
-    """
+	"""
+	Tries to evaluate a mathematical equation string and return the result.
+	"""
 
-    try:
-        if len(equation) > 300:
-            return -2
+	try:
+		if len(equation) > 300:
+			return -2
 
-        # 1. Evaluate direct percentages first before passing to AST
-        match = re.match(r'(\d+(?:\.\d+)?)%', equation.strip())
-        if match and match.end() == len(equation.strip()):
-            num = float(match.group(1))
-            if 0.0 <= num <= 100.0:
-                return float(num / 100.0)
+		# 1. Evaluate direct percentages first before passing to AST
+		match = re.match(r'(\d+(?:\.\d+)?)%', equation.strip())
+		if match and match.end() == len(equation.strip()):
+			num = float(match.group(1))
+			if 0.0 <= num <= 100.0:
+				return float(num / 100.0)
 
-        # 2. Validate syntax tree against sandbox escapes
-        if not is_safe_equation(equation):
-            return -3
+		# 2. Parse into an AST expression tree
+		tree = ast.parse(equation, mode='eval')
 
-        safe_globals = {
-            "__builtins__": {},
-            "sin": math.sin,
-            "cos": math.cos,
-            "tan": math.tan,
-            "abs": abs,
-            "min": min,
-            "max": max,
-            "round": round,
-            "floor": math.floor,
-            "ceil": math.ceil,
-            "log": math.log,
-            "exp": math.exp,
-            "pi": math.pi,
-            "e": math.e,
-            "scale": lambda x: float(x) / 100,
-            "clamp": lambda x, y=1.0: max(0.0, min(y, float(x))),
-            "bound": lambda x, low, high: max(low, min(high, float(x))),
-            "stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
-            "date": lambda y, m, d: (datetime.datetime(int(y), int(m), int(d)) - datetime.datetime(1970, 1, 1)).total_seconds(),
-            "time": lambda h, m=0, s=0: int(h) * 3600 + int(m) * 60 + int(s),
-            "datetime": lambda y, mo, d, h=0, mi=0, s=0: (datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(s)) - datetime.datetime(1970, 1, 1)).total_seconds(),
-            "day": float(now.day),
-            "maxdays": float(calendar.monthrange(now.year, now.month)[1]),
-            "weekday": float(now.weekday()),
-            "month": float(now.month),
-            "hour": float(now.hour),
-            "minute": float(now.minute),
-            "second": float(now.second),
-            "year": float(now.year)
-        }
-        
-        return eval(equation, safe_globals, {})
-    except:
-        return -1
+		# 3. Validate syntax against allowed nodes and convert ints to floats in-place
+		for node in ast.walk(tree):
+			if not isinstance(node, ALLOWED_AST_NODES):
+				return -3
+			if isinstance(node, ast.Attribute):
+				return -3
+			if isinstance(node, ast.Num) and isinstance(node.n, (int, long)):
+				node.n = float(node.n)
+
+		# 4. Compile the modified AST into bytecode
+		code_obj = compile(tree, '<string>', 'eval')
+
+		safe_globals = {
+			"__builtins__": {},
+			"sin": math.sin,
+			"cos": math.cos,
+			"tan": math.tan,
+			"abs": abs,
+			"min": min,
+			"max": max,
+			"round": round,
+			"floor": math.floor,
+			"ceil": math.ceil,
+			"log": math.log,
+			"exp": math.exp,
+			"pi": math.pi,
+			"e": math.e,
+			"scale": lambda x: float(x) / 100.0,
+			"clamp": lambda x, y=1.0: max(0.0, min(y, float(x))),
+			"bound": lambda x, low, high: max(low, min(high, float(x))),
+			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
+			"date": lambda y, m, d: (datetime.datetime(int(y), int(m), int(d)) - datetime.datetime(1970, 1, 1)).total_seconds(),
+			"time": lambda h, m=0, s=0: int(h) * 3600 + int(m) * 60 + int(s),
+			"datetime": lambda y, mo, d, h=0, mi=0, s=0: (datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(s)) - datetime.datetime(1970, 1, 1)).total_seconds(),
+			"day": float(now.day),
+			"maxdays": float(calendar.monthrange(now.year, now.month)[1]),
+			"weekday": float(now.weekday()),
+			"month": float(now.month),
+			"hour": float(now.hour),
+			"minute": float(now.minute),
+			"second": float(now.second),
+			"year": float(now.year)
+		}
+		printd("day", safe_globals["day"], now.day)
+		return eval(code_obj, safe_globals, {})
+	except Exception:
+		report_error("EVAL_EQUATION", ["Error evaluating equation", equation])
+		return -1
 
 def get_short_month_name(month_number):
 	month_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -465,10 +476,10 @@ def replace_all_special_words(s, skip_drive_replacement=False):
 def replace_special_words(date_str):
 	global now
 
-    # --- Custom Logic for %TOPTENSMIN% (00-05 or 30-35 minute triggers) ---
+	# --- Custom Logic for %TOPTENSMIN% (00-05 or 30-35 minute triggers) ---
 	minute_tens = now.strftime("%M")[0]
 	top_tens_min_replacement = ""
-    # Only allow substitution if the current minute starts with a '0' or '3'
+	# Only allow substitution if the current minute starts with a '0' or '3'
 	if minute_tens == '0' or minute_tens == '3':
 		top_tens_min_replacement = minute_tens
 
@@ -510,116 +521,116 @@ def replace_special_words(date_str):
 	return date_str
 
 def check_time_match(time_range_list, current_datetime):
-    """
-    Checks if current_datetime is within a single time range.
-    
-    :param time_range_list: A list containing [start_time_str, end_time_str].
-    :param current_datetime: The datetime object to check against.
-    :return: True if the current time is within the range, False otherwise.
-    """
-    # Defensive check: ensure we have a list of two strings/items
-    if not isinstance(time_range_list, list) or len(time_range_list) < 2:
-        return False
+	"""
+	Checks if current_datetime is within a single time range.
+	
+	:param time_range_list: A list containing [start_time_str, end_time_str].
+	:param current_datetime: The datetime object to check against.
+	:return: True if the current time is within the range, False otherwise.
+	"""
+	# Defensive check: ensure we have a list of two strings/items
+	if not isinstance(time_range_list, list) or len(time_range_list) < 2:
+		return False
 
-    # 1. Apply placeholders (like %HOUR%)
-    start_time_str = replace_special_words(time_range_list[0])
-    end_time_str = replace_special_words(time_range_list[1])
-    current_time = current_datetime.time()
+	# 1. Apply placeholders (like %HOUR%)
+	start_time_str = replace_special_words(time_range_list[0])
+	end_time_str = replace_special_words(time_range_list[1])
+	current_time = current_datetime.time()
 
-    try:
-        # 2. Convert to time objects
-        check_start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p").time()
-        end_time = datetime.datetime.strptime(end_time_str, "%I:%M%p").time()
+	try:
+		# 2. Convert to time objects
+		check_start_time = datetime.datetime.strptime(start_time_str, "%I:%M%p").time()
+		end_time = datetime.datetime.strptime(end_time_str, "%I:%M%p").time()
 
-        # 3. Perform comparison
-        return check_start_time <= current_time <= end_time
-    except ValueError:
-        # Fails silently if a resulting time string is invalid
-        return False
+		# 3. Perform comparison
+		return check_start_time <= current_time <= end_time
+	except ValueError:
+		# Fails silently if a resulting time string is invalid
+		return False
 
 
 def is_within_range(data):
-    """
-    Checks if the current date and time fall within the specified ranges, 
-    using AND/OR logic for time based on nested lists.
+	"""
+	Checks if the current date and time fall within the specified ranges, 
+	using AND/OR logic for time based on nested lists.
 
-    :param data: A dictionary containing date, time, and year ranges.
-    :return: True if the current date and time fall within the ranges, False otherwise.
-    """
-    global now # always use the global 'now' variable for date and time
-    current_datetime = now
-    
-    # We will keep the original (OR) logic for dates and years as you intended.
-    
-    date_ranges = data.get("dates", [])
-    time_ranges = data.get("times", [])
-    year_ranges = data.get("years", [])
+	:param data: A dictionary containing date, time, and year ranges.
+	:return: True if the current date and time fall within the ranges, False otherwise.
+	"""
+	global now # always use the global 'now' variable for date and time
+	current_datetime = now
+	
+	# We will keep the original (OR) logic for dates and years as you intended.
+	
+	date_ranges = data.get("dates", [])
+	time_ranges = data.get("times", [])
+	year_ranges = data.get("years", [])
 
-    # --- Check Year Ranges (Original OR Logic) ---
-    year_within_range = True
-    for year_range in year_ranges:
-        year_within_range = False
-        if replace_special_words(str(year_range)) == str(current_datetime.year):
-            year_within_range = True
-            break
+	# --- Check Year Ranges (Original OR Logic) ---
+	year_within_range = True
+	for year_range in year_ranges:
+		year_within_range = False
+		if replace_special_words(str(year_range)) == str(current_datetime.year):
+			year_within_range = True
+			break
 
-    # --- Check Date Ranges (Original OR Logic) ---
-    date_within_range = True
-    for date_range in date_ranges:
-        date_within_range = False
-        if isinstance(date_range, list): # a list of dates [start, end]
-            start_date_str = replace_special_words(date_range[0])
-            end_date_str = replace_special_words(date_range[1])
-            
-            start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
-            end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
-            
-            if start_date.date() <= current_datetime.date() <= end_date.date():
-                date_within_range = True
-                break
-        else: # a single date
-            start_date_str = replace_special_words(date_range)
-            start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
-            if start_date.date() == current_datetime.date():
-                date_within_range = True
-                break
-    
-    # --- Check Time Ranges (NEW Nested AND/OR Logic) ---
-    if not time_ranges:
-        time_within_range = True
-    else:
-        time_within_range = False
-        
-        # Outer Loop: OR Logic (Must match ANY top-level item)
-        for top_level_item in time_ranges:
-            
-            current_item_matches = False
-            
-            # Case A: Nested AND Check (e.g., [ ['start', 'end'], ['start2', 'end2'] ] )
-            if isinstance(top_level_item[0], list): 
-                
-                is_and_match = True
-                for inner_range in top_level_item:
-                    # Use the helper to check the inner condition
-                    if not check_time_match(inner_range, current_datetime):
-                        is_and_match = False
-                        break # Failed the AND requirement
-                
-                if is_and_match:
-                    current_item_matches = True
+	# --- Check Date Ranges (Original OR Logic) ---
+	date_within_range = True
+	for date_range in date_ranges:
+		date_within_range = False
+		if isinstance(date_range, list): # a list of dates [start, end]
+			start_date_str = replace_special_words(date_range[0])
+			end_date_str = replace_special_words(date_range[1])
+			
+			start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+			end_date = datetime.datetime.strptime(end_date_str + " " + str(now.year), "%b %d %Y")
+			
+			if start_date.date() <= current_datetime.date() <= end_date.date():
+				date_within_range = True
+				break
+		else: # a single date
+			start_date_str = replace_special_words(date_range)
+			start_date = datetime.datetime.strptime(start_date_str + " " + str(now.year), "%b %d %Y")
+			if start_date.date() == current_datetime.date():
+				date_within_range = True
+				break
+	
+	# --- Check Time Ranges (NEW Nested AND/OR Logic) ---
+	if not time_ranges:
+		time_within_range = True
+	else:
+		time_within_range = False
+		
+		# Outer Loop: OR Logic (Must match ANY top-level item)
+		for top_level_item in time_ranges:
+			
+			current_item_matches = False
+			
+			# Case A: Nested AND Check (e.g., [ ['start', 'end'], ['start2', 'end2'] ] )
+			if isinstance(top_level_item[0], list): 
+				
+				is_and_match = True
+				for inner_range in top_level_item:
+					# Use the helper to check the inner condition
+					if not check_time_match(inner_range, current_datetime):
+						is_and_match = False
+						break # Failed the AND requirement
+				
+				if is_and_match:
+					current_item_matches = True
 
-            # Case B: Simple OR Check (e.g., ['start', 'end'])
-            else:
-                if check_time_match(top_level_item, current_datetime):
-                    current_item_matches = True
-                    
-            # Overall OR Break: If a match was found for this top-level item
-            if current_item_matches:
-                time_within_range = True
-                break
-    
-    # Final Result: All conditions must be met
-    return date_within_range and time_within_range and year_within_range
+			# Case B: Simple OR Check (e.g., ['start', 'end'])
+			else:
+				if check_time_match(top_level_item, current_datetime):
+					current_item_matches = True
+					
+			# Overall OR Break: If a match was found for this top-level item
+			if current_item_matches:
+				time_within_range = True
+				break
+	
+	# Final Result: All conditions must be met
+	return date_within_range and time_within_range and year_within_range
 
 def is_dict(var):
 	"""
@@ -844,11 +855,11 @@ def check_video_times(obj, channel=None, allow_chance=True):
 	return None
 
 def get_video_tag(video_file):
-    import re
-    matches = re.findall(r'@([^@]+)@', video_file)
-    if matches:
-        return matches[-1].split()[-1]
-    return None
+	import re
+	matches = re.findall(r'@([^@]+)@', video_file)
+	if matches:
+		return matches[-1].split()[-1]
+	return None
 
 def resolve_directory_placeholders(path_string, drives):
 	"""
@@ -964,9 +975,9 @@ parser.add_argument('-channel', dest='channel', type=str, help='Sets the current
 args = parser.parse_args()
 
 settings.update({
-    'time_test': args.time_test,
-    'test_file': args.test_file,
-    'video_tag': args.video_tag,
+	'time_test': args.time_test,
+	'test_file': args.test_file,
+	'video_tag': args.video_tag,
 	'chance_test': args.chance_test,
 	'channel': args.channel,
 })

@@ -79,6 +79,7 @@ ALLOWED_AST_NODES = (
 	ast.unaryop,	  # USub, UAdd
 	ast.Num,		  # Python 2 numbers (int, float)
 	ast.Name,		 # variable lookups like 'hour', 'day'
+	ast.Load,		 # context for variable lookups
 	ast.Call,		 # function calls like sin(), clamp()
 	ast.Compare,	  # ==, !=, <, >, <=, >=
 	ast.cmpop,		# comparison operators
@@ -598,24 +599,10 @@ def convert_percentages(expr):
 	# Match any number (int or float) followed by %
 	return re.sub(r'(\d+(?:\.\d+)?)%', repl, expr)
 
-def is_safe_equation(expr_str):
-	try:
-		tree = ast.parse(expr_str, mode='eval')
-		for node in ast.walk(tree):
-			if not isinstance(node, ALLOWED_AST_NODES):
-				return False
-			# Block calling unapproved attributes/methods
-			if isinstance(node, ast.Attribute):
-				return False
-		return True
-	except Exception:
-		return False
-
-def eval_equation(equation):
+def eval_equation(equation, now):
 	"""
 	Tries to evaluate a mathematical equation string and return the result.
 	"""
-	global now
 
 	try:
 		if len(equation) > 300:
@@ -628,9 +615,20 @@ def eval_equation(equation):
 			if 0.0 <= num <= 100.0:
 				return float(num / 100.0)
 
-		# 2. Validate syntax tree against sandbox escapes
-		if not is_safe_equation(equation):
-			return -3
+		# 2. Parse into an AST expression tree
+		tree = ast.parse(equation, mode='eval')
+
+		# 3. Validate syntax against allowed nodes and convert ints to floats in-place
+		for node in ast.walk(tree):
+			if not isinstance(node, ALLOWED_AST_NODES):
+				return -3
+			if isinstance(node, ast.Attribute):
+				return -3
+			if isinstance(node, ast.Num) and isinstance(node.n, (int, long)):
+				node.n = float(node.n)
+
+		# 4. Compile the modified AST into bytecode
+		code_obj = compile(tree, '<string>', 'eval')
 
 		safe_globals = {
 			"__builtins__": {},
@@ -647,7 +645,7 @@ def eval_equation(equation):
 			"exp": math.exp,
 			"pi": math.pi,
 			"e": math.e,
-			"scale": lambda x: float(x) / 100,
+			"scale": lambda x: float(x) / 100.0,
 			"clamp": lambda x, y=1.0: max(0.0, min(y, float(x))),
 			"bound": lambda x, low, high: max(low, min(high, float(x))),
 			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
@@ -663,9 +661,10 @@ def eval_equation(equation):
 			"second": float(now.second),
 			"year": float(now.year)
 		}
-		
-		return eval(equation, safe_globals, {})
-	except:
+		printd("day", safe_globals["day"], now.day)
+		return eval(code_obj, safe_globals, {})
+	except Exception:
+		report_error("EVAL_EQUATION", ["Error evaluating equation", equation])
 		return -1
 
 def get_setting(find, default=None, force_type=None):
@@ -1044,9 +1043,6 @@ def repeatedly_reset():
 	"""
 	global repeatedly_tracked_plays
 	repeatedly_tracked_plays = {}
-
-import json
-import time
 
 def repeatedly_export_schedules_if_debug():
 	"""
