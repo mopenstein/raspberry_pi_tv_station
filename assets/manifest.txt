@@ -39,17 +39,18 @@ sync:html/tv-player.html->/var/www/html/tv-player.html
 sync:html/web-player.php->/var/www/html/web-player.php
 
 # Manage cards
-sync:html/manage/StationControl.php->/var/www/html/manage/StationControl.php
 sync:html/manage/Channels.php->/var/www/html/manage/Channels.php
 sync:html/manage/Database.php->/var/www/html/manage/Database.php
 sync:html/manage/FilesSystem.php->/var/www/html/manage/FilesSystem.php
+sync:html/manage/FlaggedCommercials.php->/var/www/html/manage/FlaggedCommercials.php
+sync:html/manage/FlaggedVideos.php->/var/www/html/manage/FlaggedVideos.php
 sync:html/manage/MountedDrivesManager.php->/var/www/html/manage/MountedDrivesManager.php
 sync:html/manage/Plugins.php->/var/www/html/manage/Plugins.php
 sync:html/manage/Programming.php->/var/www/html/manage/Programming.php
+sync:html/manage/StationControl.php->/var/www/html/manage/StationControl.php
 sync:html/manage/SystemUpdater.php->/var/www/html/manage/SystemUpdater.php
 sync:html/manage/ThemeManager.php->/var/www/html/manage/ThemeManager.php
-sync:html/manage/FlaggedCommercials.php->/var/www/html/manage/FlaggedCommercials.php
-sync:html/manage/FlaggedVideos.php->/var/www/html/manage/FlaggedVideos.php
+sync:html/manage/Workers.php->/var/www/html/manage/Workers.php
 
 # Default Template Theme
 sync:html/templates/source/modern/modern.php->/var/www/html/templates/modern.php
