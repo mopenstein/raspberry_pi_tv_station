@@ -290,14 +290,15 @@ def is_valid_date(date_string):
 	except:
 		return False
 
-def update_current_time():
+def update_current_time(report=True):
 	global now, settings
 	now = now_totheminute()  # Set the date time
 
 	# Check if the settings file has a test date
 	test_date = settings.get('time_test')
 	if not is_valid_date(test_date) and test_date is not None:
-		report_error("TIME/DATE", ["Invalid test date format.", "Date supplied by user: '" + test_date + "'", "Expected format: 'Sep 09 2006 10:00PM'", "Defaulting to current system time."])
+		if report:
+			report_error("TIME/DATE", ["Invalid test date format.", "Date supplied by user: '" + test_date + "'", "Expected format: 'Sep 09 2006 10:00PM'", "Defaulting to current system time."])
 		return
 
 	if test_date is not None:
@@ -374,11 +375,10 @@ class ReferenceDecoder(json.JSONDecoder):
 							)
 		return obj
 
-def eval_equation(equation):
+def eval_equation(equation, now):
 	"""
 	Tries to evaluate a mathematical equation string and return the result.
 	"""
-	global now
 
 	try:
 		if isinstance(equation, (int, float, long)):
@@ -436,7 +436,7 @@ def eval_equation(equation):
 			"bound": lambda x, low, high: max(low, min(high, float(x))),
 			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
 			"date": lambda y, m, d: (datetime.datetime(int(y), int(m), int(d)) - datetime.datetime(1970, 1, 1)).total_seconds(),
-			"time": lambda h, m=0, s=0: int(h) * 3600 + int(m) * 60 + int(s),
+			"time": lambda h, m=0, s=0: int(h) * 3600.0 + int(m) * 60.0 + int(s),
 			"datetime": lambda y, mo, d, h=0, mi=0, s=0: (datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(s)) - datetime.datetime(1970, 1, 1)).total_seconds(),
 			"day": float(now.day),
 			"maxdays": float(calendar.monthrange(now.year, now.month)[1]),
@@ -961,6 +961,7 @@ now = datetime.datetime.now()
 channel_name_static = None
 base_directory = os.path.dirname(__file__)
 current_video_tag = None
+LAST_PROGRAMMING_SCHEDULE = None
 
 ############################ settings
 SETTINGS_VERSION = 0.996
@@ -992,18 +993,21 @@ settings.update({
 	'chance_test': args.chance_test,
 	'channel': args.channel,
 })
-update_current_time()
+
+output = {}
+
+update_current_time(settings['time_test']!="eval_equation")
 
 if settings.get('chance_test', None) != None:
 	report_error("Chance", [ eval_equation(settings['chance_test'], now) ])
+	output['messages'] = output_print
+	print(json.dumps(output))
+	quit()
 
-#		print("Using Test Date Time " + str(settings['time_test']))
 current_video_tag = None
 
 if settings.get('test_file', None) != None:
 	current_video_tag = get_video_tag(settings.get('test_file'))
-
-#print("Current Test File: " + str(settings['test_file']))
 
 if settings.get('video_tag', None) != None:
 	current_video_tag = settings.get('video_tag')
@@ -1013,9 +1017,6 @@ if settings.get('channel', None) != None:
 	channel_name_static = settings.get('channel')
 
 #print("Current Video Tag: " + str(current_video_tag))
-
-
-output = {}
 
 report_error("DIRECTORY_CHECK", ["The following directories do not exist:", str(verify_directories(settings))])
 programming_schedule = check_video_times(settings['times'], get_current_channel(), True)
