@@ -663,7 +663,7 @@ def eval_equation(equation):
 			"bound": lambda x, low, high: max(low, min(high, float(x))),
 			"stamp": (now - datetime.datetime(1970, 1, 1)).total_seconds(),
 			"date": lambda y, m, d: (datetime.datetime(int(y), int(m), int(d)) - datetime.datetime(1970, 1, 1)).total_seconds(),
-			"time": lambda h, m=0, s=0: int(h) * 3600 + int(m) * 60 + int(s),
+			"time": lambda h, m=0, s=0: int(h) * 3600.0 + int(m) * 60.0 + int(s),
 			"datetime": lambda y, mo, d, h=0, mi=0, s=0: (datetime.datetime(int(y), int(mo), int(d), int(h), int(mi), int(s)) - datetime.datetime(1970, 1, 1)).total_seconds(),
 			"day": float(now.day),
 			"maxdays": float(calendar.monthrange(now.year, now.month)[1]),
