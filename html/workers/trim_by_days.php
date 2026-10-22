@@ -11,6 +11,13 @@
 	Usage: ?target=played&days=2
 */
 
+# MetaData
+# Name: Trim by Days
+# Description: Trims a specified database table by keeping only entries from the most recent specified number of days.
+# Param: target | dropdown | played | played,errors,commercials | Target Table
+# Param: days | number | 2 | 1,365 | Days to Keep
+# EndMetaData
+
 	// This handles JSON, DB Connection, and $mysqli setup
 	require_once("db_helper.inc");
 
