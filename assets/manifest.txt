@@ -1,5 +1,6 @@
 version:1
 date:2026/10/21
+
 # clean up old/deprecated files
 remove:/home/pi/Desktop/_rnd80s.py
 remove:/var/www/html/youtube-dl.php
@@ -19,40 +20,40 @@ sync:test_settings.py->/home/pi/Desktop/test_settings.py
 sync:state_manager.py->/home/pi/Desktop/state_manager.py
 
 # web ui
-sync:webui/index.php->/var/www/html/index.php
-sync:webui/db_manage_extx.inc->/var/www/html/db_manage_extx.inc
-sync:webui/db_management_build.php->/var/www/html/db_management_build.php
-sync:webui/functions.php->/var/www/html/functions.php
-sync:webui/kill.sh->/var/www/html/kill.sh
-sync:webui/picker.php->/var/www/html/picker.php
-sync:webui/restart.sh->/var/www/html/restart.sh
-sync:webui/scheduler.php->/var/www/html/scheduler.php
-sync:webui/scheduler_backend.php->/var/www/html/scheduler_backend.php
-sync:webui/docs/settings.html->/var/www/html/docs/settings.html
-sync:webui/settings.class.inc->/var/www/html/settings.class.inc
-sync:webui/settings.php->/var/www/html/settings.php
-sync:webui/test_settings.php->/var/www/html/test_settings.php
-sync:webui/videoeditor.php->/var/www/html/videoeditor.php
-sync:webui/videostream.inc->/var/www/html/videostream.inc
-sync:webui/tv-player.html->/var/www/html/tv-player.html
-sync:webui/web-player.php->/var/www/html/web-player.php
+sync:html/index.php->/var/www/html/index.php
+sync:html/db_manage_extx.inc->/var/www/html/db_manage_extx.inc
+sync:html/db_management_build.php->/var/www/html/db_management_build.php
+sync:html/functions.php->/var/www/html/functions.php
+sync:html/kill.sh->/var/www/html/kill.sh
+sync:html/picker.php->/var/www/html/picker.php
+sync:html/restart.sh->/var/www/html/restart.sh
+sync:html/scheduler.php->/var/www/html/scheduler.php
+sync:html/scheduler_backend.php->/var/www/html/scheduler_backend.php
+sync:html/docs/settings.html->/var/www/html/docs/settings.html
+sync:html/settings.class.inc->/var/www/html/settings.class.inc
+sync:html/settings.php->/var/www/html/settings.php
+sync:html/test_settings.php->/var/www/html/test_settings.php
+sync:html/videoeditor.php->/var/www/html/videoeditor.php
+sync:html/videostream.inc->/var/www/html/videostream.inc
+sync:html/tv-player.html->/var/www/html/tv-player.html
+sync:html/web-player.php->/var/www/html/web-player.php
 
 # Manage cards
-sync:webui/manage/StationControl.php->/var/www/html/manage/StationControl.php
-sync:webui/manage/Channels.php->/var/www/html/manage/Channels.php
-sync:webui/manage/Database.php->/var/www/html/manage/Database.php
-sync:webui/manage/FilesSystem.php->/var/www/html/manage/FilesSystem.php
-sync:webui/manage/MountedDrivesManager.php->/var/www/html/manage/MountedDrivesManager.php
-sync:webui/manage/Plugins.php->/var/www/html/manage/Plugins.php
-sync:webui/manage/Programming.php->/var/www/html/manage/Programming.php
-sync:webui/manage/SystemUpdater.php->/var/www/html/manage/SystemUpdater.php
-sync:webui/manage/ThemeManager.php->/var/www/html/manage/ThemeManager.php
-sync:webui/manage/FlaggedCommercials.php->/var/www/html/manage/FlaggedCommercials.php
-sync:webui/manage/FlaggedVideos.php->/var/www/html/manage/FlaggedVideos.php
+sync:html/manage/StationControl.php->/var/www/html/manage/StationControl.php
+sync:html/manage/Channels.php->/var/www/html/manage/Channels.php
+sync:html/manage/Database.php->/var/www/html/manage/Database.php
+sync:html/manage/FilesSystem.php->/var/www/html/manage/FilesSystem.php
+sync:html/manage/MountedDrivesManager.php->/var/www/html/manage/MountedDrivesManager.php
+sync:html/manage/Plugins.php->/var/www/html/manage/Plugins.php
+sync:html/manage/Programming.php->/var/www/html/manage/Programming.php
+sync:html/manage/SystemUpdater.php->/var/www/html/manage/SystemUpdater.php
+sync:html/manage/ThemeManager.php->/var/www/html/manage/ThemeManager.php
+sync:html/manage/FlaggedCommercials.php->/var/www/html/manage/FlaggedCommercials.php
+sync:html/manage/FlaggedVideos.php->/var/www/html/manage/FlaggedVideos.php
 
 # Default Template Theme
-sync:webui/templates/source/modern/modern.php->/var/www/html/templates/modern.php
-sync:webui/templates/source/modern/modern.preview.png->/var/www/html/templates/modern.preview.png
+sync:html/templates/source/modern/modern.php->/var/www/html/templates/modern.php
+sync:html/templates/source/modern/modern.preview.png->/var/www/html/templates/modern.preview.png
 
 # Workers
 sync:workers/db_helper.inc->/var/www/html/workers/db_helper.inc
@@ -61,12 +62,12 @@ sync:workers/trim_by_days.php->/var/www/html/workers/trim_by_days.php
 sync:workers/trim_by_most_recent.php->/var/www/html/workers/trim_by_most_recent.php
 
 # Optional Template Themes Updates
-ifsync:webui/templates/source/windows/windows.php->/var/www/html/templates/windows.php
-ifsync:webui/templates/source/windows/windows.preview.png->/var/www/html/templates/windows.preview.png
-ifsync:webui/templates/source/broadcast/broadcast.php->/var/www/html/templates/broadcast.php
-ifsync:webui/templates/source/broadcast/broadcast.preview.png->/var/www/html/templates/broadcast.preview.png
-ifsync:webui/templates/source/niteowl/niteowl.php->/var/www/html/templates/niteowl.php
-ifsync:webui/templates/source/niteowl/niteowl.preview.png->/var/www/html/templates/niteowl.preview.png
+ifsync:html/templates/source/windows/windows.php->/var/www/html/templates/windows.php
+ifsync:html/templates/source/windows/windows.preview.png->/var/www/html/templates/windows.preview.png
+ifsync:html/templates/source/broadcast/broadcast.php->/var/www/html/templates/broadcast.php
+ifsync:html/templates/source/broadcast/broadcast.preview.png->/var/www/html/templates/broadcast.preview.png
+ifsync:html/templates/source/niteowl/niteowl.php->/var/www/html/templates/niteowl.php
+ifsync:html/templates/source/niteowl/niteowl.preview.png->/var/www/html/templates/niteowl.preview.png
 
 # Optional Plugin Updates
 ifsync:plugins/source/pip/picture-in-picture.py->/home/pi/Desktop/plugins/picture-in-picture.py
@@ -75,14 +76,14 @@ ifsync:plugins/source/radio/radio.plugin.html->/home/pi/Desktop/plugins/radio.pl
 ifsync:plugins/source/radio/radio.py->/var/www/html/docs/radio.py
 
 # Setup wizard files
-sync:webui/setup/complete.php->/var/www/html/setup/complete.php
-sync:webui/setup/index.php->/var/www/html/setup/index.php
-sync:webui/setup/reboot_helper.php->/var/www/html/setup/reboot_helper.php
-sync:webui/setup/step1.php->/var/www/html/setup/step1.php
-sync:webui/setup/step2.php->/var/www/html/setup/step2.php
-sync:webui/setup/step3.php->/var/www/html/setup/step3.php
-sync:webui/setup/step4.php->/var/www/html/setup/step4.php
-sync:webui/setup/step5.php->/var/www/html/setup/step5.php
+sync:html/setup/complete.php->/var/www/html/setup/complete.php
+sync:html/setup/index.php->/var/www/html/setup/index.php
+sync:html/setup/reboot_helper.php->/var/www/html/setup/reboot_helper.php
+sync:html/setup/step1.php->/var/www/html/setup/step1.php
+sync:html/setup/step2.php->/var/www/html/setup/step2.php
+sync:html/setup/step3.php->/var/www/html/setup/step3.php
+sync:html/setup/step4.php->/var/www/html/setup/step4.php
+sync:html/setup/step5.php->/var/www/html/setup/step5.php
 
 # Execute the migration via CLI PHP
 #run:php /var/www/html/migrate.php
