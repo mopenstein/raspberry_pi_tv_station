@@ -1,8 +1,12 @@
 version:1
-date:2026/10/20
+date:2026/10/21
 # clean up old/deprecated files
 remove:/home/pi/Desktop/_rnd80s.py
 remove:/var/www/html/youtube-dl.php
+remove:/var/www/html/workers/empty_commercials.php
+remove:/var/www/html/workers/empty_errors.php
+remove:/var/www/html/workers/empty_played.php
+remove:/var/www/html/workers/trim_played_by_most_recent.php
 
 # main script
 sync:_station.py->/home/pi/Desktop/_station.py
@@ -52,11 +56,9 @@ sync:webui/templates/source/modern/modern.preview.png->/var/www/html/templates/m
 
 # Workers
 sync:workers/db_helper.inc->/var/www/html/workers/db_helper.inc
-sync:workers/empty_commercials.php->/var/www/html/workers/empty_commercials.php
-sync:workers/empty_errors.php->/var/www/html/workers/empty_errors.php
-sync:workers/empty_played.php->/var/www/html/workers/mpty_played.php
-sync:workers/trim_by_days.php->/var/www/html/workers/trim_by_days.php-
-sync:workers/trim_played_by_most_recent.php->/var/www/html/workers/trim_played_by_most_recent.php
+sync:workers/empty.php->/var/www/html/workers/empty.php
+sync:workers/trim_by_days.php->/var/www/html/workers/trim_by_days.php
+sync:workers/trim_by_most_recent.php->/var/www/html/workers/trim_by_most_recent.php
 
 # Optional Template Themes Updates
 ifsync:webui/templates/source/windows/windows.php->/var/www/html/templates/windows.php
