@@ -57,10 +57,10 @@ sync:html/templates/source/modern/modern.php->/var/www/html/templates/modern.php
 sync:html/templates/source/modern/modern.preview.png->/var/www/html/templates/modern.preview.png
 
 # Workers
-sync:workers/db_helper.inc->/var/www/html/workers/db_helper.inc
-sync:workers/empty.php->/var/www/html/workers/empty.php
-sync:workers/trim_by_days.php->/var/www/html/workers/trim_by_days.php
-sync:workers/trim_by_most_recent.php->/var/www/html/workers/trim_by_most_recent.php
+sync:html/workers/db_helper.inc->/var/www/html/workers/db_helper.inc
+sync:html/workers/empty.php->/var/www/html/workers/empty.php
+sync:html/workers/trim_by_days.php->/var/www/html/workers/trim_by_days.php
+sync:html/workers/trim_by_most_recent.php->/var/www/html/workers/trim_by_most_recent.php
 
 # Optional Template Themes Updates
 ifsync:html/templates/source/windows/windows.php->/var/www/html/templates/windows.php
