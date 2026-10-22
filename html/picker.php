@@ -35,16 +35,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $updatedBlock = $trimmed . $separator . '"' . addcslashes($category, '"\\') . '": "' . $hexColor . '" ';
                 }
 
+                // Inject the updated block back into the raw text
                 $newRaw = preg_replace($pattern, '${1}' . $updatedBlock . '${3}', $raw, 1);
 
-                if (@file_put_contents($settingsPath, $newRaw) !== false) {
-                    $label = ($mode === 'commercial') ? 'Commercial Category' : 'Show Category';
-                    $message = "Updated {$label} '{$category}' to #{$hexColor}";
-                    $messageClass = 'success';
+                // --- NEW API SAVE LOGIC ---
+                $postData = http_build_query([
+                    'api_save' => 1,
+                    'payload'  => $newRaw
+                ]);
+
+                $options = [
+                    'http' => [
+                        'method'  => 'POST',
+                        'header'  => "Content-type: application/x-www-form-urlencoded\r\n",
+                        'content' => $postData,
+                        'timeout' => 5
+                    ]
+                ];
+                $context = stream_context_create($options);
+
+                $response_raw = @file_get_contents('http://127.0.0.1/settings.php', false, $context);
+
+                if ($response_raw !== false) {
+                    $response = json_decode($response_raw, true);
+                    if ($response && isset($response['success']) && $response['success'] === true) {
+                        $label = ($mode === 'commercial') ? 'Commercial Category' : 'Show Category';
+                        $message = "Updated {$label} '{$category}' to #{$hexColor}";
+                        $messageClass = 'success';
+                    } else {
+                        $errorMsg = $response['error'] ?? 'Unknown API error.';
+                        $message = "API Error: " . $errorMsg;
+                        $messageClass = 'error';
+                    }
                 } else {
-                    $message = "Error: Unable to write to {$settingsPath}. Check file permissions.";
+                    $message = "Error: Could not connect to local settings.php API.";
                     $messageClass = 'error';
                 }
+                // --- END API SAVE LOGIC ---
+
             } else {
                 $message = "Error: Could not locate '{$blockKey}' block in settings.json.";
                 $messageClass = 'error';

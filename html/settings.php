@@ -12,18 +12,17 @@ function validateJsonReferences(string $jsonString): array {
     }
 
     $errors = [];
-    $vars = $data['vars'] ?? [];
+    $vars =$data['vars'] ?? [];
 
-    $getPositionData = function($search, $content) {
-        $pos = strpos($content, '"' . $search . '"'); 
+    $getPositionData = function($search, $content) {$pos = strpos($content, '"' . $search . '"'); 
         if ($pos === false) return null;
         
-        $targetPos = $pos + 1;
-        $before = substr($content, 0, $targetPos);
+        $targetPos =$pos + 1;
+        $before = substr($content, 0,$targetPos);
         $line = substr_count($before, "\n") + 1;
         
         $lastNewline = strrpos($before, "\n");
-        $column = ($lastNewline === false) ? ($targetPos + 1) : ($targetPos - $lastNewline);
+        $column = ($lastNewline === false) ? ($targetPos + 1) : ($targetPos -$lastNewline);
         
         return [
             'line' => $line,
@@ -105,23 +104,30 @@ function ensure_permissions($file) {
     }
 }
 
-// Helper: create rotating backup
-function create_backup($settings_file, $backup_dir,$base_name) {
+// Helper: create rotating gzipped backup
+function create_backup($settings_file, $backup_dir, $base_name) {
     if (file_exists($settings_file)) {
         if (!is_dir($backup_dir)) {
             mkdir($backup_dir, 0777, true);
-            @chown($backup_dir, 'pi');
-            @chgrp($backup_dir, 'pi');
+            $safe_dir = escapeshellarg(rtrim($backup_dir, '/'));
+            // Force pi ownership
+            shell_exec('sudo /bin/chown pi:pi ' . $safe_dir);
+            // Force write access for www-data and the pi group
+            shell_exec('sudo /bin/chmod 777 ' . $safe_dir);
         }
         $timestamp = date('Ymd_His');
-        $backup_file =$backup_dir . '/' . $base_name . '.bak_' .$timestamp;
-        copy($settings_file,$backup_file);
+        // Add .gz extension
+        $backup_file = $backup_dir . '/' . $base_name . '.bak_' . $timestamp . '.gz';
+        
+        // Encode the backup with max compression (9)
+        file_put_contents($backup_file, gzencode(file_get_contents($settings_file), 9));
         ensure_permissions($backup_file);
 
-        $backups = glob($backup_dir . '/' .$base_name . '.bak_*');
-        usort($backups, function($a,$b) { return filemtime($b) - filemtime($a); });
-        if (count($backups) > 10) {
-            foreach (array_slice($backups, 10) as $old) unlink($old);
+        // Glob only for the new gzipped backups and keep the last 40
+        $backups = glob($backup_dir . '/' . $base_name . '.bak_*.gz');
+        usort($backups, function($a, $b) { return filemtime($b) - filemtime($a); });
+        if (count($backups) > 40) {
+            foreach (array_slice($backups, 40) as $old) unlink($old);
         }
     }
 }
@@ -131,7 +137,8 @@ if (isset($_GET['action']) &&$_GET['action'] === 'preview_backup' && !empty($_GE
 
     if (file_exists($full_backup_path) && strpos($requested_file,$base_name . '.bak_') === 0) {
         header('Content-Type: text/plain; charset=UTF-8');
-        echo file_get_contents($full_backup_path);
+        // Decode before echoing to the preview modal
+        echo gzdecode(file_get_contents($full_backup_path));
         exit;
     } else {
         http_response_code(404);
@@ -163,7 +170,8 @@ if (isset($_POST["restore_server_backup"]) && !empty($_POST["backup_filename"]))
     $full_backup_path = $backup_dir . '/' .$requested_file;
 
     if (file_exists($full_backup_path) && strpos($requested_file,$base_name . '.bak_') === 0) {
-        $content = file_get_contents($full_backup_path);
+        // Decode the gzip file back into a raw JSON string
+        $content = gzdecode(file_get_contents($full_backup_path));
         $val = json_validator($content);
         if ($val[0]) {
             create_backup($settings_file, $backup_dir,$base_name);
@@ -226,8 +234,33 @@ if (isset($_POST["settings"]) && isset($_POST["save"])) {
     }
 }
 
-// Gather server backups for UI
-$server_backups = glob($backup_dir . '/' .$base_name . '.bak_*');
+// 5. Headless API Endpoint for External Scripts (Manage Cards, Pickers, etc.)
+if (isset($_POST["api_save"]) && isset($_POST["payload"])) {
+    header('Content-Type: application/json');
+    $raw_json =$_POST["payload"];
+    $json_valid = json_validator($raw_json);
+    
+    if (!$json_valid[0]) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "error" => "JSON Syntax Error: " . $json_valid[1]]);
+        exit;
+    }
+
+    create_backup($settings_file, $backup_dir,$base_name);
+
+    if (file_put_contents($settings_file,$raw_json, LOCK_EX) !== false) {
+        ensure_permissions($settings_file);
+        echo json_encode(["success" => true, "message" => "Settings saved and backed up."]);
+        exit;
+    } else {
+        http_response_code(500);
+        echo json_encode(["success" => false, "error" => "Fatal Error: Could not write to disk."]);
+        exit;
+    }
+}
+
+// Gather server backups for UI (now looking for .gz files)
+$server_backups = glob($backup_dir . '/' .$base_name . '.bak_*.gz');
 usort($server_backups, function($a,$b) { return filemtime($b) - filemtime($a); });
 
 $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "{}";
@@ -510,7 +543,7 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
     </form>
 
     <div style="margin-top: 10px; font-size: 11px; color: #666; font-style: italic;">
-        * Rotating backups are preserved automatically (up to 10 stored locally).
+        * Rotating backups are compressed and preserved automatically (up to 40 stored locally).
     </div>
 
     <!-- Backup & Restore Modal -->
@@ -537,7 +570,7 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($server_backups as $file):$mtime = filemtime($file);$formatted_date = date("M j, Y — H:i:s", $mtime);
+                            <?php foreach ($server_backups as $file): $mtime = filemtime($file); $formatted_date = date("M j, Y — H:i:s", $mtime);
                                 $filename = basename($file);
                                 $size = round(filesize($file) / 1024, 2) . ' KB';
                             ?>
@@ -560,7 +593,7 @@ $json_data = file_exists($settings_file) ? file_get_contents($settings_file) : "
                     </table>
 
                     <div class="mobile-backup-cards">
-                        <?php foreach ($server_backups as $file):$mtime = filemtime($file);$formatted_date = date("M j, Y — H:i:s", $mtime);
+                        <?php foreach ($server_backups as $file): $mtime = filemtime($file); $formatted_date = date("M j, Y — H:i:s", $mtime);
                             $filename = basename($file);
                             $size = round(filesize($file) / 1024, 2) . ' KB';
                         ?>
