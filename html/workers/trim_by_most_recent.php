@@ -64,7 +64,8 @@
 
         $folderPattern =$folder . "/%";
         
-        // Use the dynamic $keepCount in the LIMIT clause$latestSql = "SELECT id FROM `$targetTable` WHERE name LIKE ? ORDER BY played DESC LIMIT " . $keepCount;
+        // Use the dynamic $keepCount in the LIMIT clause
+        $latestSql = "SELECT id FROM `$targetTable` WHERE name LIKE ? ORDER BY played DESC LIMIT " . $keepCount;
         $stmt = $mysqli->prepare($latestSql);
         $stmt->bind_param("s", $folderPattern);
         $stmt->execute();$res = $stmt->get_result();$keepIds = [];
