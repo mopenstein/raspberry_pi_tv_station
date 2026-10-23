@@ -2567,7 +2567,7 @@ def resolve_video_by_type(schedule, folders):
 
 	:param schedule: The programming schedule.
 	:param folders: List of folder paths.
-	Returns a list of video paths or None if unrecoverable.
+	:return: A list of video paths or None if unrecoverable.
 	"""
 	global error_channel_set, channel_name_static
 
@@ -2733,7 +2733,7 @@ def prepare_commercials_and_bumpers(source, schedule):
 
 	:param source: The source video file path.
 	:param schedule: The programming schedule entry.
-	Returns a tuple: (commercials_per_break, pregenerated_commercials_list, bumpers)
+	:return: tuple containing (commercials_per_break, pregenerated_commercials_list, bumpers)
 	"""
 	global current_video_tag
 	global LAST_PROGRAMMING_SCHEDULE
@@ -2842,14 +2842,46 @@ def prepare_commercials_and_bumpers(source, schedule):
 	printd("Fixed commercial count mode. Count:", settings['commercials_per_break'])
 	return (int(settings['commercials_per_break']), None, None)
 
-def onStartup():
-	"""Performs startup tasks such as reporting that the script is running."""
+import threading
 
+def _run_startup_workers(worker_list):
+	"""
+	Helper function to execute PHP workers in the background.
+
+	:param worker_list: List of worker paths to execute.
+	:return: None
+	"""
+	for worker in worker_list:
+		worker_path = ensure_string(worker)	 
+		full_url = "http://127.0.0.1/" + worker_path		
+		response = open_url(full_url)
+
+		if response:
+			clean_res = ensure_string(response)		 
+			parts = clean_res.split('|', 1)
+			
+			status = parts[0]
+			message = parts[1] if len(parts) > 1 else "No message provided"
+
+			if status == "1":
+				printd("WORKER_SUCCESS", [worker_path, message])
+			else:
+				report_error("WORKER_FAIL", [worker_path, message])
+		else:
+			report_error("WORKER_TIMEOUT", [worker_path, "No response from local server"])
+
+def onStartup():
+	"""
+		Performs startup tasks such as reporting that the script is running.
+		:return: None
+	"""
+
+	report_error("STARTUP", ["Script is now running!", "Script Version: " + ensure_string(SCRIPT_VERSION), "Settings version: " + ensure_string(SETTINGS_VERSION)])
+	
 	# Wait up to 30 seconds for the web server to accept HTTP requests on boot
 	server_ready = False
 	for _ in range(30):
 		try:
-			# Query an endpoint or check if the server is returning actual data
 			res = urllib2.urlopen("http://127.0.0.1/?get_last_played=1", timeout=2)
 			if res.getcode() == 200:
 				server_ready = True
@@ -2858,38 +2890,16 @@ def onStartup():
 			sleep(1)
 
 	if not server_ready:
-		print("Failed to connect to web server after 30 seconds.")
-
-	report_error("STARTUP", ["Script is now running!", "Script Version: " + ensure_string(SCRIPT_VERSION), "Settings version: " + ensure_string(SETTINGS_VERSION)])
+		report_error("STARTUP", ["Failed to connect to web server after 30 seconds."])  
+		return # Skip workers if the web server isn't responding
 
 	# 1. Safely grab the list of workers from settings.json
 	worker_list = get_setting(['workers'], default=[], force_type=list)
-	# 2. Iterate and trigger each PHP maintenance script
-	for worker in worker_list:
-		# Clean the worker path/string
-		worker_path = ensure_string(worker)		
-		# Construct the full local URL
-		full_url = "http://127.0.0.1/" + worker_path		
-		# Trigger the PHP worker
-		response = open_url(full_url)
-
-		if response:
-			# Ensure it's a string
-			clean_res = ensure_string(response)			
-			# Split the "1|Message" into ['1', 'Message']
-			parts = clean_res.split('|', 1)
-			
-			status = parts[0]
-			message = parts[1] if len(parts) > 1 else "No message provided"
-
-			if status == "1":
-				# Log success - maybe print to console or a startup file
-				printd("WORKER_SUCCESS", [worker_path, message])
-			else:
-				# Log error - report_error would be useful here
-				report_error("WORKER_FAIL", [worker_path, message])
-		else:
-			report_error("WORKER_TIMEOUT", [worker_path, "No response from local server"])
+	
+	# 2. Fire off the workers in a non-blocking background thread
+	if worker_list:
+		worker_thread = threading.Thread(target=_run_startup_workers, args=(worker_list,))
+		worker_thread.start()
 
 onStartup() # Call the onStartup function to report that the script has started
 
