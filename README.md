@@ -1,6 +1,6 @@
 # Retro TV Station: Automated Broadcast Emulator
 
-This project consists of a suite of Python 2 and PHP scripts designed to emulate and automate a fully functional broadcast TV station. It is optimized for the Raspberry Pi 3B+, utilizing the 3.5mm A/V output to provide an authentic analog signal for CRT televisions.
+This project consists of a suite of Python 2 and PHP scripts designed to emulate and automate a fully functional broadcast TV station. It is optimized for the Raspberry Pi 2B, 3B, and 3B+, utilizing the 3.5mm A/V output to provide an authentic analog signal for CRT televisions.
 
 This system reproduces the experience of vintage television by injecting period-accurate commercials and bumpers into programming at precise, pre-defined intervals.
 
